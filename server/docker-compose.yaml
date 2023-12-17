@@ -1,0 +1,7 @@
+services:
+  db:
+    image: mongo:7.0.4
+    ports:
+      - '27017:27017'
+    volumes:
+      - /home/sepveneto/mongodb:/data/db
