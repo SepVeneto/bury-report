@@ -14,3 +14,5 @@ services:
     volumes:
       - /home/sepveneto/mongodb:/data/db
       - ./scripts/db:/docker-entrypoint-initdb.d
+    environment:
+      - REPORT_DB_URL=127.0.0.1:27017

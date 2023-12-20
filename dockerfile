@@ -2,9 +2,13 @@ FROM rust:1.74.1 as build-sign
 
 WORKDIR /app
 
-COPY ./packages/sign/* .
+COPY ./packages/sign ./packages/sign
 
-RUN cargo install wasm-pack && wasm-pack build --target nodejs
+RUN cargo install wasm-pack
+
+WORKDIR /app/packages/sign
+
+RUN wasm-pack build --target nodejs
 
 FROM node:16.14.2 as server
 
