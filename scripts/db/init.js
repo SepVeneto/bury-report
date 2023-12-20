@@ -6,8 +6,9 @@
 use('reporter');
 
 // Create a new collection.
-db.createCollection('logs');
+db.createCollection('logs')
 db.createCollection('users')
+db.createCollection('apps')
 
 // The prototype form to create a collection:
 /* db.createCollection( <name>,
