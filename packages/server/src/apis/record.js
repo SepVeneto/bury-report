@@ -4,7 +4,11 @@ const db = require('../db')
 const { ObjectId } = require('mongodb')
 
 router.post('/record', async (ctx, next) => {
-  const { appid, ...params } = ctx.request.body
+  let body = ctx.request.body
+  if (typeof body === 'string') {
+    body = JSON.parse(body)
+  }
+  const { appid, ...params } = body
   if (!appid) {
     await next()
     ctx.body.code = 1
@@ -14,8 +18,8 @@ router.post('/record', async (ctx, next) => {
   const app = await db.collection('apps').findOne({ _id: new ObjectId(appid) })
 
   const logs = db.collection('logs')
-  const params = ctx.request.body
-  await logs.insertOne(params)
+  const data = ctx.request.body
+  await logs.insertOne(body)
   await next()
 })
 
