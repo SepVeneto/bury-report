@@ -6,13 +6,15 @@ services:
       - 8878:8878
     depends_on:
       - db
+    links:
+      - db
+    environment:
+      - REPORT_DB_URL=db:27017
   db:
     container_name: report-db
     image: mongo:7.0.4
     ports:
       - '27017:27017'
     volumes:
-      - /home/sepveneto/mongodb:/data/db
+      - /root/mongodb:/data/db
       - ./scripts/db:/docker-entrypoint-initdb.d
-    environment:
-      - REPORT_DB_URL=127.0.0.1:27017
