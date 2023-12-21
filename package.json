@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "bootstrap": "pnpm -C packages/server bootstrap && pnpm -C packages/core bootstrap",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
