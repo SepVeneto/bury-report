@@ -1,14 +1,14 @@
-FROM rust:1.74.1 as build-sign
+# FROM rust:1.74.1 as build-sign
 
-WORKDIR /app
+# WORKDIR /app
 
-COPY ./packages/sign ./packages/sign
+# COPY ./packages/sign ./packages/sign
 
-RUN cargo install wasm-pack
+# RUN cargo install wasm-pack
 
-WORKDIR /app/packages/sign
+# WORKDIR /app/packages/sign
 
-RUN wasm-pack build --target nodejs
+# RUN wasm-pack build --target nodejs
 
 FROM node:16.14.2 as server
 
@@ -16,7 +16,7 @@ WORKDIR /app
 
 COPY ./pnpm-* ./package.json ./
 COPY ./packages/server/package.json ./packages/server/package.json
-COPY --from=build-sign /app/packages/sign/pkg ./packages/sign/pkg
+# COPY --from=build-sign /app/packages/sign/pkg ./packages/sign/pkg
 
 RUN npm i -g pnpm && pnpm i
 

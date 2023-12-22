@@ -3,6 +3,7 @@
     "target": "es2017",
     "lib": ["esnext", "DOM"],
     "module": "esnext",
+    "types": ["@dcloudio/types"],
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "strict": true,
