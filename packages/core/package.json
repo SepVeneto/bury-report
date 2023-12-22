@@ -1,10 +1,11 @@
 {
   "name": "@sepveneto/report-core",
-  "version": "0.0.3",
+  "version": "0.0.10",
   "description": "",
   "type": "module",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "bootstrap": "wasm-pack build ../sign --target no-modules --out-dir ../sign/pkg-client --mode no-install --scope client",
     "build": "tsup",
@@ -35,6 +36,9 @@
     },
     "./*": "./*"
   },
+  "dependencies": {
+    "unplugin": "^1.5.1"
+  },
   "devDependencies": {
     "@dcloudio/types": "^3.4.3",
     "@sepveneto/eslint-config": "^0.9.1",
@@ -48,7 +52,6 @@
     "rollup": "^4.9.1",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
-    "unplugin": "^1.5.1",
     "vite": "^5.0.10",
     "vitest": "^1.1.0",
     "webpack": "^5.89.0"
