@@ -1,0 +1,9 @@
+:root {
+  --topbar-height: 50px;
+  --sidebar-width: 240px;
+  --layout-outer-background: rgb(240,242,245);
+  --layout-inner-background: #fff;
+  --layout-outer-padding: 10px;
+  --layout-inner-padding: 20px;
+  --breadcrumb-height: 56px;
+}
