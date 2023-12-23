@@ -9,6 +9,12 @@ use('reporter');
 db.createCollection('logs')
 db.createCollection('users')
 db.createCollection('apps')
+db.createCollection('captcha', {
+  timeseries: {
+    timeField: 'createTime',
+  },
+  expireAfterSeconds: 10 * 60
+})
 
 // The prototype form to create a collection:
 /* db.createCollection( <name>,
