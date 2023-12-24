@@ -18,3 +18,4 @@ services:
     volumes:
       - /root/mongodb:/data/db
       - ./scripts/db:/docker-entrypoint-initdb.d
+      - ./packages/server/mongod.conf:/etc/mongod.conf
