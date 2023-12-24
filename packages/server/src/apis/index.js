@@ -9,7 +9,7 @@ const record = require('./record')
 
 const router = new Router()
 
-const whiteList = ['/login', '/register', '/record']
+const whiteList = ['/login', '/register', '/record', '/captcha']
 
 router.use(async (ctx, next) => {
   if (whiteList.includes(ctx.url)) {
