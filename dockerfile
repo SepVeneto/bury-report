@@ -26,4 +26,4 @@ WORKDIR /app/packages/server
 
 EXPOSE 8878
 
-CMD ["pnpm", "dev"]
+CMD ["node", "./src/main.js"]
