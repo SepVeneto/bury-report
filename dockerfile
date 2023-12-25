@@ -14,7 +14,7 @@ FROM node:16.14.2 as server
 
 WORKDIR /app
 
-COPY ./pnpm-* ./package.json ./
+COPY ./.npmrc ./pnpm-* ./package.json ./
 COPY ./packages/server/package.json ./packages/server/package.json
 # COPY --from=build-sign /app/packages/sign/pkg ./packages/sign/pkg
 
