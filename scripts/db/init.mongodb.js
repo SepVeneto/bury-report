@@ -10,6 +10,7 @@ db.createCollection('logs')
 db.createCollection('users')
 db.createCollection('apps')
 db.createCollection('captcha')
+db.createCollection('projects')
 
 db.captcha.createIndex({ 'createTime': 1 }, { expireAfterSeconds: 10 * 60 })
 

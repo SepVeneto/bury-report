@@ -1,8 +1,10 @@
 {
-  "name": "@sepveneto/jigsaw-captcha",
+  "name": "@jigsaw/captcha",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "scripts": {
     "dev": "tsup --watch lib",
     "play": "pnpm -C playground dev",
@@ -10,5 +12,5 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC"
+  "license": "MIT"
 }

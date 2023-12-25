@@ -89,10 +89,15 @@ function onDragEnd() {
 
   blockStyle.value.transform.replace(/(\d*.?\d*)px/, (all, $1) => {
     const offset = $1
-    emit('finish', offset)
+    emit('finish', parseFloat(offset))
     return all
   })
 }
+function reset() {
+  offset.value = 0
+}
+
+defineExpose({ reset })
 </script>
 
 <style lang="scss" scoped>

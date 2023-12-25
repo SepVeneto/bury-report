@@ -6,7 +6,7 @@
         class="sidebar"
       >
         <Sidebar
-          split-menu
+          :split-menu="false"
           :menus="menuList"
           :active-menu="activeMenu"
           :active-sub-menu="activeSubMenu"

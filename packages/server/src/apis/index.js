@@ -6,6 +6,7 @@ const { SECRET } = require('../utils')
 const app = require('./app')
 const auth = require('./auth')
 const record = require('./record')
+const project = require('./project')
 
 const router = new Router()
 
@@ -43,6 +44,7 @@ router.use(async (ctx, next) => {
 router.use(app.routes())
 router.use(auth.routes())
 router.use(record.routes())
+router.use(project.routes())
 
 router.use((ctx) => {
   ctx.body = {

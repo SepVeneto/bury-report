@@ -8,7 +8,7 @@ import type { AxiosRequestConfig, AxiosResponse } from 'axios'
 
 interface Response<T = any> {
   code: number;
-  msg: string;
+  message: string;
   data: T;
 }
 
@@ -21,7 +21,7 @@ const inst = axios.create({
 
 export const requestInspector = (config: AxiosRequestConfig<any>) => {
   NProgress.start()
-  config.data = sign(config.data)
+  // config.data = sign(config.data)
   const token = localStorage.getItem('token')
   if (!token) {
     // window.location.href = '#/login'
@@ -42,7 +42,7 @@ export const responseInspector = async (response: AxiosResponse<Response>) => {
       response.data = JSON.parse(await res.text())
     }
   }
-  const { code, msg } = response.data
+  const { code, message } = response.data
   if (code === 4) {
     const redirect = window.location.hash.replace('#', '')
     if (!isRedirect) {
@@ -51,8 +51,8 @@ export const responseInspector = async (response: AxiosResponse<Response>) => {
     }
   }
   if (code && code !== 0) {
-    ElNotification.error(msg)
-    return Promise.reject(msg)
+    ElNotification.error(message)
+    return Promise.reject(message)
   }
   return response
 }
@@ -90,13 +90,13 @@ export async function request(
   if (res.data instanceof Blob) {
     const disposition = res.headers['content-disposition']
     const filename = decodeURIComponent(
-        escape(
-          disposition.substring(
-            disposition.indexOf('filename=') + 9,
-            disposition.length,
-          ),
+      escape(
+        disposition.substring(
+          disposition.indexOf('filename=') + 9,
+          disposition.length,
         ),
-      )
+      ),
+    )
     try {
       fileDownload(res.data, config.filename || filename)
     } catch (e) {
@@ -106,7 +106,7 @@ export async function request(
   }
 
   if (needTip) {
-    ElMessage.success(typeof needTip === 'string' ? needTip : res.data.msg)
+    ElMessage.success(typeof needTip === 'string' ? needTip : res.data.message)
   }
   if (typeof config.raw === 'string') {
     return res[config.raw]

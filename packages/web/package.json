@@ -9,6 +9,7 @@
     "format": "prettier --write **/*.vue **/*.ts **/*.js"
   },
   "dependencies": {
+    "@jigsaw/captcha": "workspace: *",
     "@element-plus/icons-vue": "^2.1.0",
     "@rx-frontend/php-sign": "^0.3.2",
     "@sepveneto/basic-comp": "^0.8.2",

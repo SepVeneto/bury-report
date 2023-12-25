@@ -4,7 +4,7 @@ export default<Options> {
   entry: [
     "lib/*.ts",
   ],
-  format: 'iife',
+  format: ['cjs', 'esm'],
   clean: true,
   dts: true,
 }

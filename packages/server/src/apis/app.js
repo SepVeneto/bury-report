@@ -4,15 +4,41 @@ const db = require('../db')
 const { ObjectId } = require('mongodb')
 const md5 = require('md5')
 const { SECRET } = require('../utils')
+const { normalize } = require('../utils')
 
 router.get('/app/list', async (ctx, next) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const apps = db.collection('apps')
 
-  const total = await db.collection('apps').countDocuments(query)
+  const _query = normalize(query) || {}
+  // const total = await db.collection('apps').countDocuments(_query)
   const offset = (page - 1) * size
-  const list = await apps.find(query).skip(offset).limit(Number(size)).toArray()
-  ctx.body = { total, list }
+  const res = await apps.aggregate([
+    {
+      $match: _query,
+    },
+    { $facet: {
+      total: [{ $count: 'total' }],
+      list: [{ $skip: offset }, { $limit: Number(size) }]
+    }},
+  ]).toArray()
+  ctx.body = {
+    total: res[0].total[0].total,
+    list: res[0].list.map(item => {
+      const { _id,...record } = item
+      return {
+        id: _id,
+      ...record,
+      }
+    })
+  }
+  // ctx.body = { total, list: list.map(item => {
+  //   const { _id, ...record } = item
+  //   return {
+  //     id: _id,
+  //     ...record,
+  //   }
+  // }) }
 
   await next()
 })

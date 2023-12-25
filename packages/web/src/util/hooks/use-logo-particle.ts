@@ -11,7 +11,7 @@ export function useLogoParticle(canvasRef: Ref<HTMLCanvasElement | undefined>) {
     const particle = await stage.loadImage('/favicon.png', {
       width: 380,
       x: document.body.offsetWidth / 2,
-      y: 200,
+      y: 150,
       imgGap: 10,
       particleSize: 5,
       color: 0xffffff,

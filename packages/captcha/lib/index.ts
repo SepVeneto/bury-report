@@ -1,126 +1,99 @@
-const canvas = document.createElement('canvas')
-const block = document.createElement('canvas')
-const R = 9
-const L = 42
+import { Bar } from './Bar'
 
-canvas.width = 310
-canvas.height = 155 
-block.width = canvas.width
-block.height = canvas.height
-
-const ctx = canvas.getContext('2d')
-const blockCtx = block.getContext('2d')
-
-if (!ctx) throw new Error('Can not create ctx')
-if (!blockCtx) throw new Error('Can not create block')
-
-const image = new Image(canvas.width, canvas.height)
-image.src = './976-310x155.jpg'
-image.onload = () => {
-  const x = 150
-  const y = 50
-
-  drawSlot(ctx, x, y)
-  ctx.fill()
-  drawSlot(blockCtx, x, y)
-  blockCtx.clip()
-
-  ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
-  blockCtx.drawImage(image, 0, 0, canvas.width, canvas.height)
-
-  const imageData = blockCtx.getImageData(x, 0, L + L / 2, block.height)
-  block.width = L + L / 2
-  blockCtx.putImageData(imageData, 0, 0)
+type FunCallback<T> = (result: T) => void
+type Options = {
+  width: number
+  height: number
+  background: string,
+  block: string,
+  onFinish: FunCallback<number>,
 }
+export class Jigsaw {
+  private wrapper: HTMLElement
+  private backgroundImgUrl: string
+  private blockImgUrl: string
+  private onFinish: Options['onFinish']
+  private width: number
+  private height: number
+  private bar: Bar
+  private startPos: { x: number, y: number }
+  private blockImg: HTMLImageElement
+  constructor(options: Options) {
+    const { background, block, onFinish, width = 310, height = 155 } = options
+    this.width = width
+    this.height = height
+    this.backgroundImgUrl = background
+    this.blockImgUrl = block
+    this.onFinish = onFinish
+    this.bar = new Bar(this.width, 40)
+    this.bar.elmBar.addEventListener('mousedown', this.onDragStart)
+    
+  }
+  async createWrapper() {
+    const wrapper = document.createElement('div')
+    wrapper.style.position = 'relative'
+    const backgroundImg = await this.loadImage(this.backgroundImgUrl)
+    const blockImg = await this.loadImage(this.blockImgUrl)
+    blockImg.style.position = 'absolute'
+    blockImg.style.top = '0'
+    blockImg.style.left = '0'
 
-const wrapper = document.createElement('div')
-wrapper.style.position = 'relative'
-block.style.position = 'absolute'
-block.style.top = '0'
-block.style.left = '0'
-wrapper.appendChild(canvas)
-wrapper.appendChild(block)
+    this.blockImg = blockImg
 
-document.body.appendChild(wrapper)
+    wrapper.appendChild(backgroundImg)
+    wrapper.appendChild(blockImg)
 
-renderBar()
+    this.wrapper = wrapper
+  }
+  async render(elm: string | HTMLElement) {
+    let node: HTMLElement
+    if (typeof elm === 'string') {
+      node = document.querySelector(elm)
+    } else {
+      node = elm
+    }
+    if (!node) {
+      throw new Error(`[captcha] cannot find element ${elm}`)
+    }
+    await this.createWrapper()
+    node.appendChild(this.wrapper)
+    this.bar.render(node)
+  }
+  private loadImage(url: string): Promise<HTMLImageElement> {
+    const image = new Image()
+    image.src = url
+    return new Promise((resolve, reject) => {
+      image.onload = () => { resolve(image) }
+      image.onerror = reject
+    })
+  }
 
-function drawSlot(ctx: CanvasRenderingContext2D, x: number, y: number) {
-  ctx.beginPath()
+  onDragStart(evt: MouseEvent) {
+    this.startPos = { x: evt.clientX, y: evt.clientY }
+    console.log('add')
+    document.addEventListener('mousemove', this.onDragMove)
+    document.addEventListener('mouseup', this.onDragEnd)
+  }
+  onDragMove(evt: MouseEvent) {
+    console.log('mvoe')
+    const len = this.width - this.width
+    const wrapLen = this.width - parseFloat(this.bar.elmSlider.style.width)
+    const x = Math.min(Math.max(evt.clientX - this.startPos.x, 0), wrapLen)
+    const per = x / wrapLen
+    this.blockImg.style.transform = `translateX(${len * per}px)`
+    this.bar.elmSlider.style.transform = `translateX(${x}px)`
+    this.bar.elmMask.style.transform = `translateX(${x}px)`
+  }
+  onDragEnd() {
+    console.log('remove')
+    document.removeEventListener('mousemove', this.onDragMove)
+    document.removeEventListener('mouseup', this.onDragEnd)
 
-  ctx.moveTo(x, y)
-  ctx.arc(x + L / 2, y - R + 2, R, 0.72 * Math.PI, 2.26 * Math.PI)
-  ctx.lineTo(x + L, y)
-  ctx.arc(x + L + R - 2, y + L / 2, R, 1.21 * Math.PI, 2.78 * Math.PI)
-  ctx.lineTo(x + L, y + L)
-  ctx.lineTo(x, y + L)
-  ctx.arc(x + R - 2, y + L / 2, R + 0.4, 2.76 * Math.PI, 1.24 * Math.PI, true)
-  ctx.lineTo(x, y)
-  ctx.lineWidth = 2
-  const color = 'rgba(255,255,255,0.7)'
-  ctx.fillStyle = color
-  ctx.strokeStyle = color
-  ctx.stroke()
-  ctx.globalCompositeOperation = 'destination-over'
-}
+    this.blockImg.style.transform.replace(/(\d*.?\d*)px/, (all, $1) => {
+      const offset = $1
+      this.onFinish(offset)
+      return all
+    })
+  }
 
-let slider: HTMLElement
-let mask: HTMLElement
-function renderBar() {
-  const bar = document.createElement('div')
-  bar.style.width = `${canvas.width}px`
-  bar.style.height = '40px'
-  bar.style.textAlign = 'center'
-  bar.style.lineHeight = bar.style.height
-  bar.style.backgroundColor = '#f7f9fa'
-  bar.style.border = '1px solid #e4e7eb'
-  bar.style.position = 'relative'
-  bar.style.userSelect = 'none'
-  bar.style.overflow = 'hidden'
-  const text = document.createElement('span')
-  text.innerText = '向右滑动填充拼图'
-  mask = document.createElement('div')
-  mask.style.height = '100%'
-  mask.style.width = '100%'
-  mask.style.position = 'absolute'
-  mask.style.top = '0'
-  mask.style.left = '-100%'
-  mask.style.backgroundColor = '#67C23A'
-
-  slider = document.createElement('div')
-  slider.style.width = '40px'
-  slider.style.height = bar.style.height
-  slider.style.boxShadow = '0 0 3px rgba(0, 0, 0, 0.3)'
-  slider.style.backgroundColor = '#fff'
-  slider.style.position = 'absolute'
-  slider.style.top = '0'
-  slider.style.left = '0'
-
-  bar.appendChild(text)
-  bar.appendChild(slider)
-  bar.appendChild(mask)
-
-  document.body.appendChild(bar)
-
-  bar.addEventListener('mousedown', onDragStart)
-}
-
-let start = { x: 0, y: 0 }
-function onDragStart(evt: MouseEvent) {
-  start = { x: evt.clientX, y: evt.clientY }
-  document.addEventListener('mousemove', onDragMove)
-  document.addEventListener('mouseup', onDragEnd)
-}
-function onDragMove(evt: MouseEvent) {
-  const len = canvas.width - block.width
-  const wrapLen = canvas.width - parseFloat(slider.style.width)
-  const x = Math.min(Math.max(evt.clientX - start.x, 0), wrapLen)
-  const per = x / wrapLen
-  block.style.transform = `translateX(${len * per}px)`
-  slider.style.transform = `translateX(${x}px)`
-  mask.style.transform = `translateX(${x}px)`
-}
-function onDragEnd(evt: MouseEvent) {
-  document.removeEventListener('mousemove', onDragMove)
-  document.removeEventListener('mouseup', onDragEnd)
 }

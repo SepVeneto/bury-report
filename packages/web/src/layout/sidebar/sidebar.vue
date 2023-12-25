@@ -36,7 +36,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, watchEffect, computed } from 'vue'
+import { computed, ref, watchEffect } from 'vue'
 import SidebarItem from './sidebarItem.vue'
 import type { Route } from '@/store'
 import type { PropType } from 'vue'

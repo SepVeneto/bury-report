@@ -1,9 +1,7 @@
-import Demo from '@/views/demo.vue'
+import AppList from '@/views/app/ListView.vue'
+import ProjectList from '@/views/project/ListView.vue'
 
 export const content = {
-  menu: Demo,
-  SystemMenuList: Demo,
-  SystemAuthAdmin: Demo,
-  SystemAuthGroup: Demo,
-  SystemInterfaceList: Demo,
+  AppList,
+  ProjectList,
 }
