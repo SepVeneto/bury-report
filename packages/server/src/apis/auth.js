@@ -13,7 +13,20 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 router.post('/login', async (ctx, next) => {
-  const { name, password } = ctx.request.body
+  const { name, password, key, offset } = ctx.request.body
+
+  const captcha = db.collection('captcha')
+  const res = await captcha.findOne({ key })
+  await captcha.deleteOne({ key })
+  const target = res.offset
+  const isVerify = verifyCaptcha(target, offset)
+
+  if (!isVerify) {
+    await next()
+    ctx.body.code = 1
+    ctx.body.message = '验证码错误'
+    return
+  }
 
   const users = db.collection('users')
 
@@ -86,18 +99,6 @@ router.get('/captcha', async (ctx, next) => {
   await captcha.insertOne({ key: captchaMd5, offset: 150, createTime: new Date() })
   await next()
 })
-router.post('/captcha', async (ctx, next) => {
-  const { key, offset } = ctx.request.body
-  const captcha = db.collection('captcha')
-  const res = await captcha.findOne({ key })
-  await captcha.deleteOne({ key })
-  const target = res.offset
-  const isAccess = verifyCaptcha(target, offset)
-
-  ctx.body = isAccess
-  await next()
-})
-
 function verifyCaptcha(target, answer) {
   const offset = Math.abs(target - answer)
   return offset < 5
