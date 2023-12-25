@@ -36,6 +36,7 @@ router.use(async (ctx, next) => {
       }
     } catch (err) {
       console.error(err)
+      ctx.status = 403
       ctx.body = err.message
     }
   }

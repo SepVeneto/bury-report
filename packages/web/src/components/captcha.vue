@@ -57,7 +57,7 @@ const offset = ref(0)
 const blockRef = ref<HTMLImageElement>()
 const sliderStyle = computed(() => ({
   transform: `translate(${offset.value}px)`,
-  cursor: dragging.value ? 'grapping' : 'grap',
+  cursor: dragging.value ? 'grabbing' : 'grab',
 }))
 const maskStyle = computed(() => ({
   transform: `translate(${offset.value}px)`,

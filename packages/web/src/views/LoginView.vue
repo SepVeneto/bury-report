@@ -22,6 +22,7 @@
           <ElInput
             v-model="formData.password"
             type="password"
+            @keydown.enter="loginRef.$el.click()"
           />
         </ElFormItem>
         <ElFormItem>
@@ -44,6 +45,7 @@
         virtual-triggering
         width="334"
         @show="loginState = 'captcha'"
+        @hide="loginState !== 'loading' && (loginState = 'wait') "
       >
         <JigsawCaptcha
           ref="captchaRef"

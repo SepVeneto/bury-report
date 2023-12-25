@@ -10,20 +10,25 @@ router.get('/app/list', async (ctx, next) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const apps = db.collection('apps')
 
-  const _query = normalize(query) || {}
-  // const total = await db.collection('apps').countDocuments(_query)
+  const _query = normalize(query)
   const offset = (page - 1) * size
   const res = await apps.aggregate([
     {
-      $match: _query,
+      $match: _query || {},
     },
     { $facet: {
       total: [{ $count: 'total' }],
       list: [{ $skip: offset }, { $limit: Number(size) }]
     }},
+    {
+      $project: {
+        total: { $ifNull: [{ $arrayElemAt: ['$total.total', 0]}, 0] },
+        list: 1,
+      }
+    }
   ]).toArray()
   ctx.body = {
-    total: res[0].total[0].total,
+    total: res[0].total,
     list: res[0].list.map(item => {
       const { _id,...record } = item
       return {
@@ -32,14 +37,6 @@ router.get('/app/list', async (ctx, next) => {
       }
     })
   }
-  // ctx.body = { total, list: list.map(item => {
-  //   const { _id, ...record } = item
-  //   return {
-  //     id: _id,
-  //     ...record,
-  //   }
-  // }) }
-
   await next()
 })
 router.get('/app', async (ctx, next) => {

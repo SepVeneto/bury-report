@@ -1,5 +1,5 @@
 function normalize(object) {
-  Object.entries(object).reduce((all, curr) => {
+  return Object.entries(object).reduce((all, curr) => {
     const [key, value] = curr
     if (value == null || value === '') {
       return all

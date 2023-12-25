@@ -13,6 +13,7 @@ db.createCollection('captcha')
 db.createCollection('projects')
 
 db.captcha.createIndex({ 'createTime': 1 }, { expireAfterSeconds: 10 * 60 })
+db.users.insertOne({ name: 'admin', password: '21232f297a57a5a743894a0e4a801fc3' })
 
 // The prototype form to create a collection:
 /* db.createCollection( <name>,

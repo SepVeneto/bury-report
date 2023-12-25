@@ -58,6 +58,13 @@ export const responseInspector = async (response: AxiosResponse<Response>) => {
 }
 
 export const responseError = (err: any) => {
+  if ([403, 401].includes(err.response.status)) {
+    const redirect = window.location.hash.replace('#', '')
+    if (!isRedirect) {
+      isRedirect = true
+      window.location.href = `#/login?redirect=${encodeURIComponent(redirect)}`
+    }
+  }
   NProgress.done()
   ElNotification({
     title: '请求异常',
