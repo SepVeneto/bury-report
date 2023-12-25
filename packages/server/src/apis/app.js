@@ -9,9 +9,10 @@ router.get('/app/list', async (ctx, next) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const apps = db.collection('apps')
 
+  const total = await db.collection('apps').countDocuments(query)
   const offset = (page - 1) * size
   const list = await apps.find(query).skip(offset).limit(Number(size)).toArray()
-  ctx.body = list
+  ctx.body = { total, list }
 
   await next()
 })

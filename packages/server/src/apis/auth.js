@@ -17,6 +17,12 @@ router.post('/login', async (ctx, next) => {
 
   const captcha = db.collection('captcha')
   const res = await captcha.findOne({ key })
+  if (!res) {
+    await next()
+    ctx.body.code = 1
+    ctx.body.message = '验证码已过期'
+    return
+  }
   await captcha.deleteOne({ key })
   const target = res.offset
   const isVerify = verifyCaptcha(target, offset)
