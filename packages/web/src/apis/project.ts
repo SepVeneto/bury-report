@@ -3,6 +3,7 @@ import { request } from '@/util/request'
 export type Project = {
   id: string
   name: string
+  apps: string[]
 }
 export function getProjectList(params: { page: number, size: number, name?: string }) {
   return request<{ total: number, list: Project[] }>({
@@ -11,7 +12,7 @@ export function getProjectList(params: { page: number, size: number, name?: stri
     raw: 'data',
   })
 }
-export function updateProject(data: { name: string, id?: string }) {
+export function updateProject(data: { name: string, id?: string, apps: string[] }) {
   return request({
     url: '/project',
     method: data.id ? 'patch' : 'post',

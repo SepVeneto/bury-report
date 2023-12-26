@@ -8,23 +8,52 @@ router.get('/project/list', async (ctx, next) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const projects = db.collection('projects')
 
-  const _query = normalize(query)
+  const _query = normalize(query) || {}
+  const match = {}
+  if (_query.name) {
+    match.name = { $regex: _query.name }
+  }
+  if (_query.app) {
+    match.apps = { $elemMatch: { name: { $regex: _query.app }} }
+  }
   const total = await projects.countDocuments(_query)
   const offset = (page - 1) * size
-  const list = await projects.find(_query).skip(offset).limit(Number(size)).toArray()
-  ctx.body = { total, list: list.map(item => {
-    const { _id, ...record } = item
-    return {
-      id: _id,
-      ...record,
-    }
-  }) }
+  const list = await projects
+    .find(match, { projection: { _id: 0, id: '$_id', name: true, apps: true }})
+    .skip(offset)
+    .limit(Number(size))
+    .toArray()
+
+  list.forEach(item => {
+    item.apps = item.apps.map(item => item.name)
+  })
+  ctx.body = {
+    total,
+    list,
+  }
 
   await next()
 })
 router.get('/project', async (ctx, next) => {
   const { id } = ctx.query
   const project = await db.collection('projects').findOne({ _id: new ObjectId(id) })
+  const res = await db.collection('projects').aggregate([
+    { $match: { _id: new ObjectId(id) } },
+    { $lookup: {
+      localField: 'apps',
+      from: 'apps',
+      foreignField: '_id',
+      as: 'apps'
+    }},
+    {
+      $project: {
+        _id: 0,
+        id: '$_id',
+        name: 1,
+        apps: 1,
+      }
+    }
+  ]).toArray()
   if (project) {
     const { _id, ...res } = project
     ctx.body = { id: _id, ...res }
@@ -36,7 +65,7 @@ router.get('/project', async (ctx, next) => {
   }
 })
 router.post('/project', async (ctx, next) => {
-  const { name } = ctx.request.body
+  const { name, apps } = ctx.request.body
 
   if (!name) {
     await next()
@@ -51,14 +80,14 @@ router.post('/project', async (ctx, next) => {
     ctx.body.code = 1
     ctx.body.message = '项目已存在'
   } else {
-    const res = await db.collection('projects').insertOne({ name })
+    const res = await db.collection('projects').insertOne({ name, apps: apps.map(id => new ObjectId(id)) })
     ctx.body = res.insertedId
     await next()
     ctx.body.message = '项目创建成功'
   }
 })
 router.patch('/project', async (ctx, next) => {
-  const { id, name } = ctx.request.body
+  const { id, name, apps } = ctx.request.body
   if (!name) {
     await next()
     ctx.body.code = 1
@@ -70,7 +99,15 @@ router.patch('/project', async (ctx, next) => {
   const project = await projects.findOne({ _id: new ObjectId(id) })
 
   if (project) {
-    await projects.updateOne({ _id: new ObjectId(id) }, { $set: { name } })
+    const appList = await db.collection('apps').find({ _id: { $in: apps.map(app => new ObjectId(app))}}).toArray()
+    await projects.updateOne({ _id: new ObjectId(id) }, { $set: {
+      name,
+      apps: appList.map(app => ({
+        _id: new ObjectId(app._id),
+        name: app.name,
+      }))
+    } })
+
     await next()
     ctx.body.message = '修改成功'
   } else {

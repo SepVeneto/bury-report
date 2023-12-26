@@ -16,6 +16,16 @@
       pagination
       :api="getList"
     >
+      <template #apps="{ row }">
+        <div>
+          <ElTag
+            v-for="(app, index) in row.apps"
+            :key="index"
+          >
+            {{ app }}
+          </ElTag>
+        </div>
+      </template>
       <template #operate="{ row }">
         <bc-button
           type="primary"
@@ -51,10 +61,12 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '项目名称', prop: 'name' },
+  { label: '关联应用', prop: 'apps' },
   { label: '操作', prop: 'operate', width: 220 },
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', prop: 'name', name: '项目名称' },
+  { catalog: 'input', prop: 'app', name: '应用名称' },
 ])
 function getList() {
   return getProjectList(params.value)

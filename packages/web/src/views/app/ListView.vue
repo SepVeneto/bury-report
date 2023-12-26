@@ -16,6 +16,17 @@
       pagination
       :api="getList"
     >
+      <template #id="{ row }">
+        <div
+          style="cursor: pointer;"
+          @click="handleCopy(row.id)"
+        >
+          <span>{{ row.id }}</span>
+          <ElIcon style="margin-left: 10px;">
+            <IconCopy />
+          </ElIcon>
+        </div>
+      </template>
       <template #operate="{ row }">
         <bc-button
           type="primary"
@@ -41,8 +52,10 @@
 import { ref, shallowRef } from 'vue'
 import { deleteApp, getAppList, updateApp } from '@/apis'
 import type { App } from '@/apis'
-import { createDialog } from '@sepveneto/basic-comp'
+import { copyText, createDialog } from '@sepveneto/basic-comp'
 import DialogApp from './DialogApp.vue'
+import { DocumentCopy as IconCopy } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const params = ref({
   page: 1,
@@ -51,11 +64,17 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '应用名称', prop: 'name' },
+  { label: 'AppID', prop: 'id' },
   { label: '操作', prop: 'operate', width: 220 },
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', prop: 'name', name: '应用名称' },
+  { catalog: 'input', prop: 'appId', name: 'AppId', style: 'width: 220px' },
 ])
+async function handleCopy(text: string) {
+  await copyText(text)
+  ElMessage.success('复制成功')
+}
 function getList() {
   return getAppList(params.value)
 }

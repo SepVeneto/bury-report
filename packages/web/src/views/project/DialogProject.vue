@@ -10,12 +10,22 @@
     >
       <BcInput v-model="formData.name" />
     </ElFormItem>
+    <ElFormItem
+      label="关联应用"
+      prop="apps"
+    >
+      <BcSelect
+        v-model="formData.apps"
+        multiple
+        :api="getOptions"
+      />
+    </ElFormItem>
   </ElForm>
 </template>
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-import { getProject } from '@/apis'
+import { getApps, getProject } from '@/apis'
 
 const props = defineProps({
   recordId: {
@@ -23,8 +33,9 @@ const props = defineProps({
     default: undefined,
   },
 })
-const formData = ref({
+const formData = ref<{ name: string, apps: string[] }>({
   name: '',
+  apps: [],
 })
 const formRef = ref()
 
@@ -32,6 +43,9 @@ props.recordId && getProject(props.recordId).then(res => {
   formData.value = res
 })
 
+function getOptions() {
+  return getApps()
+}
 async function getFormData() {
   await formRef.value.validate()
   return formData.value

@@ -12,9 +12,20 @@ router.get('/app/list', async (ctx, next) => {
 
   const _query = normalize(query)
   const offset = (page - 1) * size
+  const match = {}
+  if (_query.name) {
+    match.name = { $regex: _query.name }
+  }
+  if (_query.appId) {
+    try {
+      match._id = new ObjectId(_query.appId)
+    } catch {
+      match._id = _query.appId
+    }
+  }
   const res = await apps.aggregate([
     {
-      $match: _query || {},
+      $match: match,
     },
     { $facet: {
       total: [{ $count: 'total' }],
@@ -37,6 +48,20 @@ router.get('/app/list', async (ctx, next) => {
       }
     })
   }
+  await next()
+})
+router.get('/app/options', async (ctx, next) => {
+  const apps = db.collection('apps')
+  const res = await apps.aggregate([
+    {
+      $project: {
+        _id: 0,
+        value: '$_id',
+        label: '$name',
+      }
+    }
+  ]).toArray()
+  ctx.body = res
   await next()
 })
 router.get('/app', async (ctx, next) => {
@@ -106,10 +131,21 @@ router.delete('/app', async (ctx, next) => {
   }
 
   const apps = db.collection('apps')
-  await apps.findOneAndDelete({ _id: new ObjectId(id)})
+  const projects = db.collection('projects')
+  const appId = new ObjectId(id)
+  await Promise.all([
+    apps.findOneAndDelete({ _id: new ObjectId(id)}),
+    projects.updateMany(
+      { apps: appId },
+      { $pull: { apps: appId }},
+    )
+  ])
   await next()
   ctx.body.message = '删除成功'
 })
+/**
+ * deprecated
+ */
 router.post('/generate', async (ctx, next) => {
   const { id } = ctx.request.body
   if (!id) {

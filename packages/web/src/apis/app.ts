@@ -31,3 +31,10 @@ export function getApp(appId: string) {
     params: { id: appId },
   })
 }
+
+export function getApps() {
+  return request<{ label: string, value: string }[]>({
+    url: '/app/options',
+    raw: 'data',
+  })
+}
