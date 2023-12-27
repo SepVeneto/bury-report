@@ -3,9 +3,9 @@ const { MongoClient } = require('mongodb')
 // const client = new MongoClient('mongodb://db:27017')
 const client = new MongoClient(`mongodb://${process.env.DB_NAME || 'admin'}:${process.env.DB_PWD || 'admin_123'}@${process.env.REPORT_DB_URL}`)
 
-initDb()
-
 const db = client.db('reporter')
+
+initDb()
 
 module.exports = db
 
