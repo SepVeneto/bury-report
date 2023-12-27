@@ -1,12 +1,22 @@
 services:
   manage:
     container_name: report-manage
-    build: .
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: nginx
     ports:
       - 8080:8080
+    links:
+      - server
+    depends_on:
+      - server
   server:
     container_name: report-server
-    build: .
+    build:
+      context: .
+      dockerfile: dockerfile
+      target: server
     ports:
       - 8878:8878
     depends_on:
