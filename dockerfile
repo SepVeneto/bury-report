@@ -25,7 +25,13 @@ COPY ./packages/web/package.json ./packages/web/package.json
 
 RUN npm i -g pnpm && pnpm i
 
-COPY ./packages/web ./packages/web
+COPY ./packages/web/public\
+     ./packages/web/src\
+     ./packages/web/.env.production\
+     ./packages/web/index.html\
+     ./packages/web/*.json\
+     ./packages/web/vite.config.ts\
+     ./packages/web/
 WORKDIR /app/packages/web
 RUN pnpm build
 

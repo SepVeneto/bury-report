@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      bumpp:
+        specifier: ^9.2.1
+        version: 9.2.1
 
   packages/captcha: {}
 
@@ -31,9 +35,6 @@ importers:
       '@types/node':
         specifier: ^20.10.5
         version: 20.10.5
-      bumpp:
-        specifier: ^9.2.1
-        version: 9.2.1
       chalk:
         specifier: ^5.3.0
         version: 5.3.0
