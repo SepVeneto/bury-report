@@ -37,7 +37,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: ${{ env.REGISTRY }}/${{ env.DOCKER_HUB_USER }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ vars.DOCKER_HUB_USER }}/${{ env.IMAGE_NAME }}
         
       # - name: Get Time
       #   id: time
