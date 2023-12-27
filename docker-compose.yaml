@@ -17,6 +17,8 @@ services:
       - db
     links:
       - db
+    env_file:
+      - .env.db.local
     environment:
       - REPORT_DB_URL=db:27017
   db:
@@ -24,8 +26,6 @@ services:
     image: mongo:4.4.26
     ports:
       - '27017:27017'
-    env_file:
-      - .env.db.local
     command:
       - '--auth'
     volumes:

@@ -10,6 +10,11 @@ const db = client.db('reporter')
 module.exports = db
 
 async function initDb() {
+  db.createCollection('captcha')
+  db.createCollection('apps')
+  db.createCollection('projects')
+  db.createCollection('users')
+  db.createCollection('logs')
   await client.connect()
   const captcha = db.collection('captcha')
   const exist = (await captcha.indexes()).find(index => index.name === 'createTime')
