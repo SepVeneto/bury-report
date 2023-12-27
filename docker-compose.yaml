@@ -1,10 +1,7 @@
 services:
   manage:
     container_name: report-manage
-    build:
-      context: .
-      dockerfile: dockerfile
-      target: nginx
+    image: sepveneto/br-manage:0.1.0
     ports:
       - 8080:8080
     links:
@@ -13,10 +10,7 @@ services:
       - server
   server:
     container_name: report-server
-    build:
-      context: .
-      dockerfile: dockerfile
-      target: server
+    image: sepveneto/br-server:0.1.0
     ports:
       - 8878:8878
     depends_on:
@@ -36,4 +30,3 @@ services:
       - '--auth'
     volumes:
       - /root/mongodb:/data/db
-      - ./scripts/db:/docker-entrypoint-initdb.d
