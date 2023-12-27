@@ -21,7 +21,7 @@ services:
       - REPORT_DB_URL=db:27017
   db:
     container_name: report-db
-    image: mongo:7.0.4
+    image: mongo:4.4.26
     ports:
       - '27017:27017'
     env_file:

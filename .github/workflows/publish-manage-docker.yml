@@ -55,4 +55,4 @@ jobs:
         with:
           push: ${{ github.event_name != 'pull_request' }}
           tags: sepveneto/br-manage:latest,sepveneto/br-manage:${{ env.TAG_VERSION }}
-          target: server
+          target: nginx
