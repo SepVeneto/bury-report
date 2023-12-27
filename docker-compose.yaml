@@ -1,4 +1,9 @@
 services:
+  manage:
+    container_name: report-manage
+    build: .
+    ports:
+      - 8080:8080
   server:
     container_name: report-server
     build: .

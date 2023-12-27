@@ -8,18 +8,17 @@ router.post('/record', async (ctx, next) => {
   if (typeof body === 'string') {
     body = JSON.parse(body)
   }
-  const { appid, ...params } = body
+  const { appid } = body
   if (!appid) {
     await next()
     ctx.body.code = 1
     ctx.body.message = 'missing appid'
     return
   }
-  const app = await db.collection('apps').findOne({ _id: new ObjectId(appid) })
-
+  const id = new ObjectId(appid)
+  console.log(id.id)
   const logs = db.collection('logs')
-  const data = ctx.request.body
-  await logs.insertOne(body)
+  await logs.insertOne({ ...body, createTime: new Date() })
   await next()
 })
 
