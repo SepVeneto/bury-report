@@ -1,7 +1,7 @@
 services:
   manage:
     container_name: report-manage
-    image: sepveneto/br-manage:0.1.0
+    image: sepveneto/br-manage
     ports:
       - 8080:8080
     links:
@@ -10,7 +10,7 @@ services:
       - server
   server:
     container_name: report-server
-    image: sepveneto/br-server:0.1.0
+    image: sepveneto/br-server
     ports:
       - 8878:8878
     depends_on:
