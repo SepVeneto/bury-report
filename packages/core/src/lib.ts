@@ -22,11 +22,11 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
             ],
           }
     },
-    transform(code, id) {
-      if (isEntry(id)) {
-        return combineCode(code, reportContent)
-      }
-      return code
+    transformInclude(id) {
+      return isEntry(id)
+    },
+    transform(code) {
+      return combineCode(code, reportContent)
     },
   }
 }

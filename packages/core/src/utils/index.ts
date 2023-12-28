@@ -4,7 +4,7 @@ import type { Options } from '../type'
 import MagicString from 'magic-string'
 
 export function isUniapp() {
-  return process.env.UNI_PLATFORM
+  return !!process.env.UNI_PLATFORM
 }
 
 export function combineCode(code: string, reportContent: string) {
@@ -13,7 +13,8 @@ export function combineCode(code: string, reportContent: string) {
   return s.toString()
 }
 export function isEntry(id: string) {
-  return isUniapp() && id === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
+  // 抹平webpack和vite对于windows平台路径分隔符的差异
+  return isUniapp() && path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
 }
 export function genCode(options: Options) {
   let request
@@ -26,7 +27,7 @@ export function genCode(options: Options) {
   } else {
     request = `window.navigator.sendBeacon('${options.url}', JSON.stringify({ type, data: data, appid: '${options.appid}'}))`
   }
-  return `global.__BR_REPORT__ = function(type, data) {
+  return `globalThis.__BR_REPORT__ = function(type, data) {
     ${request}
 }\nimport { collect } from "@sepveneto/report-core"; collect();\n`
 }

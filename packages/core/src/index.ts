@@ -2,7 +2,7 @@ import { isUniapp } from './utils'
 
 export function report(type: string, data: any) {
   // @ts-expect-error: exist
-  const sendEvent = global.__BR_REPORT__
+  const sendEvent = globalThis.__BR_REPORT__
   sendEvent(type, data)
 }
 
