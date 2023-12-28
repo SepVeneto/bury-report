@@ -18,7 +18,7 @@ export function isEntry(id: string) {
 }
 export function genCode(options: Options) {
   let request
-  if (isUniapp()) {
+  if (isUniapp() && process.env.UNI_PLATFORM !== 'h5') {
     request = `uni.request({
       url: '${options.url}',
       method: 'POST',
