@@ -2,7 +2,8 @@ import { createUnplugin } from 'unplugin'
 import type { UnpluginFactory } from 'unplugin'
 // import { initReport } from './utils'
 import type { Options } from './type'
-import { combineCode, genCode, isEntry, isUniapp } from './utils'
+import { addErrorReport, combineCode, genCode, isEntry, isUniapp } from './utils'
+import MagicString from 'magic-string'
 
 export const unpluginFactory: UnpluginFactory<Options> = options => {
   const reportContent = genCode(options)
@@ -26,7 +27,12 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       return isEntry(id)
     },
     transform(code) {
-      return combineCode(code, reportContent)
+      code = combineCode(code, reportContent + 'import { _brCollect, _brReport } from "@sepveneto/report-core"; _brCollect();\n')
+      code = addErrorReport(code)
+      return {
+        code,
+        map: new MagicString(code).generateMap(),
+      }
     },
   }
 }

@@ -1,17 +1,20 @@
-import { isUniapp } from './utils'
+import { isUniapp } from './utils/env'
+import { COLLECT_INFO, REPORT_REQUEST, UUID_KEY } from './utils/constant'
 
-export function report(type: string, data: any) {
+export const report = (type: string, data: any) => {
   // @ts-expect-error: exist
-  const sendEvent = globalThis.__BR_REPORT__
-  sendEvent(type, data)
+  const sendEvent = globalThis[REPORT_REQUEST]
+  sendEvent(getUuid(), type, data)
 }
 
-export function collect() {
+const collect = () => {
   const stat = getSystemInfo()
-  report('info', stat)
+  report(COLLECT_INFO, stat)
 }
 
-const UUID_KEY = '__BR_UUID__'
+export const _brReport = report
+export const _brCollect = collect
+
 function getUuid() {
   let uuid
   try {
