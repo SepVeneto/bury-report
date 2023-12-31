@@ -45,7 +45,7 @@ export function genCode(options: Options) {
       data: JSON.stringify({ uuid: uuid, type: type, data: data, appid: '${options.appid}'})
     })`
   } else {
-    request = `window.navigator.sendBeacon('${options.url}', JSON.stringify({ type, data: data, appid: '${options.appid}'}))`
+    request = `window.navigator.sendBeacon('${options.url}', JSON.stringify({ uuid: uuid, type, data: data, appid: '${options.appid}'}))`
   }
   return `globalThis.${REPORT_REQUEST} = function(uuid, type, data) {
     ${request}

@@ -4,7 +4,8 @@ import { COLLECT_INFO, REPORT_REQUEST, UUID_KEY } from './utils/constant'
 export const report = (type: string, data: any) => {
   // @ts-expect-error: exist
   const sendEvent = globalThis[REPORT_REQUEST]
-  sendEvent(getUuid(), type, data)
+  const uuid = getUuid()
+  sendEvent(uuid, type, data)
 }
 
 const collect = () => {
@@ -22,7 +23,7 @@ function getUuid() {
   } catch {}
 
   if (!uuid) {
-    uuid = `${Date.now()} ${Math.floor(Math.random() * 1e7)}`
+    uuid = `${Date.now()}-${Math.floor(Math.random() * 1e7)}`
     try {
       setLocalStorage(UUID_KEY, uuid)
     } catch {}
