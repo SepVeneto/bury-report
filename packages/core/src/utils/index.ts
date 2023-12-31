@@ -58,3 +58,10 @@ export function getMainEntry() {
   const mainEntry = fs.existsSync(path.resolve(process.env.UNI_INPUT_DIR, 'main.ts')) ? 'main.ts' : 'main.js'
   return mainEntry
 }
+
+export function mergeConfig(config: Options, defaultConfig: Required<Omit<Options, 'url' | 'appid'>>) {
+  return {
+    ...defaultConfig,
+    ...config,
+  }
+}

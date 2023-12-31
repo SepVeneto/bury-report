@@ -2,33 +2,31 @@ import { createUnplugin } from 'unplugin'
 import type { UnpluginFactory } from 'unplugin'
 // import { initReport } from './utils'
 import type { Options } from './type'
-import { addErrorReport, combineCode, genCode, isEntry, isUniapp } from './utils'
+import { addErrorReport, combineCode, genCode, isEntry, mergeConfig } from './utils'
 import MagicString from 'magic-string'
 
+const defaultConfig = {
+  collect: true,
+  error: true,
+}
+
 export const unpluginFactory: UnpluginFactory<Options> = options => {
-  const reportContent = genCode(options)
+  const config = mergeConfig(options, defaultConfig)
+  const reportContent = genCode(config)
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',
-    transformIndexHtml(html: string) {
-      return isUniapp()
-        ? html
-        : {
-            html,
-            tags: [
-              {
-                tag: 'script',
-                children: reportContent,
-              },
-            ],
-          }
-    },
     transformInclude(id) {
       return isEntry(id)
     },
     transform(code) {
-      code = combineCode(code, reportContent + 'import { _brCollect, _brReport } from "@sepveneto/report-core"; _brCollect();\n')
-      code = addErrorReport(code)
+      const insertCode = reportContent +
+        'import { _brCollect, _brReport } from "@sepveneto/report-core";\n' +
+        (config.collect ? '_brCollect();\n' : '')
+      code = combineCode(code, insertCode)
+      if (config.error) {
+        code = addErrorReport(code)
+      }
       return {
         code,
         map: new MagicString(code).generateMap(),
