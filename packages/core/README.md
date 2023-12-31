@@ -86,6 +86,8 @@ module.exports = {
 
 ## 方法
 | 名称 | 参数 | 说明 |
+| :--- | :-- | :-- |
+| report | (type: string, data: any) => void | 主动上报数据 |
 
 ## 说明
 
