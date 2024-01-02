@@ -145,10 +145,10 @@ router.delete('/app', async (ctx, next) => {
   const projects = db.collection('projects')
   const appId = new ObjectId(id)
   await Promise.all([
-    apps.updateOne({ _id: new ObjectId(id) }, { $set: { is_delete: true } }),
+    apps.updateOne({ _id: appId }, { $set: { is_delete: true } }),
     projects.updateMany(
-      { apps: appId },
-      { $pull: { apps: appId }},
+      { 'apps.id': appId },
+      { $pull: { apps: { id: appId } }},
     )
   ])
   await next()
