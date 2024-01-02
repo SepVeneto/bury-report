@@ -8,6 +8,7 @@ import MagicString from 'magic-string'
 const defaultConfig = {
   collect: true,
   error: true,
+  report: process.env.NODE_ENV === 'production',
 }
 
 export const unpluginFactory: UnpluginFactory<Options> = options => {

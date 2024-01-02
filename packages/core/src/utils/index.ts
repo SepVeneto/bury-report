@@ -36,7 +36,7 @@ export function isEntry(id: string) {
   // 抹平webpack和vite对于windows平台路径分隔符的差异
   return isUniapp() && path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
 }
-export function genCode(options: Options) {
+export function genCode(options: Required<Options>) {
   let request
   if (isUniapp() && process.env.UNI_PLATFORM !== 'h5') {
     request = `uni.request({
@@ -48,6 +48,7 @@ export function genCode(options: Options) {
     request = `window.navigator.sendBeacon('${options.url}', JSON.stringify({ uuid: uuid, type, data: data, appid: '${options.appid}'}))`
   }
   return `globalThis.${REPORT_REQUEST} = function(uuid, type, data) {
+    if (${!options.report}) return false
     ${request}
 }\n`
 }

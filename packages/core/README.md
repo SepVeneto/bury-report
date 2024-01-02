@@ -81,6 +81,7 @@ module.exports = {
 | :--- | :--- | :-- | :--- | :--- |
 | url | string | ✅ | - | 日志上报接口 |
 | appid | string | ✅ | - | 用来区分每一个应用的id |
+| report | boolean | ❎ | process.env.NODE.ENV === 'production' | 是否发送上报请求。 |
 | error | boolean | ❎ | true | 是否自动上报error类型的错误 |
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
 

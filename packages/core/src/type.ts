@@ -15,4 +15,9 @@ export interface Options {
    * 是否自动上报
    */
   collect?: boolean
+  /**
+   * 是否发送上报请求
+   * 默认在开发模式(NODE_ENV == 'development')时关闭，生产模式(NODE_ENV == 'production')时开启
+   */
+  report?: boolean
 }
