@@ -55,7 +55,7 @@ import type { App } from '@/apis'
 import { copyText, createDialog } from '@sepveneto/basic-comp'
 import DialogApp from './DialogApp.vue'
 import { DocumentCopy as IconCopy } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const params = ref({
   page: 1,
@@ -100,8 +100,17 @@ function _updateApp(title: string, record?: App) {
   )
 }
 async function handleDelete(record: App) {
-  await deleteApp(record.id)
-  params.value.page = 1
-  handleSearch()
+  try {
+    await ElMessageBox.prompt('请输入该应用的名称以确认删除操作', '注意', {
+      confirmButtonText: '确认删除',
+      confirmButtonClass: 'el-button--danger',
+      cancelButtonText: '取消',
+      inputPattern: new RegExp(`^${record.name}$`),
+      inputErrorMessage: '应用名称不匹配',
+    })
+    await deleteApp(record.id)
+    params.value.page = 1
+    handleSearch()
+  } catch {}
 }
 </script>
