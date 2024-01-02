@@ -38,3 +38,10 @@ export function getApps() {
     raw: 'data',
   })
 }
+
+export function readLogs(appId: string, onMessage: (evt: MessageEvent<string>) => void) {
+  const token = localStorage.getItem('token')
+  const source = new EventSource(`/api/logs?app=${appId}&token=${token}`)
+  source.addEventListener('log', onMessage)
+  return source
+}

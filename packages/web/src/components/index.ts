@@ -1,6 +1,7 @@
 import type { App } from 'vue'
-import rxAuth from "./auth";
-import rxSwitch from "./switch";
+import rxAuth from './auth'
+import rxSwitch from './switch'
+import PageLayout from './PageLayout.vue'
 
 const comps = [
   rxAuth,
@@ -8,6 +9,7 @@ const comps = [
 ]
 
 function install(app: App) {
+  app.component('PageLayout', PageLayout)
   comps.forEach(comp => {
     app.use(comp)
   })

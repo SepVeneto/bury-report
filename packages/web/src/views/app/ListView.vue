@@ -37,6 +37,12 @@
         </bc-button>
         <bc-button
           text
+          @click="handleLog(row)"
+        >
+          日志
+        </bc-button>
+        <bc-button
+          text
           type="danger"
           confirm
           @click="handleDelete(row)"
@@ -56,7 +62,9 @@ import { copyText, createDialog } from '@sepveneto/basic-comp'
 import DialogApp from './DialogApp.vue'
 import { DocumentCopy as IconCopy } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const params = ref({
   page: 1,
   size: 20,
@@ -65,12 +73,15 @@ const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '应用名称', prop: 'name' },
   { label: 'AppID', prop: 'id' },
-  { label: '操作', prop: 'operate', width: 220 },
+  { label: '操作', prop: 'operate', width: 280 },
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', prop: 'name', name: '应用名称' },
-  { catalog: 'input', prop: 'appId', name: 'AppId', style: 'width: 220px' },
+  { catalog: 'input', prop: 'appId', name: 'AppId', style: 'width: 320px' },
 ])
+function handleLog(record: App) {
+  router.push({ name: 'AppLog', params: { id: record.id } })
+}
 async function handleCopy(text: string) {
   await copyText(text)
   ElMessage.success('复制成功')

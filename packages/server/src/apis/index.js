@@ -18,7 +18,7 @@ router.use(async (ctx, next) => {
     return
   }
 
-  const token = ctx.request.headers['authorization']
+  const token = ctx.request.headers['authorization'] || ctx.request.query.token
 
   if (!token) {
     ctx.response.status = 401

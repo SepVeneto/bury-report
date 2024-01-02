@@ -19,6 +19,15 @@ export async function getMenuList() {
         name: '应用列表',
         path: 'apps',
         route: 'AppList',
+        children: [
+          {
+            id: 3,
+            name: '应用日志',
+            path: ':id',
+            route: 'AppLog',
+            hidden: true,
+          },
+        ],
       },
     ],
   })
@@ -29,7 +38,7 @@ export function getModList(): Promise<Route[]> {
     {
       id: 1,
       name: '项目管理',
-      path: '/manage/:page?',
+      path: '/manage/:page*',
       route: 'App',
     },
   ])
