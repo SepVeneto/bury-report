@@ -3,7 +3,7 @@ import { request } from '@/util/request'
 export type Project = {
   id: string
   name: string
-  apps: string[]
+  apps: { id: string, name: string }[]
 }
 export function getProjectList(params: { page: number, size: number, name?: string }) {
   return request<{ total: number, list: Project[] }>({

@@ -40,7 +40,10 @@ const formData = ref<{ name: string, apps: string[] }>({
 const formRef = ref()
 
 props.recordId && getProject(props.recordId).then(res => {
-  formData.value = res
+  formData.value = {
+    ...res,
+    apps: res.apps.map(item => item.id),
+  }
 })
 
 function getOptions() {

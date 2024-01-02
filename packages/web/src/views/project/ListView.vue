@@ -21,6 +21,8 @@
           <ElTag
             v-for="(app, index) in row.apps"
             :key="index"
+            style="margin-right: 10px;"
+            disable-transitions
           >
             {{ app }}
           </ElTag>
