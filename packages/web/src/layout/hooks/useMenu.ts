@@ -16,9 +16,10 @@ export function useMenu(mod: Ref<number>) {
 
   watchEffect(() => {
     // 针对只有一级菜单的情况，对匹配路由进行标准化，抹平解构差异
-    console.log(route.matched)
-    const [, side, subSide] = route.matched.length < 3 ? [null, ...route.matched] : route.matched
-    console.log(route.matched)
+    /**
+     * TODO: normalize variable
+     */
+    const [, side, subSide] = route.matched.length < 4 ? [null, ...route.matched] : route.matched
     if (!side || !subSide) return
     activeMenu.value = side.name as string
     activeSubMenu.value = (subSide.children[0] ? subSide.children[0].name : subSide.name) as string
@@ -37,35 +38,39 @@ export function useMenu(mod: Ref<number>) {
   })
 
   function normalizeRoute(menu: Route, depth = 0): RouteRecordRaw {
-  if (menu.children) {
-    const _menu: RouteRecordRaw = {
-      name: menu.route,
-      path: menu.path,
-      meta: { title: menu.name },
-      children: [],
-    }
-    if (depth > 0) {
-      delete _menu.name
-      _menu.children = [{
-        path: '',
+    if (menu.children) {
+      const _menu: RouteRecordRaw = {
         name: menu.route,
-        component: (content as Record<string, any>)[menu.route],
-      }]
+        path: menu.path,
+        meta: { title: menu.name, hidden: !!menu.hidden },
+        children: [],
+      }
+      /**
+       * TODO: normalize depth
+       */
+      if (depth >= 0) {
+        delete _menu.name
+        _menu.children = [{
+          path: '',
+          name: menu.route,
+          component: (content as Record<string, any>)[menu.route],
+        }]
+      } else {
+        const redirectRoute = menu.children.find(item => !item.hidden)
+        redirectRoute && (_menu.redirect = { name: redirectRoute.route })
+      }
+      _menu.children.push(...menu.children.map((child: Route) => normalizeRoute(child, depth + 1)))
+      return _menu
     } else {
-      _menu.redirect = { name: menu.children[0].route }
+      const _menu: RouteRecordRaw = {
+        name: menu.route,
+        path: menu.path,
+        meta: { title: menu.name, hidden: !!menu.hidden },
+        component: (content as Record<string, any>)[menu.route],
+      }
+      return _menu
     }
-    _menu.children.push(...menu.children.map((child: Route) => normalizeRoute(child, depth + 1)))
-    return _menu
-  } else {
-    const _menu: RouteRecordRaw = {
-      name: menu.route,
-      path: menu.path,
-      meta: { title: menu.name },
-      component: (content as Record<string, any>)[menu.route],
-    }
-    return _menu
   }
-}
 
   async function addRoute(mod: number) {
     const menuList = (await getMenuList(mod)).list

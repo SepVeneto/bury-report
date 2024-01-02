@@ -7,6 +7,7 @@ export type Route = {
   name: string
   path: string
   route: string
+  hidden?: boolean
   children?: Route[]
 }
 

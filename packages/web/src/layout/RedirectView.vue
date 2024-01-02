@@ -82,7 +82,7 @@ async function initMenu() {
 
   router.removeRoute('RedirectView')
   await router.isReady()
-  router.replace(route.path === '/' ? { name: menuList[0].route } : route.path)
+  router.replace(route.path === '/' ? { name: menuList[0].route } : route.fullPath)
 }
 
 // const menuList = computed(() => store.getMenusByMod(store.modId as any))

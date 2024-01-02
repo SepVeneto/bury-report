@@ -1,6 +1,6 @@
 <template>
   <el-sub-menu
-    v-if="withSubmenu && data.children"
+    v-if="showSubMenu"
     :index="data.route"
   >
     <template #title>
@@ -14,7 +14,7 @@
     />
   </el-sub-menu>
   <el-menu-item
-    v-else
+    v-else-if="!data.hidden"
     :index="data.route"
   >
     {{ data.name }}
@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import { computed, defineComponent } from 'vue'
 import type { Route } from '@/store'
 import SidebarItem from './sidebarItem.vue'
 
@@ -32,5 +32,6 @@ export default defineComponent({
 </script>
 
 <script lang="ts" setup>
-defineProps<{ data: Route, withSubmenu?: boolean }>()
+const props = defineProps<{ data: Route, withSubmenu?: boolean }>()
+const showSubMenu = computed(() => props.withSubmenu && props.data.children && props.data.children.filter(item => !item.hidden).length > 0)
 </script>
