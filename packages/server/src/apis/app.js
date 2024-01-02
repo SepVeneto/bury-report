@@ -12,7 +12,9 @@ router.get('/app/list', async (ctx, next) => {
 
   const _query = normalize(query)
   const offset = (page - 1) * size
-  const match = {}
+  const match = {
+    is_delete: { $ne: true }
+  }
   if (_query.name) {
     match.name = { $regex: _query.name }
   }
@@ -53,6 +55,7 @@ router.get('/app/list', async (ctx, next) => {
 router.get('/app/options', async (ctx, next) => {
   const apps = db.collection('apps')
   const res = await apps.aggregate([
+    { $match: { is_delete: { $ne: true }}},
     {
       $project: {
         _id: 0,
@@ -66,7 +69,7 @@ router.get('/app/options', async (ctx, next) => {
 })
 router.get('/app', async (ctx, next) => {
   const { id } = ctx.query
-  const app = await db.collection('apps').findOne({ _id: new ObjectId(id) })
+  const app = await db.collection('apps').findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
   if (app) {
     const { _id, ...res } = app
     ctx.body = { id: _id, ...res }
@@ -87,7 +90,7 @@ router.post('/app', async (ctx, next) => {
     return
   }
 
-  const app = await db.collection('apps').findOne({ name })
+  const app = await db.collection('apps').findOne({ name, is_delete: { $ne: true } })
   if (app) {
     await next()
     ctx.body.code = 1
@@ -109,10 +112,18 @@ router.patch('/app', async (ctx, next) => {
   }
 
   const apps = db.collection('apps')
-  const app = await apps.findOne({ _id: new ObjectId(id) })
+  const projects = db.collection('projects')
+  const appId = new ObjectId(id)
+  const app = await apps.findOne({ _id: appId, is_delete: { $ne: true } })
 
   if (app) {
-    await apps.updateOne({ _id: new ObjectId(id) }, { $set: { name } })
+    await Promise.all([
+      apps.updateOne({ _id: appId }, { $set: { name } }),
+      projects.updateMany(
+        { 'apps.id': appId },
+        { $set: { 'apps.$.name': name }},
+      )
+    ])
     await next()
     ctx.body.message = '修改成功'
   } else {
@@ -134,7 +145,7 @@ router.delete('/app', async (ctx, next) => {
   const projects = db.collection('projects')
   const appId = new ObjectId(id)
   await Promise.all([
-    apps.findOneAndDelete({ _id: new ObjectId(id)}),
+    apps.updateOne({ _id: new ObjectId(id) }, { $set: { is_delete: true } }),
     projects.updateMany(
       { apps: appId },
       { $pull: { apps: appId }},

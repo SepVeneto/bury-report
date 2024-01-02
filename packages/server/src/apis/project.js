@@ -9,7 +9,7 @@ router.get('/project/list', async (ctx, next) => {
   const projects = db.collection('projects')
 
   const _query = normalize(query) || {}
-  const match = {}
+  const match = { is_delete: { $ne: true }}
   if (_query.name) {
     match.name = { $regex: _query.name }
   }
@@ -36,24 +36,24 @@ router.get('/project/list', async (ctx, next) => {
 })
 router.get('/project', async (ctx, next) => {
   const { id } = ctx.query
-  const project = await db.collection('projects').findOne({ _id: new ObjectId(id) })
-  const res = await db.collection('projects').aggregate([
-    { $match: { _id: new ObjectId(id) } },
-    { $lookup: {
-      localField: 'apps',
-      from: 'apps',
-      foreignField: '_id',
-      as: 'apps'
-    }},
-    {
-      $project: {
-        _id: 0,
-        id: '$_id',
-        name: 1,
-        apps: 1,
-      }
-    }
-  ]).toArray()
+  const project = await db.collection('projects').findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
+  // const res = await db.collection('projects').aggregate([
+  //   { $match: { _id: new ObjectId(id) } },
+  //   { $lookup: {
+  //     localField: 'apps',
+  //     from: 'apps',
+  //     foreignField: '_id',
+  //     as: 'apps'
+  //   }},
+  //   {
+  //     $project: {
+  //       _id: 0,
+  //       id: '$_id',
+  //       name: 1,
+  //       apps: 1,
+  //     }
+  //   }
+  // ]).toArray()
   if (project) {
     const { _id, ...res } = project
     ctx.body = { id: _id, ...res }
@@ -74,13 +74,17 @@ router.post('/project', async (ctx, next) => {
     return
   }
 
-  const project = await db.collection('project').findOne({ name })
+  const project = await db.collection('project').findOne({ name, id_delete: { $ne: true } })
   if (project) {
     await next()
     ctx.body.code = 1
     ctx.body.message = '项目已存在'
   } else {
-    const res = await db.collection('projects').insertOne({ name, apps: apps.map(id => new ObjectId(id)) })
+    const _apps = await db.collection('apps').find({
+      _id: { $in: apps.map(app => new ObjectId(app)) },
+      is_delete: { $ne: true },
+    }, { projection: { _id: 0, id: '$_id', name: 1 }}).toArray()
+    const res = await db.collection('projects').insertOne({ name, apps: _apps })
     ctx.body = res.insertedId
     await next()
     ctx.body.message = '项目创建成功'
@@ -96,14 +100,14 @@ router.patch('/project', async (ctx, next) => {
   }
 
   const projects = db.collection('projects')
-  const project = await projects.findOne({ _id: new ObjectId(id) })
+  const project = await projects.findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
 
   if (project) {
     const appList = await db.collection('apps').find({ _id: { $in: apps.map(app => new ObjectId(app))}}).toArray()
     await projects.updateOne({ _id: new ObjectId(id) }, { $set: {
       name,
       apps: appList.map(app => ({
-        _id: new ObjectId(app._id),
+        id: new ObjectId(app._id),
         name: app.name,
       }))
     } })
@@ -126,7 +130,7 @@ router.delete('/project', async (ctx, next) => {
   }
 
   const projects = db.collection('projects')
-  await projects.findOneAndDelete({ _id: new ObjectId(id)})
+  await projects.updateOne({ _id: new ObjectId(id)}, { $set: { is_delete: true }})
   await next()
   ctx.body.message = '删除成功'
 })
