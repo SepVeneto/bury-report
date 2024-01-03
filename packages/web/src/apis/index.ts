@@ -22,9 +22,9 @@ export async function getMenuList() {
         children: [
           {
             id: 3,
-            name: '应用日志',
+            name: '应用详情',
             path: ':id',
-            route: 'AppLog',
+            route: 'AppDetail',
             hidden: true,
           },
         ],

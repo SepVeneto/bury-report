@@ -45,3 +45,19 @@ export function readLogs(appId: string, onMessage: (evt: MessageEvent<string>) =
   source.addEventListener('log', onMessage)
   return source
 }
+
+export function getAppLogs(appId: string, params: { page: number, size: number }) {
+  return request<{ list: any[], total: number }>({
+    url: `/app/${appId}/logs`,
+    params,
+    raw: 'data',
+  })
+}
+
+export function getAppErrors(appId: string, params: { page: number, size: number }) {
+  return request<{ list: any[], total: number }>({
+    url: `/app/${appId}/errors`,
+    params,
+    raw: 'data',
+  })
+}

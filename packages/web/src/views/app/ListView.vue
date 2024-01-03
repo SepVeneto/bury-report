@@ -37,9 +37,9 @@
         </bc-button>
         <bc-button
           text
-          @click="handleLog(row)"
+          @click="handleDetail(row)"
         >
-          日志
+          详情
         </bc-button>
         <bc-button
           text
@@ -79,8 +79,8 @@ const searchConfig = shallowRef([
   { catalog: 'input', prop: 'name', name: '应用名称' },
   { catalog: 'input', prop: 'appId', name: 'AppId', style: 'width: 320px' },
 ])
-function handleLog(record: App) {
-  router.push({ name: 'AppLog', params: { id: record.id } })
+function handleDetail(record: App) {
+  router.push({ name: 'AppDetail', params: { id: record.id } })
 }
 async function handleCopy(text: string) {
   await copyText(text)

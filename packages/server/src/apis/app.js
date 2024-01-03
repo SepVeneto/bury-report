@@ -172,5 +172,84 @@ router.post('/generate', async (ctx, next) => {
   ctx.body.message = '密钥生成成功'
 })
 
+router.get('/app/:appId/logs', async (ctx, next) => {
+  const { page = 1, size = 20, ...query } = ctx.request.query
+  const { appId } = ctx.params
+  const logs = db.collection('logs')
+  const offset = (page - 1) * size
+
+  const match = normalize({
+    appid: appId,
+    type: '__BR_COLLECT_INFO__',
+    'data.on': query.deviceType,
+    'data.up': query.hostPlatform,
+  })
+  if (query.deviceId) {
+    match['data.uuid'] = { $regex: query.deviceId }
+  }
+  if (query.deviceModel) {
+    match['data.dm'] = { $regex: query.deviceModel }
+  }
+  if (query.deviceBrand) {
+    match['data.db'] = { $regex: query.deviceBrand }
+  }
+  if (query['timerange[]']) {
+    const [start, end] = query['timerange[]']
+    match['createTime'] = { $gte: new Date(start), $lte: new Date(end) }
+  }
+
+  const list = await logs
+    .find(match, { projection: { _id: 0, id: '$_id', createTime: 1, data: 1 }})
+    .sort({ createTime: -1 })
+    .skip(offset)
+    .limit(Number(size))
+    .toArray()
+  const total = await logs.countDocuments(match)
+
+  ctx.body = {
+    list,
+    total,
+  }
+  await next()
+})
+
+router.get('/app/:appId/errors', async (ctx, next) => {
+  const { page = 1, size = 20, ...query } = ctx.request.query
+  const { appId } = ctx.params
+  const logs = db.collection('logs')
+  const offset = (page - 1) * size
+
+  const match = normalize({
+    appid: appId,
+    type: '__BR_COLLECT_ERROR__',
+    'data.on': query.deviceType,
+    'data.up': query.hostPlatform,
+  })
+  if (query.deviceModel) {
+    match['data.dm'] = { $regex: query.deviceModel }
+  }
+  if (query.deviceBrand) {
+    match['data.db'] = { $regex: query.deviceBrand }
+  }
+  if (query['timerange[]']) {
+    const [start, end] = query['timerange[]']
+    match['createTime'] = { $gte: new Date(start), $lte: new Date(end) }
+  }
+
+  const list = await logs
+    .find(match, { projection: { _id: 0, id: '$_id', createTime: 1, data: 1, uuid: 1 }})
+    .sort({ createTime: -1 })
+    .skip(offset)
+    .limit(Number(size))
+    .toArray()
+  const total = await logs.countDocuments(match)
+
+  ctx.body = {
+    list,
+    total,
+  }
+  await next()
+})
+
 
 module.exports = router
