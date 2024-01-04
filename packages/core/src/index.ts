@@ -23,7 +23,7 @@ function getUuid() {
   } catch {}
 
   if (!uuid) {
-    uuid = `${Date.now()}-${Math.floor(Math.random() * 1e7)}`
+    uuid = `${Date.now()}${Math.floor(Math.random() * 1e7)}`
     try {
       setLocalStorage(UUID_KEY, uuid)
     } catch {}
