@@ -16,6 +16,7 @@
     "@types/mockjs": "^1.0.10",
     "ali-oss": "^6.18.1",
     "axios": "^0.24.0",
+    "echarts": "^5.4.3",
     "element-plus": "^2.4.1",
     "js-md5": "^0.7.3",
     "logo-particle": "file:lib\\logo-particle-1.0.4.tgz",

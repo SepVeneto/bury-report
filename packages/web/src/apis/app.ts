@@ -74,3 +74,9 @@ export function getAppStatistics(appid: string) {
     url: `/app/${appid}/statistics`,
   })
 }
+
+export function getAppChart(appid: string, chartType: string) {
+  return request({
+    url: `/app/${appid}/chart/${chartType}`,
+  })
+}

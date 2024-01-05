@@ -298,4 +298,125 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
   await next()
 })
 
+router.get('/app/:appId/chart/:type', async (ctx, next) => {
+  const { appId, type } = ctx.params
+  const logs = db.collection('logs')
+  const match = {
+    appid: appId,
+    type: '__BR_COLLECT_INFO__',
+  }
+ 
+
+  switch (type) {
+    case 'totalOpenTrend':
+      {
+        const res = await logs.aggregate([
+          {
+            $match: match
+          },
+          {
+            $project: {
+              yearMonthDay: { $dateToString: { format: '%Y-%m-%d', date: { $add: ['$createTime', 8 * 60 * 60 * 1000] }}}
+            }
+          },
+          {
+            $group: {
+              _id: '$yearMonthDay',
+              count: { $sum: 1 }
+            }
+          },
+          { $sort: { _id: 1 } },
+          { $project: { _id: 0, date: '$_id', count: 1 }}
+        ]).toArray()
+        ctx.body = res
+        await next()
+      }
+      break
+    case 'yesterdayOpenTrend':
+      {
+        const res = await logs.aggregate([
+          {
+            $match: {
+              ...match,
+              createTime: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
+            }
+          },
+          {
+            $project: {
+              yearMonthDay: { $dateToString: { format: '%H', date: { $add: ['$createTime', 8 * 60 * 60 * 1000] }}}
+            }
+          },
+          {
+            $group: {
+              _id: '$yearMonthDay',
+              count: { $sum: 1 }
+            }
+          },
+          { $sort: { _id: 1 } },
+          { $project: { _id: 0, date: '$_id', count: 1 }}
+        ]).toArray()
+        ctx.body = res
+        await next()
+      }
+      break
+    case 'deviceType':
+      {
+        const tempObj = {}
+        const _arr = await logs.find(match, { projection: { _id: 0, 'data.uuid': 1, 'data.on': 1 }}).toArray()
+        const unionList = []
+        _arr.forEach(item => {
+          if (item.data && !tempObj[item.data.uuid]) {
+            tempObj[item.data.uuid] = true
+            unionList.push(item)
+          }
+        })
+
+        let android = 0
+        let ios = 0
+        unionList.forEach(item => {
+          switch (item.data.on) {
+            case 'android':
+              android += 1;
+              break;
+            case 'ios':
+              ios += 1
+              break
+          }
+        })
+        ctx.body = {
+          android,
+          ios,
+        }
+      }
+      await next()
+      break
+    case 'deviceBrand':
+      {
+        const tempObj = {}
+        const _arr = await logs.find(match, { projection: { _id: 0, 'data.uuid': 1, 'data.db': 1 }}).toArray()
+        const unionList = []
+        _arr.forEach(item => {
+          if (item.data && !tempObj[item.data.uuid]) {
+            tempObj[item.data.uuid] = true
+            unionList.push(item)
+          }
+        })
+
+        const res = {}
+        unionList.forEach(item => {
+          const brand = item.data.db
+          if (res[brand]) {
+            res[brand] += 1
+          } else {
+            res[brand] = 1
+          }
+        })
+        ctx.body = res
+        await next()
+      }
+      break
+  }
+
+})
+
 module.exports = router
