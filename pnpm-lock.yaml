@@ -12,14 +12,6 @@ importers:
         specifier: ^9.2.1
         version: 9.2.1
 
-  packages/captcha: {}
-
-  packages/captcha/playground:
-    devDependencies:
-      vite:
-        specifier: ^5.0.10
-        version: 5.0.10(@types/node@20.10.5)
-
   packages/core:
     dependencies:
       '@babel/parser':

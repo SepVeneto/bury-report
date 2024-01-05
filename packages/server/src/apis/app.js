@@ -251,5 +251,51 @@ router.get('/app/:appId/errors', async (ctx, next) => {
   await next()
 })
 
+router.get('/app/:appId/statistics', async (ctx, next) => {
+  const { appId } = ctx.params
+  const logs = db.collection('logs')
+  const match = {
+    appid: appId,
+    type: '__BR_COLLECT_INFO__',
+  }
+
+  const totalOpen = await logs.countDocuments(match)
+  const yesterdayTotalOpen = await logs.countDocuments({
+    ...match,
+    /**
+     * TODO
+     */
+    createTime: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
+  })
+  let list = await logs.find(match, { projection: { _id: 0, deviceId: '$data.uuid' }}).toArray()
+  let tempObj = {}
+  const total = list.reduce((total, item) => {
+    if (!tempObj[item.deviceId]) {
+      tempObj[item.deviceId] = true
+      total += 1
+    }
+    return total
+  }, 0)
+  tempObj = {}
+  list = await logs.find({
+    ...match,
+    createTime: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
+  }, { projection: { _id: 0, deviceId: '$data.uuid' }}).toArray()
+  const yesterdayTotal = list.reduce((total, item) => {
+    if (!tempObj[item.deviceId]) {
+      tempObj[item.deviceId] = true
+      total += 1
+    }
+    return total
+  }, 0)
+
+  ctx.body = {
+    total,
+    yesterdayTotal,
+    totalOpen,
+    yesterdayTotalOpen,
+  }
+  await next()
+})
 
 module.exports = router

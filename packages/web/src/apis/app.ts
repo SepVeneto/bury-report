@@ -41,6 +41,7 @@ export function getApps() {
 
 export function readLogs(appId: string, onMessage: (evt: MessageEvent<string>) => void) {
   const token = localStorage.getItem('token')
+  // const source = new EventSourcePolyfill(`/api/logs?app=${appId}&token=${token}`)
   const source = new EventSource(`/api/logs?app=${appId}&token=${token}`)
   source.addEventListener('log', onMessage)
   return source
@@ -59,5 +60,17 @@ export function getAppErrors(appId: string, params: { page: number, size: number
     url: `/app/${appId}/errors`,
     params,
     raw: 'data',
+  })
+}
+
+export type AppStatistics = {
+  total: number
+  yesterdayTotal: number
+  totalOpen: number
+  yesterdayTotalOpen: number
+}
+export function getAppStatistics(appid: string) {
+  return request<AppStatistics>({
+    url: `/app/${appid}/statistics`,
   })
 }
