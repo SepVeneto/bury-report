@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
       .app_data(web::Data::new(database.clone()))
       .configure(routes::services)
   })
-  .bind(("127.0.0.1", 8878))?
+  .bind(("0.0.0.0", 8870))?
   .run()
   .await
 }

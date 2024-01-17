@@ -2,6 +2,7 @@ use actix_web::{post, web};
 use mongodb::{Database, bson::DateTime};
 use super::{ServiceResult, RecordPayload};
 use crate::{model, config::{Response, BusinessError}};
+use log::info;
 
 pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_log);
@@ -25,7 +26,8 @@ async fn record_log(db: web::Data<Database>, json: web::Json<RecordPayload>) -> 
 
   let result = logs.insert_one(record, None).await;
   match result {
-    Ok(_) => {
+    Ok(result) => {
+    info!("record log {}", result.inserted_id);
       Response::ok("").to_json()
     },
     Err(err) => {

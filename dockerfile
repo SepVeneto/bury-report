@@ -3,9 +3,15 @@ FROM rust:1.75.0 as log-server
 
 WORKDIR /app
 
-COPY ./packages/logs ./
+COPY ./packages/logs/Cargo.lock ./packages/logs/Cargo.toml ./
+
+RUN cargo fetch
+
+COPY ./packages/logs/src ./src
 
 RUN cargo build --release
+
+EXPOSE "8870"
 
 CMD ["cargo", "run", "--release"]
 
