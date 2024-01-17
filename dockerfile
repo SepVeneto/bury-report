@@ -1,3 +1,15 @@
+# *************************************
+FROM rust:1.75.0 as log-server
+
+WORKDIR /app
+
+COPY ./packages/logs ./
+
+RUN cargo build --release
+
+CMD ["cargo", "run", "--release"]
+
+# *************************************
 FROM node:16.14.2 as server
 
 WORKDIR /app
