@@ -6,30 +6,30 @@ const { PassThrough } = require('stream')
 const ssePool = []
 const POOL_MAX = 10
 
-router.post('/record', async (ctx, next) => {
-  let body = ctx.request.body
-  if (typeof body === 'string') {
-    body = JSON.parse(body)
-  }
-  const { appid } = body
-  if (!appid) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = 'missing appid'
-    return
-  }
-  const logs = db.collection('logs')
-  const record = { ...body, createTime: new Date() }
+// router.post('/record', async (ctx, next) => {
+//   let body = ctx.request.body
+//   if (typeof body === 'string') {
+//     body = JSON.parse(body)
+//   }
+//   const { appid } = body
+//   if (!appid) {
+//     await next()
+//     ctx.body.code = 1
+//     ctx.body.message = 'missing appid'
+//     return
+//   }
+//   const logs = db.collection('logs')
+//   const record = { ...body, createTime: new Date() }
 
-  const res = await logs.insertOne({ ...record })
+//   const res = await logs.insertOne({ ...record })
 
-  const postMessage = `event: log\ndata: ${JSON.stringify(record)}\nid: ${res.insertedId}\nretry: ${20 * 1000}\n\n`
-  ssePool.forEach(stream => {
-    stream._appid === appid && stream.write(postMessage) 
-  })
+//   const postMessage = `event: log\ndata: ${JSON.stringify(record)}\nid: ${res.insertedId}\nretry: ${20 * 1000}\n\n`
+//   ssePool.forEach(stream => {
+//     stream._appid === appid && stream.write(postMessage) 
+//   })
 
-  await next()
-})
+//   await next()
+// })
 
 router.get('/logs', async (ctx, next) => {
   const { app: id } = ctx.request.query

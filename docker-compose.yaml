@@ -8,6 +8,22 @@ services:
       - server
     depends_on:
       - server
+  logs:
+    container_name: report-logs
+    build:
+        context: .
+        dockerfile: dockerfile
+        target: log-server
+    ports:
+      - 8870:8870
+    depends_on:
+      - db
+    links:
+      - db
+    env_file:
+      - .env.db.local
+    environment:
+      - REPORT_DB_URL=db:27017
   server:
     container_name: report-server
     image: sepveneto/br-server

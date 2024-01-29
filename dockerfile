@@ -1,3 +1,28 @@
+# *************************************
+FROM rust:1.75.0 as log-server
+
+WORKDIR /app
+
+COPY ./packages/logs/Cargo.lock ./packages/logs/Cargo.toml ./
+
+RUN cargo fetch -- target x86_64-unknown-linux-gnu
+
+COPY ./packages/logs/src ./src
+
+RUN cargo build --release
+
+EXPOSE "8870"
+
+
+FROM debian:stable-slim as log-deploy
+
+WORKDIR /app
+
+COPY --from=log-server /app/target/release/bury-report-logs ./
+
+CMD ["/app/bury-report-logs"]
+
+# *************************************
 FROM node:16.14.2 as server
 
 WORKDIR /app
