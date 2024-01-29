@@ -5,7 +5,7 @@ WORKDIR /app
 
 COPY ./packages/logs/Cargo.lock ./packages/logs/Cargo.toml ./
 
-RUN cargo fetch -- target x86_64-unknown-linux-gnu
+RUN cargo fetch --target x86_64-unknown-linux-gnu
 
 COPY ./packages/logs/src ./src
 
