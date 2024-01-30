@@ -20,7 +20,8 @@
     "koa": "^2.14.2",
     "koa-body": "^6.0.1",
     "md5": "^2.3.0",
-    "mongodb": "^6.3.0"
+    "mongodb": "^6.3.0",
+    "ws": "^8.16.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"

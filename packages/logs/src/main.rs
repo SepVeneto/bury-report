@@ -3,7 +3,11 @@ mod routes;
 mod config;
 mod apis;
 mod model;
+mod services;
 
+use crate::services::actor;
+
+use actix::Actor;
 use actix_web::{post, App, HttpServer, Responder, HttpResponse, web};
 use dotenv::dotenv;
 use log::info;
@@ -14,17 +18,25 @@ async fn ticket(req_body: String) -> impl Responder {
   HttpResponse::Ok()
 }
 
+// struct AppState {
+//     ws_list: Mutex<>
+// }
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-  dotenv().ok();
+  dotenv::from_filename(".env.local").ok();
 
   init_log();
 
   let database = db::connect_db().await;
 
+  let server = actor::WsActor::new().start();
+
+  info!("starting HTTP server at http://localhost:8870");
   HttpServer::new(move || {
     App::new()
       .app_data(web::Data::new(database.clone()))
+      .app_data(web::Data::new(server.clone()))
       .configure(routes::services)
   })
   .bind(("0.0.0.0", 8870))?
