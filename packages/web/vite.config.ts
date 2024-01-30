@@ -18,6 +18,10 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      '/record/ws': {
+        target: 'http://localhost:8870',
+        ws: true,
+      },
     },
   },
   plugins: [vue({

@@ -42,7 +42,7 @@ export function getApps() {
 export function readLogs(appId: string, onMessage: (evt: MessageEvent<string>) => void) {
   const token = localStorage.getItem('token')
   const protocol = location.protocol.startsWith('https') ? 'wss:' : 'ws:'
-  const host = location.hostname
+  const host = location.hostname + (location.port ? `:${location.port}` : '')
   const url = `${protocol}//${host}/record/ws?app=${appId}&token=${token}`
   const source = new WebSocket(url)
   source.onmessage = onMessage
