@@ -45,7 +45,11 @@ export function genCode(options: Required<Options>) {
       data: JSON.stringify({ uuid: uuid, type: type, data: data, appid: '${options.appid}'})
     })`
   } else {
-    request = `window.navigator.sendBeacon('${options.url}', JSON.stringify({ uuid: uuid, type, data: data, appid: '${options.appid}'}))`
+    request = `
+const json = { uuid: uuid, type, data: data, appid: '${options.appid}'}
+const blob = new Blob([JSON.stringify(json)], { type: 'application/json' })
+window.navigator.sendBeacon('${options.url}', blob)
+`
   }
   return `globalThis.${REPORT_REQUEST} = function(uuid, type, data) {
     if (${!options.report}) return false

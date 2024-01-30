@@ -37,7 +37,7 @@ Example: [`playground/`](./playground/)
 module.exports = {
   configureWebpack: {
     plugins: [
-      require('@sepveneto/report-core/webpack')({ /* options */ }),
+      require('@sepveneto/report-core/webpack').default({ /* options */ }),
     ]
   }
 }
