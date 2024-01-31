@@ -17,7 +17,7 @@ pnpm i -D @sepveneto/report-core
 
 ```ts
 // vite.config.ts
-import Reporter from '@sepveneto/report-core'
+import Reporter from '@sepveneto/report-core/vite'
 
 export default defineConfig({
   plugins: [
@@ -53,7 +53,7 @@ module.exports = {
 module.exports = {
   /* ... */
   plugins: [
-    require('@sepveneto/report-core')({ /* options */ })
+    require('@sepveneto/report-core/webpack').default({ /* options */ })
   ]
 }
 ```
@@ -68,7 +68,7 @@ module.exports = {
 module.exports = {
   configureWebpack: {
     plugins: [
-      require('@sepveneto/report-core')({ /* options */ }),
+      require('@sepveneto/report-core/webpack').default({ /* options */ }),
     ],
   },
 }

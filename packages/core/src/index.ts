@@ -1,5 +1,6 @@
 import { isUniapp } from './utils/env'
 import { COLLECT_INFO, REPORT_REQUEST, UUID_KEY } from './utils/constant'
+import { getBrowserInfo } from './utils/system'
 
 export const report = (type: string, data: any) => {
   // @ts-expect-error: exist
@@ -91,11 +92,18 @@ function getSystemInfo() {
       sa: system.safeAreaInsets,
     }
   } else {
+    const browserInfo = getBrowserInfo()
     return {
-      // uuid: getUuid(),
-      // ua: window.navigator.userAgent,
-      // dt: 'pc',
-      // dm:
+      uuid: getUuid(),
+      dt: browserInfo.deviceType,
+      dm: browserInfo.deviceModel,
+      dp: window.devicePixelRatio,
+      do: browserInfo.deviceOrientation,
+      on: browserInfo.osname,
+      ov: browserInfo.osversion,
+      bn: browserInfo.browserName,
+      bv: browserInfo.browserVersion,
+      ua: browserInfo.ua,
     }
   }
 }
