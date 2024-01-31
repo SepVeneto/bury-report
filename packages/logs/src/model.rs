@@ -1,19 +1,20 @@
 use mongodb::bson::DateTime;
 use serde::{Deserialize, Serialize};
-#[warn(non_snake_case)]
+use serde_json::{Map, Value};
 
 #[derive(Deserialize, Serialize)]
 pub struct Captcha {
   key: String,
   offset: usize,
-  createTime: String,
+  create_time: String,
 }
 
 #[derive(Deserialize, Serialize)]
 pub struct Log {
   pub r#type: String,
   pub appid: String,
-  pub createTime: DateTime,
+  pub data: Map<String, Value>,
+  pub create_time: DateTime,
 }
 
 #[derive(Deserialize, Serialize)]

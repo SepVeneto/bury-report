@@ -35,7 +35,7 @@ const params = ref({
 })
 const tableRef = ref()
 const tableConfig = shallowRef([
-  { label: '记录时间', prop: 'createTime', filter: (str: string) => new Date(str).toLocaleString(), width: 160 },
+  { label: '记录时间', prop: 'create_time', filter: (str: string) => new Date(str).toLocaleString(), width: 160 },
   {
     label: '设备信息',
     children: [

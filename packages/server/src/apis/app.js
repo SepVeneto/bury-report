@@ -195,12 +195,12 @@ router.get('/app/:appId/logs', async (ctx, next) => {
   }
   if (query['timerange[]']) {
     const [start, end] = query['timerange[]']
-    match['createTime'] = { $gte: new Date(start), $lte: new Date(end) }
+    match['create_time'] = { $gte: new Date(start), $lte: new Date(end) }
   }
 
   const list = await logs
-    .find(match, { projection: { _id: 0, id: '$_id', createTime: 1, data: 1 }})
-    .sort({ createTime: -1 })
+    .find(match, { projection: { _id: 0, id: '$_id', create_time: 1, data: 1 }})
+    .sort({ create_time: -1 })
     .skip(offset)
     .limit(Number(size))
     .toArray()
@@ -233,12 +233,12 @@ router.get('/app/:appId/errors', async (ctx, next) => {
   }
   if (query['timerange[]']) {
     const [start, end] = query['timerange[]']
-    match['createTime'] = { $gte: new Date(start), $lte: new Date(end) }
+    match['create_time'] = { $gte: new Date(start), $lte: new Date(end) }
   }
 
   const list = await logs
-    .find(match, { projection: { _id: 0, id: '$_id', createTime: 1, data: 1, uuid: 1 }})
-    .sort({ createTime: -1 })
+    .find(match, { projection: { _id: 0, id: '$_id', create_time: 1, data: 1, uuid: 1 }})
+    .sort({ create_time: -1 })
     .skip(offset)
     .limit(Number(size))
     .toArray()
@@ -265,7 +265,7 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
     /**
      * TODO
      */
-    createTime: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
+    create_time: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
   })
   let list = await logs.find(match, { projection: { _id: 0, deviceId: '$data.uuid' }}).toArray()
   let tempObj = {}
@@ -279,7 +279,7 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
   tempObj = {}
   list = await logs.find({
     ...match,
-    createTime: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
+    create_time: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
   }, { projection: { _id: 0, deviceId: '$data.uuid' }}).toArray()
   const yesterdayTotal = list.reduce((total, item) => {
     if (!tempObj[item.deviceId]) {
@@ -316,7 +316,7 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
           },
           {
             $project: {
-              yearMonthDay: { $dateToString: { format: '%Y-%m-%d', date: { $add: ['$createTime', 8 * 60 * 60 * 1000] }}}
+              yearMonthDay: { $dateToString: { format: '%Y-%m-%d', date: { $add: ['$create_time', 8 * 60 * 60 * 1000] }}}
             }
           },
           {
@@ -338,12 +338,12 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
           {
             $match: {
               ...match,
-              createTime: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
+              create_time: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
             }
           },
           {
             $project: {
-              yearMonthDay: { $dateToString: { format: '%H', date: { $add: ['$createTime', 8 * 60 * 60 * 1000] }}}
+              yearMonthDay: { $dateToString: { format: '%H', date: { $add: ['$create_time', 8 * 60 * 60 * 1000] }}}
             }
           },
           {

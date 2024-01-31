@@ -41,8 +41,8 @@ getApp(route.params.id as string).then((res) => {
   title.value = res.name
 })
 const sse = readLogs(route.params.id as string, async (evt) => {
-  const { createTime, ...params } = JSON.parse(evt.data)
-  records.value.push(`${new Date(createTime).toLocaleString()}  ${JSON.stringify(params)}`)
+  const { create_time, ...params } = JSON.parse(evt.data)
+  records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
   await nextTick()
   scrollbarRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
 })

@@ -102,7 +102,7 @@ router.get('/captcha', async (ctx, next) => {
     key: captchaMd5,
   }
   const captcha = db.collection('captcha')
-  await captcha.insertOne({ key: captchaMd5, offset: 150, createTime: new Date() })
+  await captcha.insertOne({ key: captchaMd5, offset: 150, create_time: new Date() })
   await next()
 })
 function verifyCaptcha(target, answer) {

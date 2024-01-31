@@ -41,7 +41,8 @@ async fn record_log(
   let json = payload_handler(json_body).await?;
 
   if let None = json.appid.to_owned() {
-    return Response::err(10001, "缺少appid").to_json();
+    return Err(BusinessError::ValidationError { field: String::from("appid") });
+    // return Response::err(10001, "缺少appid").to_json();
   }
 
   let logs = db.collection::<model::Log>("logs");
@@ -50,7 +51,8 @@ async fn record_log(
   let record = model::Log {
     r#type: json.r#type.to_owned(),
     appid,
-    createTime: DateTime::now(),
+    data: json.data,
+    create_time: DateTime::now(),
   };
 
   let msg = format!("{}", &record.r#type);

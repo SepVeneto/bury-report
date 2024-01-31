@@ -9,7 +9,6 @@ use crate::services::actor;
 
 use actix::Actor;
 use actix_web::{post, App, HttpServer, Responder, HttpResponse, web};
-use dotenv::dotenv;
 use log::info;
 
 #[post("/verify_ticket")]

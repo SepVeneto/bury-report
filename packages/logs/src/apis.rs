@@ -5,6 +5,7 @@ use actix_web::HttpResponse;
 use crate::config::BusinessError;
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 
 pub type ServiceResult = Result<HttpResponse, BusinessError>;
@@ -24,7 +25,12 @@ pub struct LoginPayload {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct SystemInfo {
+    uuid: String,
+}
+#[derive(Deserialize, Serialize)]
 pub struct RecordPayload {
   pub r#type: String,
   pub appid: Option<String>,
+  pub data: Map<String, Value>,
 }

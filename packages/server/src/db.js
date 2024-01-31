@@ -19,9 +19,9 @@ async function initDb() {
   createCollection('logs', collections)
   {
     const captcha = db.collection('captcha')
-    const exist = (await captcha.indexes()).find(index => index.name === 'createTime')
+    const exist = (await captcha.indexes()).find(index => index.name === 'create_time')
     if (!exist) {
-      captcha.createIndex({ 'createTime': 1 }, { name: 'createTime', expireAfterSeconds: 10 * 60 })
+      captcha.createIndex({ 'create_time': 1 }, { name: 'create_time', expireAfterSeconds: 10 * 60 })
     }
   }
   {

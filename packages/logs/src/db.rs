@@ -38,11 +38,11 @@ async fn create_logs_index(db: &Database) {
 
 async fn create_captcha_index(db: &Database) {
   let options = IndexOptions::builder()
-    .name(String::from("createTime"))
+    .name(String::from("create_time"))
     .expire_after(Duration::new(3 * 60, 0))
     .build();
   let model = IndexModel::builder()
-    .keys(doc! { "createTime": 1 })
+    .keys(doc! { "create_time": 1 })
     .options(options)
     .build();
 
@@ -50,7 +50,7 @@ async fn create_captcha_index(db: &Database) {
     .collection::<Captcha>("captcha")
     .create_index(model, None)
     .await
-    .expect_err("the index createTime has already been created");
+    .expect_err("the index create_time has already been created");
 }
 
 async fn init_collection(db: &Database) {
