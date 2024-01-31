@@ -50,7 +50,7 @@ async fn create_captcha_index(db: &Database) {
     .collection::<Captcha>("captcha")
     .create_index(model, None)
     .await
-    .expect_err("the index create_time has already been created");
+    .expect("the index create_time has already been created");
 }
 
 async fn init_collection(db: &Database) {
