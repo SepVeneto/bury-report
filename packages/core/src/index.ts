@@ -48,7 +48,7 @@ function getSystemInfo() {
   if (isUniapp()) {
     const system = uni.getSystemInfoSync()
     return {
-      uuid: system.deviceId || getUuid(),
+      uuid: getUuid(),
       // mp, web
       dt: system.deviceType,
       // mp
