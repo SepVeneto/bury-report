@@ -1,4 +1,5 @@
 import { request } from '@/util/request'
+import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
 
 export type App = {
@@ -40,25 +41,19 @@ export function getApps() {
   })
 }
 
-export function readLogs(appId: string, onMessage: (evt: MessageEvent<string>) => void) {
+export function readLogs(appId: string, onMessage: UseWebSocketOptions['onMessage']) {
   const token = localStorage.getItem('token')
   const protocol = location.protocol.startsWith('https') ? 'wss:' : 'ws:'
   const url = `${protocol}//${location.hostname}:8870/record/ws?app=${appId}&token=${token}`
   const websocket = useWebSocket(url, {
     heartbeat: {
       message: 'PING',
-      interval: 1000,
+      interval: 30 * 1000,
+      pongTimeout: 30 * 1000 * 5,
     },
+    onMessage,
   })
   if (!websocket.ws.value) return
-  const ws = websocket.ws.value
-  ws.onmessage = onMessage
-  ws.onclose = () => {
-    console.log('link close')
-  }
-  ws.onerror = () => {
-    console.log('link error')
-  }
   return websocket
 }
 

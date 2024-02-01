@@ -40,17 +40,20 @@ const title = ref('')
 getApp(route.params.id as string).then((res) => {
   title.value = res.name
 })
-const ws = readLogs(route.params.id as string, async (evt) => {
+const ws = readLogs(route.params.id as string, async (_ws, evt) => {
+  if (evt.data === 'CONNECT') {
+    records.value.push('建立连接成功')
+    console.log('建立连接成功')
+  }
+
+  if (typeof evt.data !== 'object') return
+
   const { create_time, ...params } = JSON.parse(evt.data)
   records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
   await nextTick()
   scrollbarRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
 })
 
-ws.ws.value.onopen = () => {
-  records.value.push('建立连接成功')
-  console.log('建立连接成功')
-}
 ws.ws.value.onerror = () => {
   ElMessage.error('日志连接建立失败, 请稍候重试...')
 }

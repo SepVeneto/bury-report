@@ -18,8 +18,6 @@ async fn record_ws(
     stream: web::Payload,
     srv: web::Data<Addr<WsActor>>,
 ) -> HttpResponse {
-    // let conn = WsConn;
-    db.list_collection_names(doc! {}).await.unwrap();
     let resp = actix_web_actors::ws::start(
         WebsocketConnect::new(srv.get_ref().clone()),
         &req,

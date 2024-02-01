@@ -23,7 +23,7 @@ impl Actor for WebsocketConnect {
     type Context = ws::WebsocketContext<Self>;
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("started");
-        ctx.text("connect");
+        ctx.text("CONNECT");
         // self.ws_actor.do_send(WsMessage(String::from("connect")));
         let addr = ctx.address();
         self.ws_actor
@@ -59,9 +59,13 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebsocketConnect 
             }
             Ok(msg) => msg,
         };
-        println!("WEBS {msg:?}");
         match msg {
-            ws::Message::Text(text) => ctx.text(text),
+            ws::Message::Text(text) => {
+                if text.to_string() == "PING" {
+                    ctx.text("PONG");
+                }
+            },
+            ws::Message::Ping(_ping) => ctx.pong(b""),
             ws::Message::Close(reason) => {
                 ctx.close(reason);
                 ctx.stop();
