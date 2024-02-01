@@ -1,5 +1,5 @@
 import { parse, prettyPrint, types, visit } from 'recast'
-import { isUniapp, isVue2 } from '.'
+import { isUniH5, isUniapp, isVue2 } from '.'
 import { COLLECT_ERROR } from './constant'
 import parser from '@babel/parser'
 
@@ -42,7 +42,7 @@ console.error = function() {
   _tempError.apply(this, arguments)
 }
 `)
-      if (!isUniapp()) {
+      if (!isUniapp() || isUniH5()) {
         path.insertAfter(`
 if (window) {
   window.addEventListener('unhandledrejection', (evt) => {
