@@ -54,7 +54,7 @@ if (window) {
         path.insertAfter(`
 uni.onError((evt) => {
   console.error(evt)
-}
+})
 `)
       }
       return false
