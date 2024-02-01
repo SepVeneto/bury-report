@@ -47,7 +47,7 @@ console.error = function() {
 if (window) {
   window.addEventListener('unhandledrejection', (evt) => {
     console.error(evt)
-  }
+  })
 }
 `)
       } else {
