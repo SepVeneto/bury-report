@@ -1,5 +1,5 @@
 import { parse, prettyPrint, types, visit } from 'recast'
-import { isVue2 } from '.'
+import { isUniapp, isVue2 } from '.'
 import { COLLECT_ERROR } from './constant'
 import parser from '@babel/parser'
 
@@ -29,10 +29,34 @@ console.error = function() {
       ${reportContent}
       break
     }
+    if (arg instanceof PromiseRejectionEvent) {
+      const error = {
+        name: arg.reason.name,
+        message: arg.reason.message,
+        stack: arg.reason.stack,
+      }
+      ${reportContent}
+      break
+    }
   }
   _tempError.apply(this, arguments)
 }
 `)
+      if (!isUniapp()) {
+        path.insertAfter(`
+if (window) {
+  window.addEventListener('unhandledrejection', (evt) => {
+    console.error(evt)
+  }
+}
+`)
+      } else {
+        path.insertAfter(`
+uni.onError((evt) => {
+  console.error(evt)
+}
+`)
+      }
       return false
     },
   })
