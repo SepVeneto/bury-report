@@ -40,22 +40,23 @@ const title = ref('')
 getApp(route.params.id as string).then((res) => {
   title.value = res.name
 })
-const sse = readLogs(route.params.id as string, async (evt) => {
+const ws = readLogs(route.params.id as string, async (evt) => {
   const { create_time, ...params } = JSON.parse(evt.data)
   records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
   await nextTick()
   scrollbarRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
 })
 
-sse.onopen = () => {
+ws.ws.value.onopen = () => {
+  records.value.push('建立连接成功')
   console.log('建立连接成功')
 }
-sse.onerror = () => {
+ws.ws.value.onerror = () => {
   ElMessage.error('日志连接建立失败, 请稍候重试...')
 }
 
 onUnmounted(() => {
-  sse.close()
+  ws?.close()
 })
 
 function handleFullScreen() {

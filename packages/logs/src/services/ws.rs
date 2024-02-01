@@ -23,8 +23,8 @@ impl Actor for WebsocketConnect {
     type Context = ws::WebsocketContext<Self>;
     fn started(&mut self, ctx: &mut Self::Context) {
         println!("started");
-        // self.ws_actor.do_send(WsMessage(String::from("connect")));
         ctx.text("connect");
+        // self.ws_actor.do_send(WsMessage(String::from("connect")));
         let addr = ctx.address();
         self.ws_actor
         .send(Connect {
