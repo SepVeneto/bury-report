@@ -3,5 +3,5 @@ export function isUniapp() {
 }
 
 export function isUniH5() {
-  return process.env.UNI_PLATFORM === 'H5'
+  return process.env.UNI_PLATFORM === 'h5'
 }
