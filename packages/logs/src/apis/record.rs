@@ -40,24 +40,30 @@ async fn record_log(
   // default size limit 256KB
   let json = payload_handler(json_body).await?;
 
-  if let None = json.appid.to_owned() {
+  let appid = match json.appid {
+    Some(appid) => appid,
+    _ => String::from("None"),
+  };
+  if appid == "None" {
     return Err(BusinessError::ValidationError { field: String::from("appid") });
-    // return Response::err(10001, "缺少appid").to_json();
   }
 
   let logs = db.collection::<model::Log>("logs");
 
-  let appid = json.appid.to_owned().unwrap();
   let record = model::Log {
-    r#type: json.r#type.to_owned(),
+    r#type: json.r#type,
+    uuid: json.uuid,
     appid,
     data: json.data,
     create_time: DateTime::now(),
   };
 
-  let msg = format!("{}", &record.r#type);
-  // broadcast to manage clients
-  let _ = svr.do_send(crate::services::actor::LogMessage { text: msg });
+  match record.to_string() {
+    Ok(text) => {
+        svr.do_send(crate::services::actor::LogMessage { text });
+    },
+    Err(_) => (),
+  }
 
   let result = logs.insert_one(record, None).await;
   match result {
@@ -77,6 +83,7 @@ async fn payload_handler(payload: web::Payload) -> Result<RecordPayload, Busines
         Ok(res) => res,
         Err(_) => { return Err(BusinessError::InternalError); }
     };
+
     let json = serde_json::from_slice::<RecordPayload>(&res);
 
     match json {

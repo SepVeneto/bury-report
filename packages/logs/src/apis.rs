@@ -28,9 +28,10 @@ pub struct LoginPayload {
 pub struct SystemInfo {
     uuid: String,
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct RecordPayload {
   pub r#type: String,
   pub appid: Option<String>,
   pub data: Map<String, Value>,
+  pub uuid: String,
 }
