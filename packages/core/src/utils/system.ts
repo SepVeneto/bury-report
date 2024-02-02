@@ -1,31 +1,31 @@
-const ua = navigator.userAgent
-/**
- * 是否安卓设备
- */
-const isAndroid = /android/i.test(ua)
-/**
- * 是否iOS设备
- */
-const isIOS = /iphone|ipad|ipod/i.test(ua)
-/**
- * 是否是Windows设备
- */
-const isWindows = ua.match(/Windows NT ([\d|\d.\d]*)/i)
-/**
- * 是否是Mac设备
- */
-const isMac = /Macintosh|Mac/i.test(ua)
-/**
- * 是否是Linux设备
- */
-const isLinux = /Linux|X11/i.test(ua)
-/**
- * 是否是iPadOS
- */
-const isIPadOS = isMac && navigator.maxTouchPoints > 0
-
 export function getBrowserInfo() {
+  const ua = navigator.userAgent
+  /**
+  * 是否安卓设备
+  */
+  const isAndroid = /android/i.test(ua)
+  /**
+  * 是否iOS设备
+  */
+  const isIOS = /iphone|ipad|ipod/i.test(ua)
+  /**
+  * 是否是Windows设备
+  */
+  const isWindows = ua.match(/Windows NT ([\d|\d.\d]*)/i)
+  /**
+  * 是否是Mac设备
+  */
+  const isMac = /Macintosh|Mac/i.test(ua)
+  /**
+  * 是否是Linux设备
+  */
+  const isLinux = /Linux|X11/i.test(ua)
+  /**
+  * 是否是iPadOS
+  */
+  const isIPadOS = isMac && navigator.maxTouchPoints > 0
   const language = window.navigator.language
+
   let osname
   let osversion
   let model
