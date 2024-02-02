@@ -5,6 +5,7 @@ use uuid::Uuid;
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct LogMessage {
+    pub app_id: String,
     pub text: String,
 }
 #[derive(Message)]

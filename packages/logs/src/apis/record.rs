@@ -13,6 +13,36 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_ws);
 }
 
+async fn is_app_exist(
+    db: &web::Data<Database>,
+    app_id: &str,
+) -> Result<bool, BusinessError> {
+    let oid = match ObjectId::from_str(app_id) {
+        Ok(oid) => oid,
+        Err(err) => {
+            error!("transfer object id failed: {}", err);
+            return Err(BusinessError::ValidationError { field: String::from("appid") });
+        }
+    };
+    match db
+    .collection::<model::App>("apps")
+    .find_one(doc! {"_id": oid }, None)
+    .await {
+        Ok(res) => {
+            if let None = res {
+                error!("Couldn't find app {}", app_id);
+                return Err(BusinessError::ValidationError { field: String::from("appid") });
+            } else {
+                return Ok(true);
+            }
+        },
+        Err(err) => {
+            error!("query failed: {}", err);
+            return Err(BusinessError::InternalError);
+        }
+    }
+}
+
 #[get("/record/ws/{app_id}")]
 async fn record_ws(
     path: web::Path<String>,
@@ -22,24 +52,8 @@ async fn record_ws(
     srv: web::Data<Addr<WsActor>>,
 ) -> ServiceResult {
     let app_id = path.into_inner();
-    let oid = match ObjectId::from_str(&app_id) {
-        Ok(oid) => oid,
-        Err(err) => {
-            error!("transfer object id failed: {}", err);
-            return Err(BusinessError::InternalError);
-        }
-    };
-    match db.collection::<model::App>("apps").find_one(doc! {"_id": oid }, None).await {
-        Ok(res) => {
-            if let None = res {
-                error!("Couldn't find app {}", app_id);
-                return Err(BusinessError::ValidationError { field: String::from("appid") });
-            }
-        },
-        Err(err) => {
-            error!("query failed: {}", err);
-            return Err(BusinessError::InternalError);
-        }
+    if let Err(err) = is_app_exist(&db, &app_id).await {
+        return Err(err);
     }
 
     let resp = actix_web_actors::ws::start(
@@ -66,11 +80,16 @@ async fn record_log(
   let json = payload_handler(json_body).await?;
 
   let appid = match json.appid {
-    Some(appid) => appid,
+    Some(appid) => {
+        appid
+    },
     _ => String::from("None"),
   };
   if appid == "None" {
     return Err(BusinessError::ValidationError { field: String::from("appid") });
+  }
+  if let Err(err) = is_app_exist(&db, &appid).await {
+      return Err(err);
   }
 
   let logs = db.collection::<model::Log>("logs");
@@ -78,14 +97,17 @@ async fn record_log(
   let record = model::Log {
     r#type: json.r#type,
     uuid: json.uuid,
-    appid,
+    appid: appid.clone(),
     data: json.data,
     create_time: DateTime::now(),
   };
 
   match record.to_string() {
     Ok(text) => {
-        svr.do_send(crate::services::actor::LogMessage { text });
+        svr.do_send(crate::services::actor::LogMessage {
+            app_id: appid,
+            text,
+        });
     },
     Err(_) => (),
   }
