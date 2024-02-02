@@ -57,7 +57,7 @@ async fn record_ws(
     }
 
     let resp = actix_web_actors::ws::start(
-        WebsocketConnect::new(srv.get_ref().clone()),
+        WebsocketConnect::new(app_id, srv.get_ref().clone()),
         &req,
         stream
     );

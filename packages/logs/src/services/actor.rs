@@ -21,7 +21,10 @@ pub struct Connect {
 }
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct WsMessage(pub String);
+pub struct WsMessage {
+    pub text: String,
+    pub app_id: String,
+}
 pub struct WsActor {
     sessions: HashMap<String, Recipient<WsMessage>>
 }
@@ -32,13 +35,7 @@ impl WsActor {
         }
     }
 }
-// impl WsActor {
-//     pub fn send_message(&self, message: &str) {
-//         for (_, session_addr) in self.sessions.iter() {
-//             session_addr.do_send(WsMessage(message.to_owned()));
-//         }
-//     }
-// }
+
 impl Actor for WsActor {
     type Context = Context<Self>;
 }
@@ -64,9 +61,8 @@ impl Handler<Disconnect> for WsActor {
 impl Handler<LogMessage> for WsActor {
     type Result = ();
     fn handle(&mut self, msg: LogMessage, _: &mut Context<Self>) -> Self::Result {
-        println!("{}", self.sessions.len());
         for (_, session) in self.sessions.iter() {
-            session.do_send(WsMessage(msg.text.clone()));
+            session.do_send(WsMessage { text: msg.text.clone(), app_id: msg.app_id.clone(), });
         }
     }
 }

@@ -7,12 +7,14 @@ use log::info;
 
 pub struct WebsocketConnect {
     pub id: String,
+    app_id: String,
     ws_actor: Addr<WsActor>,
 }
 impl WebsocketConnect {
-    pub fn new(ws_actor: Addr<WsActor>) -> Self {
+    pub fn new(app_id: String, ws_actor: Addr<WsActor>) -> Self {
         Self {
             id: String::from(""),
+            app_id,
             ws_actor,
         }
     }
@@ -77,6 +79,8 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WebsocketConnect 
 impl Handler<WsMessage> for WebsocketConnect {
     type Result = ();
     fn handle(&mut self, msg: WsMessage, ctx: &mut ws::WebsocketContext<Self>) -> Self::Result {
-        ctx.text(msg.0);
+        if self.app_id == msg.app_id {
+            ctx.text(msg.text);
+        }
     }
 }
