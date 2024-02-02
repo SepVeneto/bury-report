@@ -4,12 +4,14 @@ mod config;
 mod apis;
 mod model;
 mod services;
+mod middleware;
 
 use crate::services::actor;
 
 use actix::Actor;
-use actix_web::{post, App, HttpServer, Responder, HttpResponse, web};
+use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
+
 
 #[post("/verify_ticket")]
 async fn ticket(req_body: String) -> impl Responder {
@@ -36,6 +38,7 @@ async fn main() -> std::io::Result<()> {
     App::new()
       .app_data(web::Data::new(database.clone()))
       .app_data(web::Data::new(server.clone()))
+      .wrap(middleware::Auth)
       .configure(routes::services)
   })
   .bind(("0.0.0.0", 8870))?

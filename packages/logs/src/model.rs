@@ -46,3 +46,9 @@ pub struct User {
   pub name: String,
   pub password: String,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct App {
+    pub name: String,
+    pub is_delete: Option<bool>,
+}

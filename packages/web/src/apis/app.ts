@@ -41,17 +41,24 @@ export function getApps() {
   })
 }
 
-export function readLogs(appId: string, onMessage: UseWebSocketOptions['onMessage']) {
+export function readLogs(
+  appId: string,
+  onMessage: UseWebSocketOptions['onMessage'],
+  onDisconnected: UseWebSocketOptions['onDisconnected'],
+  onError: UseWebSocketOptions['onError'],
+) {
   const token = localStorage.getItem('token')
   const protocol = location.protocol.startsWith('https') ? 'wss:' : 'ws:'
-  const url = `${protocol}//${location.hostname}:8870/record/ws?app=${appId}&token=${token}`
+  const url = `${protocol}//${location.hostname}:5454/record/ws/${appId}?token=${token}`
   const websocket = useWebSocket(url, {
     heartbeat: {
       message: 'PING',
       interval: 30 * 1000,
-      pongTimeout: 30 * 1000 * 5,
+      // pongTimeout: 10 * 1000,
     },
     onMessage,
+    onDisconnected,
+    onError,
   })
   if (!websocket.ws.value) return
   return websocket

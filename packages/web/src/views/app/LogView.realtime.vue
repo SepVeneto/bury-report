@@ -52,12 +52,11 @@ const ws = readLogs(route.params.id as string, async (_ws, evt) => {
   records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
   await nextTick()
   scrollbarRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
-})
-
-ws.ws.value.onerror = () => {
+}, () => {
+  records.value.push('与服务器连接中断!')
+}, () => {
   ElMessage.error('日志连接建立失败, 请稍候重试...')
-}
-
+})
 onUnmounted(() => {
   ws?.close()
 })

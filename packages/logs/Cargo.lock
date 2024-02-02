@@ -438,6 +438,7 @@ dependencies = [
  "dotenv",
  "env_logger",
  "failure",
+ "futures-util",
  "log",
  "md5",
  "mongodb",

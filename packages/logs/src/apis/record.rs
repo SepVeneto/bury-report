@@ -1,6 +1,8 @@
-use actix_web::{get, post, web, HttpRequest, HttpResponse};
+use std::str::FromStr;
+
+use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use mongodb::{Database, bson::{doc, DateTime}};
+use mongodb::{Database, bson::{doc, DateTime, oid::ObjectId}};
 use super::{ServiceResult, RecordPayload};
 use crate::{config::{Response, BusinessError}, model};
 use log::{error, info};
@@ -11,21 +13,46 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_ws);
 }
 
-#[get("/record/ws")]
+#[get("/record/ws/{app_id}")]
 async fn record_ws(
+    path: web::Path<String>,
     db: web::Data<Database>,
     req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<WsActor>>,
-) -> HttpResponse {
+) -> ServiceResult {
+    let app_id = path.into_inner();
+    let oid = match ObjectId::from_str(&app_id) {
+        Ok(oid) => oid,
+        Err(err) => {
+            error!("transfer object id failed: {}", err);
+            return Err(BusinessError::InternalError);
+        }
+    };
+    match db.collection::<model::App>("apps").find_one(doc! {"_id": oid }, None).await {
+        Ok(res) => {
+            if let None = res {
+                error!("Couldn't find app {}", app_id);
+                return Err(BusinessError::ValidationError { field: String::from("appid") });
+            }
+        },
+        Err(err) => {
+            error!("query failed: {}", err);
+            return Err(BusinessError::InternalError);
+        }
+    }
+
     let resp = actix_web_actors::ws::start(
         WebsocketConnect::new(srv.get_ref().clone()),
         &req,
         stream
     );
     match resp {
-        Ok(ret) => ret,
-        Err(e) => e.error_response(),
+        Ok(ret) => Ok(ret),
+        Err(e) => {
+            error!("Established websocket connection failed: {}", e);
+            Err(BusinessError::InternalError)
+        },
     }
 }
 

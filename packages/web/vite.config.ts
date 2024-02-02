@@ -14,14 +14,14 @@ export default defineConfig({
     proxy: {
       '/api': {
         // target: 'http://10.7.12.26:8080',
-        // target: 'http://localhost:8878',
-        target: 'https://scsj.jsrxjt.com',
+        target: 'http://localhost:8878',
+        // target: 'https://scsj.jsrxjt.com',
         changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/record/ws': {
         // target: 'wss://scsj.jsrxjt.com',
-        target: 'ws://localost:8870',
+        target: 'ws://localost:5454',
         secure: false,
         ws: true,
       },
