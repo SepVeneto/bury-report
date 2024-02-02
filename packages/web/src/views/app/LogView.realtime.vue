@@ -42,14 +42,20 @@ getApp(route.params.id as string).then((res) => {
 })
 const ws = readLogs(route.params.id as string, async (_ws, evt) => {
   if (evt.data === 'CONNECT') {
-    records.value.push('建立连接成功')
     console.log('建立连接成功')
   }
-
-  if (typeof evt.data !== 'object') return
-
-  const { create_time, ...params } = JSON.parse(evt.data)
-  records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
+  switch (evt.data) {
+    case 'CONNECT':
+      records.value.push('建立连接成功')
+      break
+    case 'PONG':
+      break
+    default:
+    {
+      const { create_time, ...params } = JSON.parse(evt.data)
+      records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
+    }
+  }
   await nextTick()
   scrollbarRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
 }, () => {
