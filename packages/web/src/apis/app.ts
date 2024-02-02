@@ -49,7 +49,10 @@ export function readLogs(
 ) {
   const token = localStorage.getItem('token')
   const protocol = location.protocol.startsWith('https') ? 'wss:' : 'ws:'
-  const url = `${protocol}//${location.hostname}:5454/record/ws/${appId}?token=${token}`
+  const host = import.meta.env.MODE === 'production'
+    ? `${protocol}//${location.hostname}`
+    : `${protocol}//${location.hostname}:5454`
+  const url = `${host}/api/record/ws/${appId}?token=${token}`
   const websocket = useWebSocket(url, {
     heartbeat: {
       message: 'PING',

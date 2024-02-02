@@ -19,7 +19,7 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
-      '/record/ws': {
+      '/api/record/ws': {
         // target: 'wss://scsj.jsrxjt.com',
         target: 'ws://localost:5454',
         secure: false,
