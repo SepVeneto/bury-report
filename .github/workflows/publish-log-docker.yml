@@ -48,6 +48,13 @@ jobs:
 
       - name: Get version
         run: echo "TAG_VERSION=${GITHUB_REF#refs/*/log@}" >> $GITHUB_ENV
+
+      - name: Cache Rust dependecies
+        uses: actions/cache@v2
+        with:
+          path: /cache
+          key: ${{ runner.os }}-rust-${{ hashFiles('**/packages/logs/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-rust-
         
       # https://github.com/docker/build-push-action
       - name: Build and push Docker image

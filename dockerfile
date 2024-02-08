@@ -3,6 +3,8 @@ FROM rust:1.75.0 as log-server
 
 WORKDIR /app
 
+VOLUME "/usr/local/cache"
+
 COPY ./packages/logs/Cargo.lock ./packages/logs/Cargo.toml ./
 
 RUN cargo fetch --target x86_64-unknown-linux-gnu

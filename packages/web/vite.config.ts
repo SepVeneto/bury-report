@@ -19,12 +19,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
-      '/api/record/ws': {
-        // target: 'wss://scsj.jsrxjt.com',
-        target: 'ws://localost:5454',
-        secure: false,
-        ws: true,
-      },
+      // '/api/record/ws': {
+      //   // target: 'wss://scsj.jsrxjt.com',
+      //   target: 'ws://localost:5454',
+      //   secure: false,
+      //   ws: true,
+      // },
     },
   },
   plugins: [vue({
