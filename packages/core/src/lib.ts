@@ -18,7 +18,7 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
     name: 'plugin-bury-report',
     enforce: 'pre',
     transformInclude(id) {
-      return isEntry(id)
+      return isEntry(id, config.entry)
     },
     transform(code) {
       const insertCode = reportContent +

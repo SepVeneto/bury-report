@@ -84,6 +84,7 @@ module.exports = {
 | report | boolean | ❎ | process.env.NODE.ENV === 'production' | 是否发送上报请求。 |
 | error | boolean | ❎ | true | 是否自动上报error类型的错误 |
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
+| entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
 
 ## 方法
 | 名称 | 参数 | 说明 |

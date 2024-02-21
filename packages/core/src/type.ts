@@ -1,5 +1,9 @@
 export interface Options {
   /**
+   * 项目的入口文件
+   */
+  entry?: string
+  /**
    * 用来区分每一个应用的
    */
   appid: string

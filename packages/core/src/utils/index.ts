@@ -32,9 +32,13 @@ export function addErrorReport(code: string) {
   // return s.toString()
   return proxyConsoleError(code)
 }
-export function isEntry(id: string) {
-  // 抹平webpack和vite对于windows平台路径分隔符的差异
-  return isUniapp() && path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
+export function isEntry(id: string, entryFile: string) {
+  if (isUniapp()) {
+    // 抹平webpack和vite对于windows平台路径分隔符的差异
+    return path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
+  } else {
+    return path.resolve(id) === path.resolve(process.cwd(), entryFile)
+  }
 }
 export function genCode(options: Required<Options>) {
   let request
@@ -63,9 +67,16 @@ export function getMainEntry() {
   return mainEntry
 }
 
-export function mergeConfig(config: Options, defaultConfig: Required<Omit<Options, 'url' | 'appid'>>) {
+function detectEntryFile(config: Options) {
+  if (config.entry) return config.entry
+
+  return fs.existsSync(path.resolve(process.cwd(), 'src/main.ts')) ? 'src/main.ts' : 'src/main.js'
+}
+
+export function mergeConfig(config: Options, defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry'>>) {
   return {
     ...defaultConfig,
     ...config,
+    entry: detectEntryFile(config),
   }
 }

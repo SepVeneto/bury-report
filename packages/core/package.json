@@ -1,6 +1,6 @@
 {
   "name": "@sepveneto/report-core",
-  "version": "0.2.6",
+  "version": "0.2.7-alpha.2",
   "description": "",
   "type": "module",
   "main": "dist/index.cjs",
