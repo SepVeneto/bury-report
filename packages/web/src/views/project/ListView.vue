@@ -21,10 +21,11 @@
           <ElTag
             v-for="(app, index) in row.apps"
             :key="index"
-            style="margin-right: 10px;"
+            style="margin-right: 10px; cursor: pointer;"
             disable-transitions
+            @click="handleDetail(app)"
           >
-            {{ app }}
+            {{ app.name }}
           </ElTag>
         </div>
       </template>
@@ -52,10 +53,12 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import { deleteProject, getProjectList, updateProject } from '@/apis'
-import type { Project } from '@/apis'
+import type { App, Project } from '@/apis'
 import { createDialog } from '@sepveneto/basic-comp'
 import DialogProject from './DialogProject.vue'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const params = ref({
   page: 1,
   size: 20,
@@ -70,6 +73,9 @@ const searchConfig = shallowRef([
   { catalog: 'input', prop: 'name', name: '项目名称' },
   { catalog: 'input', prop: 'app', name: '应用名称' },
 ])
+function handleDetail(app: App) {
+  router.push({ name: 'AppDetail', params: { id: app.id } })
+}
 function getList() {
   return getProjectList(params.value)
 }

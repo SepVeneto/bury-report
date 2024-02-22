@@ -25,7 +25,7 @@ router.get('/project/list', async (ctx, next) => {
     .toArray()
 
   list.forEach(item => {
-    item.apps = item.apps.map(item => item.name)
+    item.apps = item.apps.map(item => ({ ...item }))
   })
   ctx.body = {
     total,

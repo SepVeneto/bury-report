@@ -16,6 +16,14 @@
       pagination
       :api="getList"
     >
+      <template #name="{ row }">
+        <ElLink
+          type="primary"
+          @click="handleDetail(row)"
+        >
+          {{ row.name }}
+        </ElLink>
+      </template>
       <template #id="{ row }">
         <div
           style="cursor: pointer;"
@@ -34,12 +42,6 @@
           @click="handleEdit(row)"
         >
           编辑
-        </bc-button>
-        <bc-button
-          text
-          @click="handleDetail(row)"
-        >
-          详情
         </bc-button>
         <bc-button
           text
