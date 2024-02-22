@@ -6,6 +6,14 @@ const md5 = require('md5')
 const { SECRET } = require('../utils')
 const { normalize } = require('../utils')
 
+function randomColor() {
+  const r = Math.random() * 255
+  const g = Math.random() * 255
+  const b = Math.random() * 255
+
+  return `rgb(${r, g, b}`
+}
+
 router.get('/app/list', async (ctx, next) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const apps = db.collection('apps')
@@ -96,14 +104,17 @@ router.post('/app', async (ctx, next) => {
     ctx.body.code = 1
     ctx.body.message = '应用已存在'
   } else {
-    const res = await db.collection('apps').insertOne({ name })
+    const res = await db.collection('apps').insertOne({
+      name,
+      icon: randomColor(),
+    })
     ctx.body = res.insertedId
     await next()
     ctx.body.message = '应用创建成功'
   }
 })
 router.patch('/app', async (ctx, next) => {
-  const { id, name } = ctx.request.body
+  const { id, name, icon } = ctx.request.body
   if (!name) {
     await next()
     ctx.body.code = 1
@@ -118,7 +129,10 @@ router.patch('/app', async (ctx, next) => {
 
   if (app) {
     await Promise.all([
-      apps.updateOne({ _id: appId }, { $set: { name } }),
+      apps.updateOne({ _id: appId }, { $set: {
+        name,
+        icon: icon || randomColor(),
+      } }),
       projects.updateMany(
         { 'apps.id': appId },
         { $set: { 'apps.$.name': name }},

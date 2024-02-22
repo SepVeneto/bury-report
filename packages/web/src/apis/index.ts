@@ -1,5 +1,6 @@
 import { request } from '@/util/request'
 import type { Route } from '@/store'
+import type { App } from './app'
 // import '@/mock'
 
 export * from './app'
@@ -56,5 +57,16 @@ export function login(data: { name: string, password: string, key: string, offse
     url: '/login',
     method: 'POST',
     data,
+  })
+}
+export type PortalInst = {
+  type: 'project' | 'app'
+  id: string
+  name: string
+  apps?: App[]
+}
+export function getPortal() {
+  return request<PortalInst[]>({
+    url: '/portal',
   })
 }

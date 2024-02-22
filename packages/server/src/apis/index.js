@@ -6,6 +6,7 @@ const { SECRET } = require('../utils')
 const app = require('./app')
 const auth = require('./auth')
 const project = require('./project')
+const portal = require('./portal')
 
 const router = new Router()
 
@@ -44,6 +45,7 @@ router.use(async (ctx, next) => {
 router.use(app.routes())
 router.use(auth.routes())
 router.use(project.routes())
+router.use(portal.routes())
 
 router.use((ctx) => {
   ctx.body = {
