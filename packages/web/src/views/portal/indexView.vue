@@ -12,15 +12,20 @@
 
 <script lang="ts" setup>
 import EntryWrap from './EntryWrap.vue'
-import { deleteProject, getPortal, getProjectList, updateProject } from '@/apis'
-import type { PortalInst } from '@/apis'
+import {
+  // deleteProject,
+  // getPortal,
+  getProjectList,
+  // updateProject
+} from '@/apis'
+import type { Project } from '@/apis'
 import { ref } from 'vue'
 
-const projects = ref<PortalInst[]>([])
+const projects = ref<Project[]>([])
 getList()
 async function getList() {
-  const res = await getPortal()
-  projects.value = res
+  const res = await getProjectList({ page: 1, size: Number.MAX_SAFE_INTEGER })
+  projects.value = res.data.list
 }
 </script>
 
@@ -32,8 +37,10 @@ async function getList() {
   padding: 50px;
   box-sizing: border-box;
   .icons {
-    display: grid;
-    grid-template-columns: repeat(60px);
+    display: flex;
+    justify-content: flex-start;
+    // display: grid;
+    // grid-template-columns: repeat(6, 1fr);
     column-gap: 20px;
     row-gap: 20px;
   }

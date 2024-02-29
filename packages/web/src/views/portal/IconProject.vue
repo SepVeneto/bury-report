@@ -74,7 +74,7 @@ onClickOutside(projectRef, () => {
 function handleZoom() {
   zoomIn.value = true
 }
-const props = defineProps({
+defineProps({
   name: {
     type: String,
     required: true,
@@ -90,9 +90,6 @@ const props = defineProps({
 .zoom-in {
   position: relative;
   z-index: 1;
-}
-.project-icon {
-  margin: 0 auto;
 }
 .project-wrap {
   display: grid;
