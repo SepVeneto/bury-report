@@ -14,7 +14,7 @@
         :key="item.id"
         :name="item.name"
         :app-id="item.id"
-        :color="item.theme"
+        :color="item.icon"
         :zoom-in="zoomIn"
       />
     </div>

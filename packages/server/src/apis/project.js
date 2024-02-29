@@ -83,7 +83,7 @@ router.post('/project', async (ctx, next) => {
     const _apps = await db.collection('apps').find({
       _id: { $in: apps.map(app => new ObjectId(app)) },
       is_delete: { $ne: true },
-    }, { projection: { _id: 0, id: '$_id', name: 1 }}).toArray()
+    }, { projection: { _id: 0, id: '$_id', name: 1, icon: 1 }}).toArray()
     const res = await db.collection('projects').insertOne({ name, apps: _apps })
     ctx.body = res.insertedId
     await next()
@@ -109,6 +109,7 @@ router.patch('/project', async (ctx, next) => {
       apps: appList.map(app => ({
         id: new ObjectId(app._id),
         name: app.name,
+        icon: app.icon
       }))
     } })
 

@@ -5,7 +5,7 @@ import { useWebSocket } from '@vueuse/core'
 export type App = {
   id: string
   name: string
-  theme?: string
+  icon?: string
 }
 export function getAppList(params: { page: number, size: number, name?: string }) {
   return request<{ total: number, list: App[] }>({
