@@ -32,9 +32,9 @@ export function useMenu(mod: Ref<number>) {
     })
   })
 
-  addRoute(mod.value).then((menus) => {
+  addRoute(mod.value).then(() => {
     const isFirstMenu = route.matched[0].path.startsWith(route.path)
-    router.replace(isFirstMenu ? { name: menus[0].route } : route.path)
+    router.replace(isFirstMenu ? { name: 'Portal' } : route.path)
   })
 
   function normalizeRoute(menu: Route, depth = 0): RouteRecordRaw {

@@ -7,6 +7,11 @@ import NotFound from '@/layout/NotFound.vue'
 
 const routes: RouteRecordRaw[] = [
   {
+    path: '/',
+    name: 'Portal',
+    component: () => import('@/views/portal/indexView.vue'),
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'RedirectView',
     component: RedirectView,
@@ -20,11 +25,6 @@ const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
-  },
-  {
-    path: '/portal',
-    name: 'Portal',
-    component: () => import('@/views/portal/indexView.vue'),
   },
 ]
 

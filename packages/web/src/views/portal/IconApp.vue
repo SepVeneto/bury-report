@@ -2,6 +2,7 @@
   <div style="display: flex; align-items: center; justify-content: center; flex-direction: column;">
     <div
       class="app-icon"
+      :style="{ backgroundColor: color }"
       @click.stop="handleDetail"
     >
       <span>{{ icon }}</span>
@@ -26,6 +27,15 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  color: {
+    type: String,
+    default: () => {
+      const r = Math.floor(Math.random() * 256)
+      const g = Math.floor(Math.random() * 256)
+      const b = Math.floor(Math.random() * 256)
+      return `rgb(${r}, ${g}, ${b})`
+    },
+  },
   zoomIn: Boolean,
 })
 const icon = computed(() => props.name.slice(0, 1))
@@ -44,7 +54,6 @@ function handleDetail() {
   font-size: 24px;
   line-height: 1;
   border-radius: 10px;
-  background: crimson;
   display: flex;
   align-items: center;
   justify-content: center;
