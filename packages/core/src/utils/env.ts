@@ -1,4 +1,5 @@
 export function isUniapp() {
+  if (!globalThis.process) return false
   return !!process.env.UNI_PLATFORM
 }
 

@@ -21,13 +21,16 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       return isEntry(id, config.entry)
     },
     transform(code) {
-      const insertCode = reportContent +
-        'import { _brCollect, _brReport } from "@sepveneto/report-core";\n' +
-        (config.collect ? '_brCollect();\n' : '')
-      code = combineCode(code, insertCode)
       if (config.error) {
         code = addErrorReport(code)
       }
+
+      const insertCode = reportContent +
+        'import { _brCollect, _brReport } from "@sepveneto/report-core";\n' +
+        'import "@sepveneto/report-core/network"\n' +
+        (config.collect ? '_brCollect();\n' : '')
+      code = combineCode(code, insertCode)
+      // code += _code
       return {
         code,
         map: new MagicString(code).generateMap(),

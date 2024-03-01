@@ -1,5 +1,7 @@
-import { report } from '../src/lib'
+import axios from 'axios'
+// document.getElementById('app')!.innerHTML = '__UNPLUGIN__'
 
-document.getElementById('app')!.innerHTML = '__UNPLUGIN__'
-
-report('error', { platform: 'linux' })
+window.fetch = undefined
+// setTimeout(() => {
+axios.get('/api/captcha', { params: { name: 'test' }, headers: { token: 'token' }, responseType: 'json' })
+// }, 1.5 * 1000)

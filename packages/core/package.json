@@ -23,6 +23,11 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
+    "./network": {
+      "types": "./dist/helper/network.d.ts",
+      "require": "./dist/helper/network.cjs",
+      "import": "./dist/helper/network.js"
+    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "require": "./dist/vite.cjs",
