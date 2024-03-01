@@ -29,7 +29,7 @@ console.error = function() {
       ${reportContent}
       break
     }
-    if (arg instanceof PromiseRejectionEvent) {
+    if (globalThis.PromiseRejectionEvent && arg instanceof PromiseRejectionEvent) {
       const error = {
         name: arg.reason.name,
         message: arg.reason.message,
@@ -37,6 +37,8 @@ console.error = function() {
       }
       ${reportContent}
       break
+    } else {
+      console.warn(arg)
     }
   }
   _tempError.apply(this, arguments)
