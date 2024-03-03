@@ -4,6 +4,7 @@ import type { UnpluginFactory } from 'unplugin'
 import type { Options } from './type'
 import { addErrorReport, combineCode, genCode, isEntry, mergeConfig } from './utils'
 import MagicString from 'magic-string'
+import { initNetwork } from './helper/network'
 
 const defaultConfig = {
   collect: true,
@@ -27,7 +28,7 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
 
       const insertCode = reportContent +
         'import { _brCollect, _brReport } from "@sepveneto/report-core";\n' +
-        'import "@sepveneto/report-core/network"\n' +
+        initNetwork() +
         (config.collect ? '_brCollect();\n' : '')
       code = combineCode(code, insertCode)
       // code += _code

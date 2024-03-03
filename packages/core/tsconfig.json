@@ -3,7 +3,7 @@
     "target": "es2017",
     "lib": ["esnext", "DOM"],
     "module": "esnext",
-    "types": ["@dcloudio/types"],
+    "types": ["@dcloudio/types", "miniprogram-api-typings"],
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "strict": true,

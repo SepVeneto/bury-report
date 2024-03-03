@@ -46,7 +46,11 @@ export function genCode(options: Required<Options>) {
     request = `uni.request({
       url: '${options.url}',
       method: 'POST',
-      data: JSON.stringify({ uuid: uuid, type: type, data: data, appid: '${options.appid}'})
+      data: JSON.stringify({ uuid: uuid, type: type, data: data, appid: '${options.appid}'}),
+      fail: () => {
+        // 防止record失败触发死循环
+        globalThis.${REPORT_REQUEST} = () => {}
+      },
     })`
   } else {
     request = `

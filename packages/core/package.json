@@ -23,11 +23,7 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
-    "./network": {
-      "types": "./dist/helper/network.d.ts",
-      "require": "./dist/helper/network.cjs",
-      "import": "./dist/helper/network.js"
-    },
+    "./helper/*": "./dist/helper/*",
     "./vite": {
       "types": "./dist/vite.d.ts",
       "require": "./dist/vite.cjs",
@@ -62,6 +58,7 @@
     "esno": "^4.0.0",
     "fast-glob": "^3.3.2",
     "magic-string": "^0.30.5",
+    "miniprogram-api-typings": "^3.12.2",
     "nodemon": "^3.0.2",
     "rollup": "^4.9.1",
     "tsup": "^8.0.1",
