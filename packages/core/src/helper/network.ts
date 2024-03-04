@@ -1,9 +1,21 @@
 import { isUniWeixin } from '../utils'
+import type { Options } from '../type'
 
-export function initNetwork() {
+export function initNetwork(config: Required<Options>) {
+  if (!config.network.enable) return ''
+
+  const { slow, error, timeout } = config.network
   if (isUniWeixin()) {
-    return 'import "@sepveneto/report-core/helper/wx"\n'
+    return [
+      'import { __BR_API_INIT__ } from "@sepveneto/report-core/helper/wx"',
+      `__BR_API_INIT__(${slow}, ${error}, ${timeout})`,
+      '',
+    ].join('\n')
   } else {
-    return 'import "@sepveneto/report-core/helper/XMLHttpRequest"\n'
+    return [
+      'import { __BR_API_INIT__ } from "@sepveneto/report-core/helper/XMLHttpRequest"',
+      `__BR_API_INIT__(${slow}, ${error}, ${timeout})`,
+      '',
+    ].join('\n')
   }
 }

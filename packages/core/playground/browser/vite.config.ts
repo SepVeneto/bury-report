@@ -20,6 +20,11 @@ export default defineConfig({
       entry: 'main.ts',
       collect: false,
       report: true,
+      network: {
+        enable: true,
+        slow: true,
+        timeout: 30,
+      },
     }) as Plugin,
   ],
 })

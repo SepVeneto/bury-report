@@ -21,8 +21,8 @@ uni.request({
   success: () => {
     console.log('success', title.value)
   },
-  fail: () => {
-    console.log('fail', title.value)
+  fail: (res) => {
+    console.log('fail', title.value, res.errMsg)
   },
 })
 </script>

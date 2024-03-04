@@ -10,6 +10,12 @@ const defaultConfig = {
   collect: true,
   error: true,
   report: process.env.NODE_ENV === 'production',
+  network: {
+    enable: false,
+    slow: false,
+    error: false,
+    timeout: 300,
+  },
 }
 
 export const unpluginFactory: UnpluginFactory<Options> = options => {
@@ -28,7 +34,7 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
 
       const insertCode = reportContent +
         'import { _brCollect, _brReport } from "@sepveneto/report-core";\n' +
-        initNetwork() +
+        initNetwork(config) +
         (config.collect ? '_brCollect();\n' : '')
       code = combineCode(code, insertCode)
       // code += _code

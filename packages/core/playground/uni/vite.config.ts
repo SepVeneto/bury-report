@@ -10,6 +10,12 @@ export default defineConfig({
     appid: '6583a4017001c56e019f50d7',
     collect: false,
     report: true,
+    network: {
+      enable: true,
+      slow: true,
+      error: true,
+      timeout: 30,
+    },
   },
   ) as Plugin],
 })
