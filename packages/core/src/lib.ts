@@ -11,6 +11,7 @@ const defaultConfig = {
   collect: true,
   error: true,
   report: process.env.NODE_ENV === 'production',
+  interval: 10,
   network: {
     enable: false,
     success: true,

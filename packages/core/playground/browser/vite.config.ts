@@ -20,6 +20,7 @@ export default defineConfig({
       entry: 'main.ts',
       collect: true,
       report: true,
+      interval: 5,
       network: {
         enable: true,
       },

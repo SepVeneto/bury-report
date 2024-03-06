@@ -9,6 +9,7 @@ export default defineConfig({
     url: 'http://10.7.12.26:8878/record',
     appid: '6583a4017001c56e019f50d7',
     collect: true,
+    interval: 5,
     error: true,
     report: true,
     network: {

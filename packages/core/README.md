@@ -88,6 +88,7 @@ module.exports = {
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
 | entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
 | network | { enable: boolean, success: boolean, fail: boolean } | ❎ | { enable: false, success: true, fail: true } | 网络请求的上报配置，其中失败请求包括所有状态码非200的，以及超时和主动取消的 |
+| interval | number | ❎ | 10 | 数据上报的周期，默认每隔10s上传一次
 
 ### 关于占用空间
 使用的上报功能不同，需要的空间大小也不一样

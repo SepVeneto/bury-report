@@ -1,10 +1,14 @@
 export interface Options {
   /**
+   * 数据上报周期, 单位秒，默认10秒
+   */
+  interval?: number
+  /**
    * 项目的入口文件
    */
   entry?: string
   /**
-   * 用来区分每一个应用的
+   * 用来区分每 应用的
    */
   appid: string
   /**
