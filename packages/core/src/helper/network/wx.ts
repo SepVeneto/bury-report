@@ -1,10 +1,10 @@
-import { report } from '..'
+import { report } from '@/index'
 
 export function __BR_API_INIT__(
-  slow: boolean,
+  successReport: boolean,
   error: boolean,
-  timeout: number,
 ) {
+  console.log(successReport, error)
   const _request = wx.request
 
   function customRequest(this: any, options: WechatMiniprogram.RequestOption): ReturnType<typeof uni.request> {
@@ -18,17 +18,15 @@ export function __BR_API_INIT__(
     _request({
       ...options,
       success: (res) => {
-        if (slow) {
+        if (successReport) {
           const duration = Date.now() - start
-          if (duration > timeout!) {
-            const info = collectInfo(options, 'success', {
-              duration: Date.now() - start,
-              status: res.statusCode,
-              responseHeaders: res.header,
-              response: typeof res.data === 'string' ? res.data : null,
-            })
-            report('__BR_API__', info)
-          }
+          const info = collectInfo(options, 'success', {
+            duration,
+            status: res.statusCode,
+            responseHeaders: res.header,
+            response: typeof res.data === 'string' ? res.data : null,
+          })
+          report('__BR_API__', info)
         }
         _success?.(res)
       },
@@ -39,6 +37,7 @@ export function __BR_API_INIT__(
             err: res.errMsg,
           })
           report('__BR_API__', info)
+          console.log(info)
         }
         _fail?.(res)
       },
@@ -56,6 +55,7 @@ export function __BR_API_INIT__(
   ) {
     return {
       type,
+      page: getCurrentPages().map(page => page.route),
       url: options.url,
       method: options.method,
       body: options.data,

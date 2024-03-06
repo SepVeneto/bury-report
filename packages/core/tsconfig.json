@@ -4,6 +4,9 @@
     "lib": ["esnext", "DOM"],
     "module": "esnext",
     "types": ["@dcloudio/types", "miniprogram-api-typings"],
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "strict": true,

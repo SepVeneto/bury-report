@@ -1,9 +1,8 @@
-import { report } from '..'
+import { report } from '@/index'
 
 export function __BR_API_INIT__(
-  slow: boolean,
+  success: boolean,
   error: boolean,
-  timeout: number,
 ) {
   class CustomRequest extends XMLHttpRequest {
     private _start = 0
@@ -13,10 +12,13 @@ export function __BR_API_INIT__(
       const [method] = args
       this._method = method
 
-      slow && super.addEventListener('loadend', () => {
+      success && super.addEventListener('loadend', () => {
         const duration = performance.now() - this._start
-        if (duration > timeout!) {
-          const info = this._collectInfo('loadend', { duration })
+        if (this.status === 200) {
+          const info = this._collectInfo('success', { duration })
+          report('__BR_API__', info)
+        } else {
+          const info = this._collectInfo('fail', { duration })
           report('__BR_API__', info)
         }
       })
@@ -37,7 +39,7 @@ export function __BR_API_INIT__(
     }
 
     send(body: Parameters<typeof XMLHttpRequest.prototype.send>[number]) {
-      if (slow) {
+      if (success) {
         this._start = performance.now()
         this._body = body
       }
@@ -52,6 +54,7 @@ export function __BR_API_INIT__(
         method: this._method,
         body: this._body,
         status: this.status,
+        page: window.location.href,
         responseHeaders: this.getAllResponseHeaders(),
         response: typeof this.response === 'string' ? this.response : null,
         responseType: this.responseType || responseType,

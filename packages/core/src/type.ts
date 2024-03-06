@@ -33,16 +33,12 @@ export interface Options {
      */
     enable?: boolean
     /**
-     * 是否启用接口慢请求的上报
+     * 是否上报所有成功发出的请求
      */
-    slow?: boolean
+    success?: boolean
     /**
      * 是否启用接口错误（包括超时和拒绝）请求的上报
      */
-    error?: boolean
-    /**
-     * 慢请求上报的阈值，单位毫秒
-     */
-    timeout?: number
+    fail?: boolean
   }
 }

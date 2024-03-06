@@ -6,6 +6,8 @@
 
 ## 快速开始
 
+小程序端需预留出大小约`6KB`的空间
+
 ```cmd
 npm i -D @sepveneto/report-core
 yarn add -D @sepveneto/report-core
@@ -85,6 +87,19 @@ module.exports = {
 | error | boolean | ❎ | true | 是否自动上报error类型的错误 |
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
 | entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
+| network | { enable: boolean, success: boolean, fail: boolean } | ❎ | { enable: false, success: true, fail: true } | 网络请求的上报配置，其中失败请求包括所有状态码非200的，以及超时和主动取消的 |
+
+### 关于占用空间
+使用的上报功能不同，需要的空间大小也不一样
+
+| 功能 | 相关配置 | 预计占用大小 | 说明 |
+| :--- | :------ | :---------- | :--- |
+| 基础上报(自定义上报) | report | 1KB | 前置设定，关闭后影响其它功能 |
+| js错误上报 | error | 2KB | - |
+| 环境收集 | collect | <1KB | - |
+| 网络请求上报 | network.enable | 4KB | 成功请求和失败请求的上报对大小影响可以忽略不计 |
+
+占用大小不包含基础上报功能, 压缩工具`terser`
 
 ## 方法
 | 名称 | 参数 | 说明 |

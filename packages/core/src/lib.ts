@@ -1,10 +1,11 @@
 import { createUnplugin } from 'unplugin'
 import type { UnpluginFactory } from 'unplugin'
-// import { initReport } from './utils'
 import type { Options } from './type'
-import { addErrorReport, combineCode, genCode, isEntry, mergeConfig } from './utils'
+import { combineCode, createDebug, isEntry, mergeConfig } from './utils'
 import MagicString from 'magic-string'
-import { initNetwork } from './helper/network'
+import { initCollect, initError, initNetwork, initReport } from './helper'
+
+const debug = createDebug('config')
 
 const defaultConfig = {
   collect: true,
@@ -12,15 +13,14 @@ const defaultConfig = {
   report: process.env.NODE_ENV === 'production',
   network: {
     enable: false,
-    slow: false,
-    error: false,
-    timeout: 300,
+    success: true,
+    error: true,
   },
 }
 
 export const unpluginFactory: UnpluginFactory<Options> = options => {
-  const config = mergeConfig(options, defaultConfig)
-  const reportContent = genCode(config)
+  const config = mergeConfig(defaultConfig, options)
+  debug(JSON.stringify(config, null, 2))
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',
@@ -28,16 +28,15 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       return isEntry(id, config.entry)
     },
     transform(code) {
-      if (config.error) {
-        code = addErrorReport(code)
+      if (config.report) {
+        const insertCode = [
+          initReport(config),
+          initCollect(config),
+          initNetwork(config),
+          initError(config),
+        ].join('\n')
+        code = combineCode(code, insertCode)
       }
-
-      const insertCode = reportContent +
-        'import { _brCollect, _brReport } from "@sepveneto/report-core";\n' +
-        initNetwork(config) +
-        (config.collect ? '_brCollect();\n' : '')
-      code = combineCode(code, insertCode)
-      // code += _code
       return {
         code,
         map: new MagicString(code).generateMap(),
