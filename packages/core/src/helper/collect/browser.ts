@@ -5,7 +5,7 @@ import { report } from '@/index'
 
 export function __BR_COLLECT_INIT__() {
   const stat = getSystemInfo()
-  report(COLLECT_INFO, stat)
+  report(COLLECT_INFO, stat, true)
 }
 
 function getSystemInfo() {

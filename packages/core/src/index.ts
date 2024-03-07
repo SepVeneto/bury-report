@@ -1,10 +1,10 @@
-import { isUniapp } from './utils/env'
 import { REPORT_REQUEST, UUID_KEY } from './utils/constant'
+import { getLocalStorage, setLocalStorage } from './utils/storage'
 
-export const report = (type: string, data: any) => {
+export const report = (type: string, data: any, immediate = false) => {
   const sendEvent = globalThis[REPORT_REQUEST]
   const uuid = getUuid()
-  sendEvent(uuid, type, data)
+  sendEvent(uuid, type, data, immediate)
 }
 
 function getUuid() {
@@ -20,18 +20,4 @@ function getUuid() {
     } catch {}
   }
   return uuid
-}
-function setLocalStorage(key: string, value: string) {
-  if (isUniapp()) {
-    uni.setStorageSync(key, value)
-  } else {
-    window.localStorage.setItem(key, value)
-  }
-}
-function getLocalStorage(key: string) {
-  if (isUniapp()) {
-    return uni.getStorageSync(key)
-  } else {
-    return window.localStorage.getItem(key)
-  }
 }

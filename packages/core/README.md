@@ -105,7 +105,7 @@ module.exports = {
 ## 方法
 | 名称 | 参数 | 说明 |
 | :--- | :-- | :-- |
-| report | (type: string, data: any) => void | 主动上报数据 |
+| report | (type: string, data: any, immediate: boolean) => void | 主动上报数据，当immediate开启时，会立刻将本地缓存的数据上报一次（错误信息与环境信息必定会立即上报 |
 
 ## 说明
 

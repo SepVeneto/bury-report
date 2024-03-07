@@ -3,7 +3,7 @@ import { initErrorProxy } from './error'
 import { report } from '@/index'
 
 function reportContent(error: { name: string, message: string, stack?: string }) {
-  report(COLLECT_ERROR, { ...error, page: window.location.href })
+  report(COLLECT_ERROR, { ...error, page: window.location.href }, true)
 }
 
 export function __BR_ERROR_INIT__() {
