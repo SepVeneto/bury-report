@@ -51,7 +51,10 @@ fn init_log() {
   use chrono::Local;
 
   let env = env_logger::Env::default()
-    .filter_or(env_logger::DEFAULT_FILTER_ENV, "info");
+    .filter_or(
+        env_logger::DEFAULT_FILTER_ENV,
+        std::env::var("LOG_LEVEL").unwrap_or("info".to_string())
+    );
   env_logger::Builder::from_env(env)
     .format(|buf, record| {
       writeln!(

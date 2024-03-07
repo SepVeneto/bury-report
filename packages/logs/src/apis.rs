@@ -29,9 +29,22 @@ pub struct SystemInfo {
     uuid: String,
 }
 #[derive(Deserialize, Serialize, Clone)]
-pub struct RecordPayload {
+#[serde(untagged)]
+pub enum RecordPayload {
+    V1(RecordV1),
+    V2(RecordV2),
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct RecordV1 {
   pub r#type: String,
-  pub appid: Option<String>,
+  pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct RecordV2 {
+  pub appid: String,
+  pub data: Vec<RecordV1>,
 }

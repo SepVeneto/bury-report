@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use mongodb::{Database, bson::{doc, DateTime, oid::ObjectId}};
-use super::{ServiceResult, RecordPayload};
+use mongodb::{bson::{doc, oid::ObjectId, DateTime}, error::Error, results::InsertManyResult, Database};
+use super::{RecordPayload, ServiceResult};
 use crate::{config::{Response, BusinessError}, model};
 use log::{error, info};
 use crate::services::{actor::WsActor, ws::WebsocketConnect};
@@ -76,46 +76,33 @@ async fn record_log(
     svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
 ) -> ServiceResult {
-  // default size limit 256KB
-  let json = payload_handler(json_body).await?;
+    // default size limit 256KB
+    let json = payload_handler(json_body).await?;
+    let record = Record::new(json, db);
 
-  let appid = match json.appid {
-    Some(appid) => {
-        appid
-    },
-    _ => String::from("None"),
-  };
-  if appid == "None" {
-    return Err(BusinessError::ValidationError { field: String::from("appid") });
-  }
-  if let Err(err) = is_app_exist(&db, &appid).await {
-      return Err(err);
-  }
+    if !record.is_app_exist().await {
+        return Err(BusinessError::ValidationError { field: "appid".to_string() })
+    }
 
-  let logs = db.collection::<model::Log>("logs");
+    {
+        let records = record.normalize();
+        records.into_iter().for_each(|item| {
+            match item.to_string() {
+                Ok(text) => {
+                    svr.do_send(crate::services::actor::LogMessage {
+                        app_id: record.get_appid().to_string(),
+                        text,
+                    });
+                },
+                Err(_) => (),
+            }
+        })
+    }
 
-  let record = model::Log {
-    r#type: json.r#type,
-    uuid: json.uuid,
-    appid: appid.clone(),
-    data: json.data,
-    create_time: DateTime::now(),
-  };
-
-  match record.to_string() {
-    Ok(text) => {
-        svr.do_send(crate::services::actor::LogMessage {
-            app_id: appid,
-            text,
-        });
-    },
-    Err(_) => (),
-  }
-
-  let result = logs.insert_one(record, None).await;
+  let result = record.insert_record().await;
   match result {
     Ok(result) => {
-    info!("record log {}", result.inserted_id);
+    info!("record log {:?}", result.inserted_ids);
       Response::ok("").to_json()
     },
     Err(err) => {
@@ -128,7 +115,10 @@ async fn record_log(
 async fn payload_handler(payload: web::Payload) -> Result<RecordPayload, BusinessError> {
     let res = match payload.to_bytes().await {
         Ok(res) => res,
-        Err(_) => { return Err(BusinessError::InternalError); }
+        Err(err) => { 
+            error!("json valid, error: {}", err);
+            return Err(BusinessError::InternalError);
+        }
     };
 
     let json = serde_json::from_slice::<RecordPayload>(&res);
@@ -138,6 +128,87 @@ async fn payload_handler(payload: web::Payload) -> Result<RecordPayload, Busines
         Err(err) => {
             error!("Invalid JSON: {:?}", err);
             Err(BusinessError::InternalError)
+        }
+    }
+}
+
+
+struct Record {
+    data: RecordPayload,
+    db: web::Data<Database>,
+}
+impl Record {
+    fn new(data: RecordPayload, db: web::Data<Database>) -> Self {
+        Self {
+            data,
+            db,
+        }
+    }
+
+    async fn is_app_exist(&self) -> bool {
+        let app_id = match &self.data {
+            RecordPayload::V1(v1) => &v1.appid,
+            RecordPayload::V2(v2) => &v2.appid,
+        };
+        let oid = match ObjectId::from_str(app_id) {
+            Ok(oid) => oid,
+            Err(err) => {
+                error!("transfer object id failed: {}", err);
+                return false;
+            }
+        };
+        match self.db
+            .collection::<model::App>("apps")
+            .find_one(doc! {"_id": oid}, None)
+            .await {
+                Ok(res) => {
+                    if let None = res {
+                        error!("Couldn't find app {}", app_id);
+                        return false;
+                    }
+                },
+                Err(err) => {
+                    error!("query failed: {}", err);
+                    return false;
+                }
+            };
+        true
+    }
+
+    fn get_appid(&self) -> &str {
+        match &self.data {
+            RecordPayload::V1(v1) => &v1.appid,
+            RecordPayload::V2(v2) => &v2.appid,
+        }
+    }
+
+    async fn insert_record(&self) -> Result<InsertManyResult, Error> {
+        let logs = self.db.collection::<model::Log>("logs");
+        logs.insert_many(self.normalize(), None).await
+    }
+
+    fn normalize(&self) -> Vec<model::Log> {
+        match &self.data {
+            RecordPayload::V1(v1) => {
+                let record = self.normalize_from(v1);
+                vec![record]
+            }
+            RecordPayload::V2(v2) => {
+                let records = v2.data.clone().into_iter()
+                    .map(|record| self.normalize_from(&record));
+                records.collect()
+            }
+        }
+
+    }
+    fn normalize_from(&self, record: &super::RecordV1) -> model::Log {
+        let record = record.clone();
+        model::Log {
+            r#type: record.r#type,
+            uuid: record.uuid,
+            appid: record.appid,
+            data: record.data,
+            create_time: DateTime::now(),
         }
     }
 }

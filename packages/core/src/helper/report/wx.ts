@@ -11,7 +11,7 @@ export function __BR_REPORT_INIT__(
     uni.request({
       url,
       method: 'POST',
-      data: JSON.stringify(records),
+      data: JSON.stringify({ appid, data: records }),
       fail: () => {
         // 防止record失败触发死循环
         globalThis[REPORT_REQUEST] = () => { /** empty */ }
