@@ -3,12 +3,10 @@ use log::error;
 use mongodb::{Database, bson::doc};
 use crate::config::{BusinessError, Response};
 use super::{LoginPayload, RegisterPayload};
-use crate::model;
+use crate::model::*;
 use md5;
 use super::ServiceResult;
 
-
-const COLL_NAME: &str = "users";
 
 pub fn init_service(config: &mut actix_web::web::ServiceConfig) {
   config.service(register);
@@ -18,7 +16,7 @@ pub fn init_service(config: &mut actix_web::web::ServiceConfig) {
 #[post("/register")]
 async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> ServiceResult {
   
-  let collection = db.collection::<model::User>(COLL_NAME);
+  let collection = users::Model::collection(&db);
 
   {
     let result = collection
@@ -32,7 +30,7 @@ async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> 
 
   {
     let digest = md5::compute(json.password.to_owned());
-    let new_user = model::User {
+    let new_user = users::Model {
       name: json.name.to_owned(),
       password: format!("{:x}", digest),
     };
@@ -49,7 +47,7 @@ async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> 
 
 #[post("/login")]
 async fn login(db: web::Data<Database>, json: web::Json<LoginPayload>) -> ServiceResult {
-  let captcha = db.collection::<model::Captcha>("captcha");
+  let captcha = captcha::Model::collection(&db);
 
   {
     let find_res = captcha.find_one(doc! { "key": json.key.to_owned() }, None).await.unwrap();
@@ -60,7 +58,7 @@ async fn login(db: web::Data<Database>, json: web::Json<LoginPayload>) -> Servic
 
   let _ = captcha.delete_one(doc! { "key": json.key.to_owned()}, None).await;
 
-  let user = db.collection::<model::User>("users");
+  let user = users::Model::collection(&db);
   {
     let digest = md5::compute(json.password.to_owned());
     let filter = doc! {

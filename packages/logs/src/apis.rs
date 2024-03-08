@@ -1,8 +1,11 @@
 pub mod auth;
 pub mod record;
+pub mod source;
 
-use actix_web::HttpResponse;
-use crate::config::BusinessError;
+use std::sync::Arc;
+use actix_web::{web::Json, HttpResponse};
+use mongodb::{Collection, Database, bson::doc};
+use crate::{config::BusinessError, model::source::Model};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -47,4 +50,11 @@ pub struct RecordV1 {
 pub struct RecordV2 {
   pub appid: String,
   pub data: Vec<RecordV1>,
+}
+
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct SourcePayload {
+    id: Option<String>,
+    pub name: String,
 }

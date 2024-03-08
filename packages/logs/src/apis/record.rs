@@ -4,7 +4,8 @@ use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
 use mongodb::{bson::{doc, oid::ObjectId, DateTime}, error::Error, results::InsertManyResult, Database};
 use super::{RecordPayload, ServiceResult};
-use crate::{config::{Response, BusinessError}, model};
+use crate::model::*;
+use crate::config::{Response, BusinessError};
 use log::{error, info};
 use crate::services::{actor::WsActor, ws::WebsocketConnect};
 
@@ -24,8 +25,7 @@ async fn is_app_exist(
             return Err(BusinessError::ValidationError { field: String::from("appid") });
         }
     };
-    match db
-    .collection::<model::App>("apps")
+    match apps::Model::collection(&db)
     .find_one(doc! {"_id": oid }, None)
     .await {
         Ok(res) => {
@@ -157,8 +157,7 @@ impl Record {
                 return false;
             }
         };
-        match self.db
-            .collection::<model::App>("apps")
+        match apps::Model::collection(&self.db)
             .find_one(doc! {"_id": oid}, None)
             .await {
                 Ok(res) => {
@@ -183,11 +182,11 @@ impl Record {
     }
 
     async fn insert_record(&self) -> Result<InsertManyResult, Error> {
-        let logs = self.db.collection::<model::Log>("logs");
+        let logs = logs::Log::collection(&self.db);
         logs.insert_many(self.normalize(), None).await
     }
 
-    fn normalize(&self) -> Vec<model::Log> {
+    fn normalize(&self) -> Vec<logs::Log> {
         match &self.data {
             RecordPayload::V1(v1) => {
                 let record = self.normalize_from(v1);
@@ -201,9 +200,9 @@ impl Record {
         }
 
     }
-    fn normalize_from(&self, record: &super::RecordV1) -> model::Log {
+    fn normalize_from(&self, record: &super::RecordV1) -> logs::Log {
         let record = record.clone();
-        model::Log {
+        logs::Log {
             r#type: record.r#type,
             uuid: record.uuid,
             appid: record.appid,
