@@ -2,6 +2,8 @@ use actix_web::{HttpResponse, error};
 use serde::Serialize;
 use failure::Fail;
 
+use crate::services::ServiceError;
+
 #[derive(Debug, Fail)]
 pub enum BusinessError {
   #[fail(display = "validation error on field: {}", field)]
@@ -37,7 +39,7 @@ impl <T: Serialize> Response<T> {
     Response { code: 0, message: "ok".to_owned(), data: Some(data) }
   }
 
-  pub fn to_json (&self) -> Result<HttpResponse, BusinessError> {
+  pub fn to_json (&self) -> Result<HttpResponse, ServiceError> {
     Ok(HttpResponse::Ok().json(self))
   }
 }

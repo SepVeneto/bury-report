@@ -1,11 +1,11 @@
 use actix_web::{web, post};
 use log::error;
 use mongodb::{Database, bson::doc};
-use crate::config::{BusinessError, Response};
+use crate::services::{ServiceError, Response};
 use super::{LoginPayload, RegisterPayload};
 use crate::model::*;
 use md5;
-use super::ServiceResult;
+use super::ApiResult;
 
 
 pub fn init_service(config: &mut actix_web::web::ServiceConfig) {
@@ -14,7 +14,7 @@ pub fn init_service(config: &mut actix_web::web::ServiceConfig) {
 }
 
 #[post("/register")]
-async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> ServiceResult {
+async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> ApiResult {
   
   let collection = users::Model::collection(&db);
 
@@ -39,14 +39,14 @@ async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> 
       Ok(_) => Response::ok("user added").to_json(),
       Err(err) => {
         error!("error {}", err);
-        Err(BusinessError::InternalError)
+        Err(ServiceError::InternalError(QueryError::FindError(String::from("用户添加失败"))))
       }
     }
   }
 }
 
 #[post("/login")]
-async fn login(db: web::Data<Database>, json: web::Json<LoginPayload>) -> ServiceResult {
+async fn login(db: web::Data<Database>, json: web::Json<LoginPayload>) -> ApiResult {
   let captcha = captcha::Model::collection(&db);
 
   {
@@ -76,7 +76,7 @@ async fn login(db: web::Data<Database>, json: web::Json<LoginPayload>) -> Servic
       },
       Err(err) => {
         error!("error: {}", err);
-        Err(BusinessError::InternalError)
+        Err(ServiceError::InternalError(QueryError::FindError(String::from("用户添加失败"))))
       }
     }
   }

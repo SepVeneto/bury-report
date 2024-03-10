@@ -3,9 +3,9 @@ use std::str::FromStr;
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
 use mongodb::{bson::{doc, oid::ObjectId, DateTime}, error::Error, results::InsertManyResult, Database};
-use super::{RecordPayload, ServiceResult};
-use crate::model::*;
-use crate::config::{Response, BusinessError};
+use super::{RecordPayload, ApiResult};
+use crate::{model::*, services::ServiceError};
+use crate::config::Response;
 use log::{error, info};
 use crate::services::{actor::WsActor, ws::WebsocketConnect};
 
@@ -17,12 +17,12 @@ pub fn init_service(config: &mut web::ServiceConfig) {
 async fn is_app_exist(
     db: &web::Data<Database>,
     app_id: &str,
-) -> Result<bool, BusinessError> {
+) -> Result<bool, ServiceError> {
     let oid = match ObjectId::from_str(app_id) {
         Ok(oid) => oid,
         Err(err) => {
             error!("transfer object id failed: {}", err);
-            return Err(BusinessError::ValidationError { field: String::from("appid") });
+            return Err(ServiceError::LogicError(String::from("缺少appid")));
         }
     };
     match apps::Model::collection(&db)
@@ -31,14 +31,14 @@ async fn is_app_exist(
         Ok(res) => {
             if let None = res {
                 error!("Couldn't find app {}", app_id);
-                return Err(BusinessError::ValidationError { field: String::from("appid") });
+                return Err(ServiceError::LogicError(String::from("找不到对应的app")));
             } else {
                 return Ok(true);
             }
         },
         Err(err) => {
             error!("query failed: {}", err);
-            return Err(BusinessError::InternalError);
+            return Err(ServiceError::InternalError(QueryError::FindError(err.to_string())));
         }
     }
 }
@@ -50,7 +50,7 @@ async fn record_ws(
     req: HttpRequest,
     stream: web::Payload,
     srv: web::Data<Addr<WsActor>>,
-) -> ServiceResult {
+) -> ApiResult {
     let app_id = path.into_inner();
     if let Err(err) = is_app_exist(&db, &app_id).await {
         return Err(err);
@@ -65,7 +65,7 @@ async fn record_ws(
         Ok(ret) => Ok(ret),
         Err(e) => {
             error!("Established websocket connection failed: {}", e);
-            Err(BusinessError::InternalError)
+            return Err(ServiceError::InternalError(QueryError::FindError(e.to_string())));
         },
     }
 }
@@ -75,13 +75,13 @@ async fn record_log(
     db: web::Data<Database>,
     svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
-) -> ServiceResult {
+) -> ApiResult {
     // default size limit 256KB
     let json = payload_handler(json_body).await?;
     let record = Record::new(json, db);
 
     if !record.is_app_exist().await {
-        return Err(BusinessError::ValidationError { field: "appid".to_string() })
+        return Err(ServiceError::LogicError(String::from("缺少appid")));
     }
 
     {
@@ -107,17 +107,17 @@ async fn record_log(
     },
     Err(err) => {
       log::error!("err: {}", err.to_string());
-      Err(BusinessError::InternalError)
+      Err(ServiceError::InternalError(QueryError::FindError(err.to_string())))
     }
   }
 }
 
-async fn payload_handler(payload: web::Payload) -> Result<RecordPayload, BusinessError> {
+async fn payload_handler(payload: web::Payload) -> Result<RecordPayload, ServiceError> {
     let res = match payload.to_bytes().await {
         Ok(res) => res,
         Err(err) => { 
             error!("json valid, error: {}", err);
-            return Err(BusinessError::InternalError);
+            return Err(ServiceError::InternalError(QueryError::FindError(err.to_string())));
         }
     };
 
@@ -127,7 +127,7 @@ async fn payload_handler(payload: web::Payload) -> Result<RecordPayload, Busines
         Ok(json) => Ok(json),
         Err(err) => {
             error!("Invalid JSON: {:?}", err);
-            Err(BusinessError::InternalError)
+            Err(ServiceError::InternalError(QueryError::FindError(err.to_string())))
         }
     }
 }

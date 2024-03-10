@@ -2,16 +2,14 @@ pub mod auth;
 pub mod record;
 pub mod source;
 
-use std::sync::Arc;
-use actix_web::{web::Json, HttpResponse};
-use mongodb::{Collection, Database, bson::doc};
-use crate::{config::BusinessError, model::source::Model};
+use actix_web::HttpResponse;
+use mongodb::bson::doc;
+use crate::services::ServiceError;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-
-pub type ServiceResult = Result<HttpResponse, BusinessError>;
+pub type ApiResult = Result<HttpResponse, ServiceError>;
 
 #[derive(Deserialize, Serialize)]
 pub struct RegisterPayload {
@@ -53,8 +51,3 @@ pub struct RecordV2 {
 }
 
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct SourcePayload {
-    id: Option<String>,
-    pub name: String,
-}
