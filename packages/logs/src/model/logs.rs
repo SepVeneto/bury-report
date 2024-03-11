@@ -1,45 +1,88 @@
-use log::error;
-use mongodb::bson::DateTime;
+use mongodb::{bson::{doc, DateTime}, results::InsertManyResult};
 use serde::{Deserialize, Serialize};
-use serde_json::{Error, Map, Value};
-use std::sync::Arc;
+use serde_json::{Map, Value};
 use mongodb::{Database, Collection};
+
+use super::QueryResult;
 
 pub const NAME: &str = "logs";
 
-#[derive(Deserialize, Serialize)]
-pub struct Model<T = DateTime> {
+#[derive(Deserialize, Serialize, Clone, Debug)]
+#[serde(untagged)]
+pub enum RecordPayload {
+    V1(RecordV1),
+    V2(RecordV2),
+}
+impl RecordPayload {
+    pub fn get_appid(&self) -> String {
+        match self {
+            RecordPayload::V1(v1) => v1.appid.to_owned(),
+            RecordPayload::V2(v2) => v2.appid.to_owned(),
+        }
+    }
+    pub fn normalize(&self) -> Vec<Log> {
+        match self {
+            RecordPayload::V1(v1) => vec![Self::normalize_from(v1.clone())],
+            RecordPayload::V2(v2) => {
+                let data = v2.data.clone();
+                let res = data.into_iter().map(|item| Self::normalize_from(item));
+                res.collect()
+            }
+        }
+    }
+    pub fn to_string(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
+    }
+    pub fn normalize_from(record: RecordV1) -> Log {
+        Log {
+            r#type: record.r#type,
+            uuid: record.uuid,
+            appid: record.appid,
+            data: record.data,
+            create_time: DateTime::now(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RecordV1 {
   pub r#type: String,
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
-  pub create_time: T,
 }
-pub type Log = Model<DateTime>;
-pub type LogRecord = Model<String>;
 
-impl<T> Model<T> {
-    pub fn collection(db: &Arc<Database>) -> Collection<Log> {
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RecordV2 {
+  pub appid: String,
+  pub data: Vec<RecordV1>,
+}
+
+
+
+
+pub struct Filter {
+    pub r#type: Option<String>,
+    pub appid: Option<String>,
+    pub uuid: Option<String>,
+}
+#[derive(Deserialize, Serialize)]
+pub struct Model {
+  pub r#type: String,
+  pub appid: String,
+  pub data: Map<String, Value>,
+  pub uuid: String,
+//   #[serde(serialize_with = "serialize_create_time")]
+  pub create_time: DateTime,
+}
+pub type Log = Model;
+
+impl Model {
+    pub fn collection(db: &Database) -> Collection<Log> {
         db.collection::<Log>(NAME)
     }
-}
-
-impl Log {
-    pub fn to_string(&self) -> Result<String, Error> {
-        let create_time = match DateTime::try_to_rfc3339_string(self.create_time) {
-            Ok(time) => time,
-            Err(err) => {
-                error!("convert create_time to string failed: {}", err);
-                String::from("unknown create_time")
-            }
-        };
-        let record = LogRecord {
-            r#type: self.r#type.clone(),
-            appid: self.appid.clone(),
-            data: self.data.clone(),
-            uuid: self.uuid.clone(),
-            create_time,
-        };
-        serde_json::to_string(&record)
+    pub async fn insert_many(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+        let records = data.normalize();
+        Ok(Self::collection(db).insert_many(records, None).await?)
     }
 }

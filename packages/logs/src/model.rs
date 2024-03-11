@@ -11,6 +11,14 @@ pub enum QueryError {
     OidError(String),
     FindError(String),
 }
+impl QueryError {
+    pub fn to_string(&self) -> String {
+        match self {
+            QueryError::OidError(str) => str.to_owned(),
+            QueryError::FindError(str) => str.to_owned(),
+        }
+    }
+}
 impl From<mongodb::bson::oid::Error> for QueryError {
     fn from(err: mongodb::bson::oid::Error) -> Self {
         QueryError::OidError(err.to_string())

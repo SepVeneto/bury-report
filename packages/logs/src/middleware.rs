@@ -28,7 +28,7 @@ pub struct AuthMiddleware<S> {
     service: S,
 }
 
-const AUTH_WHITELIST: [&str; 1] = ["/record"];
+const AUTH_WHITELIST: [&str; 3] = ["/record", "/login", "/register"];
 impl<S, B> Service<ServiceRequest> for AuthMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,

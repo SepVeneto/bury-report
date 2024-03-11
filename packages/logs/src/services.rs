@@ -7,6 +7,8 @@ use serde::Serialize;
 pub mod ws;
 pub mod actor;
 pub mod source;
+pub mod auth;
+pub mod record_logs;
 
 pub type ServiceResult<T> = Result<T, ServiceError>;
 
@@ -15,14 +17,16 @@ pub type ServiceResult<T> = Result<T, ServiceError>;
 #[derive(Debug)]
 pub enum ServiceError {
     LogicError(String),
-    InternalError(QueryError),
+    InternalError(String),
+    JsonError(String),
 }
 
 impl fmt::Display for ServiceError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let msg = match self {
-            ServiceError::InternalError(_err) => String::from(""),
+            ServiceError::InternalError(err) => err.to_owned(),
             ServiceError::LogicError(err) => err.to_owned(),
+            ServiceError::JsonError(err) => err.to_string(),
         };
         f.write_str(&msg)
     }
@@ -30,7 +34,7 @@ impl fmt::Display for ServiceError {
 
 impl From<QueryError> for ServiceError {
     fn from(err: QueryError) -> Self {
-        ServiceError::InternalError(err)
+        ServiceError::InternalError(err.to_string())
     }
 }
 
