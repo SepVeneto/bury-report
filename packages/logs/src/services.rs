@@ -2,6 +2,7 @@ use core::fmt;
 
 use crate::model::QueryError;
 use actix_web::{HttpResponse, error};
+use mongodb::bson::oid;
 use serde::Serialize;
 
 pub mod ws;
@@ -37,6 +38,11 @@ impl From<QueryError> for ServiceError {
         ServiceError::InternalError(err.to_string())
     }
 }
+impl From<oid::Error> for ServiceError {
+    fn from(err: oid::Error) -> Self {
+        ServiceError::InternalError(err.to_string())
+    }
+}
 
 impl error::ResponseError for ServiceError {
     fn error_response(&self) -> HttpResponse<actix_web::body::BoxBody> {
@@ -53,8 +59,9 @@ pub struct Response<T: Serialize> {
 }
 
 impl <T: Serialize> Response<T> {
-  pub fn ok(data: T) -> Self {
-    Response { code: 0, message: "ok".to_owned(), data: Some(data) }
+  pub fn ok<'a>(data: T, msg: impl Into<Option<&'a str>>) -> Self {
+    let message = msg.into().unwrap_or("ok").to_string();
+    Response { code: 0, message, data: Some(data) }
   }
 
   pub fn to_json (&self) -> Result<HttpResponse, ServiceError> {

@@ -62,8 +62,8 @@ where
         }
 
         let res = self.service.call(req);
-        return Box::pin(async move {
+        Box::pin(async move {
             res.await.map(ServiceResponse::map_into_left_body)
-        });
+        })
     }
 }

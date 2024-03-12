@@ -45,5 +45,5 @@ async fn record_log(
 
     record_logs::send_to_ws(&svr, &json_body)?;
 
-    Response::ok("").to_json()
+    Response::ok("", None).to_json()
 }

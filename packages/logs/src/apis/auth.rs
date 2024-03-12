@@ -16,11 +16,11 @@ pub fn init_service(config: &mut actix_web::web::ServiceConfig) {
 #[post("/register")]
 async fn register(db: web::Data<Database>, json: web::Json<RegisterPayload>) -> ApiResult {
     auth::register(&db, &json.0).await?;
-    Response::ok("").to_json()
+    Response::ok("", None).to_json()
 }
 
 #[post("/login")]
 async fn login(db: web::Data<Database>, json: web::Json<LoginPayload>) -> ApiResult {
     auth::login(&db, &json.0).await?;
-    Response::ok("").to_json()
+    Response::ok("", None).to_json()
 }
