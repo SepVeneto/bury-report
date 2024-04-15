@@ -4,6 +4,8 @@ pub mod users;
 pub mod apps;
 pub mod source;
 pub mod projects;
+pub mod charts;
+pub mod statistics;
 
 pub type QueryResult<T> = Result<T, QueryError>;
 #[derive(Debug)]
@@ -26,6 +28,11 @@ impl From<mongodb::bson::oid::Error> for QueryError {
 }
 impl From<mongodb::error::Error> for QueryError {
     fn from(err: mongodb::error::Error) -> Self {
+        QueryError::FindError(err.to_string())
+    }
+}
+impl From<mongodb::bson::de::Error> for QueryError {
+    fn from(err: mongodb::bson::de::Error) -> Self {
         QueryError::FindError(err.to_string())
     }
 }

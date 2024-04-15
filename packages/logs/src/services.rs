@@ -10,6 +10,7 @@ pub mod actor;
 pub mod source;
 pub mod auth;
 pub mod record_logs;
+pub mod statistics;
 
 pub type ServiceResult<T> = Result<T, ServiceError>;
 

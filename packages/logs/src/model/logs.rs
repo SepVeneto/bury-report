@@ -1,5 +1,6 @@
-use mongodb::{bson::{doc, DateTime}, results::InsertManyResult};
-use serde::{Deserialize, Serialize};
+use futures_util::StreamExt;
+use mongodb::{bson::{doc, from_document, DateTime, Deserializer, Document}, results::InsertManyResult};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{Map, Value};
 use mongodb::{Database, Collection};
 
@@ -84,5 +85,21 @@ impl Model {
     pub async fn insert_many(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
         let records = data.normalize();
         Ok(Self::collection(db).insert_many(records, None).await?)
+    }
+    pub async fn find_by_chart<T>(
+        db: &Database,
+        pipeline: Vec<Document>
+    ) -> QueryResult<Vec<T>>
+    where
+        T: DeserializeOwned
+    {
+        let mut res = Self::collection(db).aggregate(pipeline, None).await?;
+        let mut chart_data = vec![];
+
+        while let Some(record) = res.next().await {
+            let res = from_document(record?).unwrap();
+            chart_data.push(res);
+        }
+        Ok(chart_data)
     }
 }
