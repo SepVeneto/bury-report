@@ -1,3 +1,5 @@
+use crate::services::ServiceError;
+
 pub mod logs;
 pub mod captcha;
 pub mod users;
@@ -7,7 +9,7 @@ pub mod projects;
 pub mod charts;
 pub mod statistics;
 
-pub type QueryResult<T> = Result<T, QueryError>;
+pub type QueryResult<T> = Result<T, ServiceError>;
 #[derive(Debug)]
 pub enum QueryError {
     OidError(String),

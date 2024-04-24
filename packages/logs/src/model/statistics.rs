@@ -19,9 +19,16 @@ pub struct StatisticPie {
     pub output: String,
     pub sum: usize,
 }
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct StatisticLine {
+    pub date: String,
+    pub output: String,
+    pub sum: usize,
+}
 #[derive(Deserialize, Serialize, Clone,Debug)]
 #[serde(untagged)]
 pub enum DataType {
+    Line(StatisticLine),
     Total(StatisticTotal),
     Pie(StatisticPie),
 }
@@ -59,23 +66,45 @@ pub struct RulePie {
     source: String,
     dimension: String
 }
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RuleLine {
+    source: String,
+    dimension: String,
+    value: Option<Vec<String>>,
+    range: Option<Vec<String>>,
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(untagged)]
+#[serde(tag = "type")]
 pub enum Rule {
-    Pie(RulePie)
+    Pie(RulePie),
+    Line(RuleLine),
 }
 
 impl Rule {
     // 数据源
     pub fn get_source(&self) -> String {
         match self {
-            Rule::Pie(pie) => pie.source.to_owned()
+            Rule::Pie(pie) => pie.source.to_owned(),
+            Rule::Line(line) => line.source.to_owned()
         }
     }
     pub fn get_dimension(&self) -> String {
         match self {
-            Rule::Pie(pie) => pie.dimension.to_owned()
+            Rule::Pie(pie) => pie.dimension.to_owned(),
+            Rule::Line(line) => line.dimension.to_owned(),
+        }
+    }
+    pub fn get_range(&self) -> Vec<String> {
+        match self {
+            Rule::Pie(_) => vec![],
+            Rule::Line(line) => line.range.to_owned().unwrap_or(vec![]),
+        }
+    }
+    pub fn get_value(&self) -> Vec<String> {
+        match self {
+            Rule::Pie(_) => vec![],
+            Rule::Line(line) => line.value.to_owned().unwrap_or(vec![])
         }
     }
 }

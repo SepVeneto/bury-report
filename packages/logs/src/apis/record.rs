@@ -22,7 +22,7 @@ async fn record_ws(
 
     let app = apps::Model::find_by_id(&db, &app_id).await?;
     if let None = app {
-        return Err(ServiceError::LogicError("找不到指定应用".to_owned()));
+        return Err("找不到指定应用".into());
     }
     
     let resp = record_logs::create_ws(

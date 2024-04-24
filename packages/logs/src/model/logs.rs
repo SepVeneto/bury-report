@@ -1,8 +1,10 @@
+use failure::{Fail, ResultExt};
 use futures_util::StreamExt;
 use mongodb::{bson::{doc, from_document, DateTime, Deserializer, Document}, results::InsertManyResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{Map, Value};
 use mongodb::{Database, Collection};
+use log::error;
 
 use super::QueryResult;
 
@@ -97,8 +99,17 @@ impl Model {
         let mut chart_data = vec![];
 
         while let Some(record) = res.next().await {
-            let res = from_document(record?).unwrap();
+            println!("{:?}", record);
+            // match
+            let res = from_document(record?).context(format!("{}", line!())).unwrap();
             chart_data.push(res);
+            // {
+            //     Ok(res) => chart_data.push(res),
+            //     Err(err) => {
+            //         error!("{}", err.to_string());
+            //         // Err("Internal error".to_owned())
+            //     },
+            // };
         }
         Ok(chart_data)
     }

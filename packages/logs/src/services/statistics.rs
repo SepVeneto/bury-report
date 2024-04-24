@@ -1,5 +1,6 @@
 use chrono::{Datelike, LocalResult, TimeZone};
-use mongodb::{bson::{doc, DateTime}, Database};
+use log::info;
+use mongodb::{bson::{bson, doc, Bson, DateTime}, Database};
 
 use crate::model::{logs, statistics::DataType};
 
@@ -21,10 +22,10 @@ pub async fn create (
         "$match": {
             "appid": appid.to_string(),
             "type": log_type.to_string(),
-            "create_time": {
-                "$gte": start,
-                "$lte": end,
-            }
+            // "create_time": {
+            //     "$gte": start,
+            //     "$lte": end,
+            // }
         }
     };
     let pipeline_distinct = doc! {
@@ -55,6 +56,92 @@ pub async fn create (
 
     Ok(res)
 
+}
+
+pub async fn create_with_date(
+    db: &Database,
+    appid: &str,
+    log_type: &str,
+    dimension: &str,
+    value: &Vec<String>,
+    range: &Vec<String>,
+) -> ServiceResult<Vec<DataType>> {
+    let (start, end) = get_recent_30day()?;
+    let or = value.iter().map(|value| {
+        bson! ({ format!("data.{}", dimension): value})
+    }).collect::<Vec<Bson>>();
+    let pipeline_match = doc! {
+        "$match": {
+            "appid": appid.to_string(),
+            "type": log_type.to_string(),
+            "create_time": {
+                "$gte": start,
+                "$lte": end,
+            },
+            "$or": or
+        }
+    };
+    info!("match: {}", &pipeline_match.get("$match").unwrap());
+    let pipeline_distinct = doc! {
+        "$group": {
+            "_id": {
+                "uuid": "$uuid",
+                "dimension": format!("$data.{}", dimension),
+                "date": "$create_time",
+            }
+        }
+    };
+    info!("distinct: {}", &pipeline_distinct.get("$group").unwrap());
+    let pipeline_format = doc! {
+        "$project": {
+            "create_time": {
+                "$dateToString": {
+                    "format": "%Y-%m-%d",
+                    "date": "$_id.date",
+                }
+            },
+            "dimension": "$_id.dimension",
+        }
+    };
+    info!("format: {}", &pipeline_format.get("$project").unwrap());
+    let pipeline_count = doc! {
+        "$group": {
+            "_id": {
+                "dimension": "$_id.dimension",
+                "date": "$create_time",
+            },
+            "count": {
+                "$sum": 1,
+            }
+        }
+    };
+    info!("count: {}", &pipeline_count.get("$group").unwrap());
+    let pipeline_output = doc! {
+        "$project": {
+            "_id": 0,
+            "date": "$_id.date",
+            "output": "$_id.dimension",
+            "sum": "$count",
+        },
+    };
+    info!("output: {}", &pipeline_output.get("$project").unwrap());
+    let pipeline_sort = doc! {
+        "$sort": {
+            "date": 1,
+        }
+    };
+
+    let combine_pipeline = vec![
+        pipeline_match,
+        pipeline_distinct,
+        pipeline_format,
+        pipeline_count,
+        pipeline_output,
+        pipeline_sort,
+    ];
+    let res = logs::Model::find_by_chart(db, combine_pipeline).await?;
+
+    Ok(res)
 }
 
 /**
@@ -202,10 +289,10 @@ fn get_sub_date() -> ServiceResult<(DateTime, DateTime)>{
             let end = DateTime::from_millis(yesterday_end.timestamp_millis());
             Ok((start, end))
         } else {
-            Err(super::ServiceError::InternalError("获取前一天失败".to_string()))
+            Err("获取前一天失败".into())
         }
     } else {
-        Err(super::ServiceError::InternalError("获取前一天失败".to_string()))
+        Err("获取前一天失败".into())
     }
 }
 
@@ -227,7 +314,7 @@ pub async fn total_trend(
 
 fn get_recent_30day() -> ServiceResult<(DateTime, DateTime)>{
     let now = chrono::Utc::now();
-    if let (Some(start_time), Some(end_time)) = (
+    if let (Some(end_time), Some(start_time)) = (
         now.checked_sub_signed(chrono::Duration::days(1)),
         now.checked_sub_signed(chrono::Duration::days(30)),
     ) {
@@ -236,7 +323,7 @@ fn get_recent_30day() -> ServiceResult<(DateTime, DateTime)>{
             DateTime::from_millis(end_time.timestamp_millis()),
         ))
     } else {
-        Err(super::ServiceError::InternalError("获取近30天日期失败".to_string()))
+        Err("获取近30天日期失败".into())
     }
 
 }

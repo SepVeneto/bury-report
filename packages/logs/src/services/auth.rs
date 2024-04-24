@@ -12,7 +12,7 @@ use super::{ServiceError, ServiceResult};
 pub async fn register(db: &web::Data<Database>, data: &RegisterPayload) -> ServiceResult<InsertOneResult> {
     let res = Model::find_one(db, Filter { name: Some(data.name.to_owned()) }).await?;
     if let Some(_) = res {
-        return Err(ServiceError::LogicError("用户已存在".to_owned()))
+        return Err("用户已存在".into());
     }
 
 
@@ -32,7 +32,7 @@ pub async fn login(db: &web::Data<Database>, data: &LoginPayload) -> ServiceResu
     captcha::Model::delete_one(db, &data.key).await?;
 
     if !is_valid {
-        return Err(ServiceError::LogicError("验证码错误".to_owned()));
+        return Err("验证码错误".into());
     }
 
     if let Some(user) = user {
@@ -40,10 +40,10 @@ pub async fn login(db: &web::Data<Database>, data: &LoginPayload) -> ServiceResu
         if format!("{:x}", digest) == user.password {
             Ok(())
         } else {
-            Err(ServiceError::LogicError("用户名或密码错误".to_owned()))
+            Err("用户名或密码错误".into())
         }
     } else {
-        Err(ServiceError::LogicError("用户名或密码错误".to_owned()))
+        Err("用户名或密码错误".into())
     }
 }
 async fn check_login(db: &Database, data: &LoginPayload) -> Result<bool, ServiceError> {
@@ -51,6 +51,6 @@ async fn check_login(db: &Database, data: &LoginPayload) -> Result<bool, Service
     if let Some(cap) = cap {
         Ok(cap.offset == data.offset)
     } else {
-        Err(ServiceError::LogicError("验证码已过期".to_owned()))
+        Err("验证码已过期".into())
     }
 }

@@ -8,13 +8,13 @@ use crate::model::{
     logs::{RecordPayload, Model},
 };
 
-use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceError, ServiceResult};
+use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceResult};
 
 pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {
-        return Err(ServiceError::LogicError("没有对应的应用".to_owned()));
+        return Err("没有对应的应用".into());
     }
     Model::insert_many(db, &data).await?;
     Ok(())
@@ -24,7 +24,7 @@ pub fn send_to_ws(svr: &Addr<WsActor>, data: &RecordPayload) -> ServiceResult<()
     let text = match data.to_string() {
         Ok(res) => res,
         Err(err) => {
-            return Err(ServiceError::JsonError(err.to_string()));
+            return Err(err.into());
         }
     };
     svr.do_send(LogMessage {
@@ -46,6 +46,6 @@ pub fn create_ws(
         stream,
     ) {
         Ok(res) => Ok(res),
-        Err(err) => Err(ServiceError::InternalError(err.to_string()))
+        Err(err) => Err(err.to_string().into())
     }
 }

@@ -22,7 +22,7 @@ async fn get_source(
     let source_id = path.into_inner();
     match source::detail(&db, &source_id).await? {
         Some(res) => Response::ok(res, None).to_json(),
-        None => Err(ServiceError::LogicError("找不到对应的数据源".to_string())),
+        None => Err("找不到对应的数据源".into()),
     }
 }
 

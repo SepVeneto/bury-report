@@ -1,8 +1,9 @@
 use actix_web::{get, post, web, HttpResponse};
+use log::info;
 use mongodb::Database;
 use serde_json::json;
 
-use crate::{model, services::{statistics::{self, create}, Response, ServiceError}};
+use crate::{model::{self, statistics::Rule}, services::{statistics::{self, create}, Response, ServiceError}};
 
 pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(get_statistcs);
@@ -36,10 +37,23 @@ pub async fn create_statistics(
     path: web::Path<String>,
     payload: web::Json<model::statistics::Rule>,
 ) -> Result<HttpResponse, ServiceError> {
+    info!("{:?}", payload);
     let appid = path.into_inner();
     let source= payload.get_source();
     let dimension = payload.get_dimension();
-    let res = statistics::create(&db, &appid, &source, &dimension).await?;
+    let range = payload.get_range();
+    let value = payload.get_value();
+    let res = match payload.0 {
+        Rule::Pie(_) => statistics::create(&db, &appid, &source, &dimension).await?,
+        Rule::Line(_) => statistics::create_with_date(
+            &db,
+            &appid,
+            &source,
+            &dimension,
+            &value,
+            &range
+        ).await?,
+    };
 
     Response::ok(res, None).to_json()
 }
