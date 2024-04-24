@@ -73,10 +73,12 @@ export function useMenu(mod: Ref<number>) {
   }
 
   async function addRoute(mod: number) {
+    console.log(mod)
     const menuList = (await getMenuList(mod)).list
     store.menuList = menuList
 
-    const modName = store.modList.find(item => item.id === mod)!.route
+    console.log(menuList)
+    const modName = store.modList.find(item => item.id === mod)?.route || ''
     menuList.forEach(menu => {
       router.addRoute(modName, normalizeRoute(menu))
     })
