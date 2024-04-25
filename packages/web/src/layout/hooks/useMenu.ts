@@ -27,8 +27,14 @@ export function useMenu(mod: Ref<number>) {
 
   watch(mod, (val) => {
     addRoute(val).then(menus => {
-      const isFirstMenu = route.matched[0].path.startsWith(route.path)
-      router.replace(isFirstMenu ? { name: menus[0].route } : route.path)
+      // const matchedRouter = route.matched[0]
+      // const name = Symbol('name')
+      // const routerMatcher = createRouterMatcher([{ name, path: matchedRouter.path } as any], {})
+      // const matcher = routerMatcher.getRecordMatcher(name)
+      // console.log('matcher', matcher, matchedRouter.path)
+      // const isFirstMenu = route.matched[0].path.startsWith(route.path)
+      // router.replace(isFirstMenu ? { name: menus[0].route } : route.path)
+      router.replace({ name: menus[0].route })
     })
   })
 
@@ -73,11 +79,9 @@ export function useMenu(mod: Ref<number>) {
   }
 
   async function addRoute(mod: number) {
-    console.log(mod)
     const menuList = (await getMenuList(mod)).list
     store.menuList = menuList
 
-    console.log(menuList)
     const modName = store.modList.find(item => item.id === mod)?.route || ''
     menuList.forEach(menu => {
       router.addRoute(modName, normalizeRoute(menu))

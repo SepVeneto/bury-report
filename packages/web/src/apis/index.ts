@@ -5,6 +5,7 @@ import type { App } from './app'
 
 export * from './app'
 export * from './project'
+export * as source from './source'
 
 const mockMenus = [
   {
@@ -13,6 +14,20 @@ const mockMenus = [
     name: '图表管理',
     path: '',
     route: 'ChartsView',
+  },
+  {
+    pid: 3,
+    id: 31,
+    name: '数据源',
+    path: 'source',
+    route: 'SourceView',
+  },
+  {
+    pid: 3,
+    id: 32,
+    name: '错误记录',
+    path: 'error',
+    route: 'ErrorView',
   },
   // {
   //   pid: 2,

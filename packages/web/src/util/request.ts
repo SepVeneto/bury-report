@@ -205,3 +205,53 @@ export function uploadOssSave(data: IOssSave) {
     data,
   })
 }
+
+export class Restful {
+  private resource: string
+  constructor(resource: string) {
+    this.resource = resource
+  }
+
+  get prefix() {
+    return this.resource.endsWith('/') ? this.resource : this.resource + '/'
+  }
+
+  list<Req, Res>(params: Req) {
+    return request<Res>({
+      url: this.resource,
+      method: 'get',
+      params,
+      raw: 'data',
+    })
+  }
+
+  detail<Res>(name: string | number) {
+    return request<Res>({
+      url: this.prefix + name,
+      method: 'get',
+    })
+  }
+
+  create<Req>(data: Req) {
+    return request({
+      url: this.prefix,
+      method: 'post',
+      data,
+    }, true)
+  }
+
+  edit<Req>(name: string | number, data: Req) {
+    return request({
+      url: this.prefix + name,
+      method: 'put',
+      data,
+    }, true)
+  }
+
+  delete(name: string | number) {
+    return request({
+      url: this.prefix + name,
+      method: 'delete',
+    }, true)
+  }
+}

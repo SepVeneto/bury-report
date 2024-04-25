@@ -79,7 +79,7 @@ impl <T: Serialize> Response<T> {
 }
 
 impl Response<()> {
-  pub fn err(error: i32, message: &str) -> Self {
+  pub fn err(error: i32, message: String) -> Self {
     Response { code: error, message: message.to_owned(), data: None }
   }
 }

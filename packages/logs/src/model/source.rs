@@ -1,5 +1,6 @@
 use std::str::FromStr;
-use mongodb::{bson::{doc, oid}, options::FindOneOptions, results::{DeleteResult, InsertOneResult, UpdateResult}, Collection, Database};
+use futures_util::StreamExt;
+use mongodb::{bson::{doc, oid}, options::{FindOneOptions, FindOptions}, results::{DeleteResult, InsertOneResult, UpdateResult}, Collection, Database};
 use serde::{Deserialize, Serialize};
 use crate::config::serialize_oid;
 
@@ -14,16 +15,28 @@ pub struct BasePayload {
     pub name: String,
 }
 
+#[derive(Deserialize, Serialize, Clone)]
+pub struct QueryPayload {
+    pub page: u64,
+    pub size: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct PaginationResult {
+    pub total: u64,
+    pub list: Vec<Model>,
+}
+
 pub struct Filter {
     pub name: Option<String>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Model {
     name: String,
     #[serde(
-        rename = "id",
         serialize_with = "serialize_oid",
+        rename(serialize = "id"),
         skip_serializing_if = "Option::is_none"
     )]
     _id: Option<oid::ObjectId>,
@@ -70,6 +83,35 @@ impl Model {
             .update_one(filter, new_doc, None)
             .await?;
         Ok(res)
+    }
+    pub async fn find_many(db: &Database) -> QueryResult<Vec<Model>>{
+        let mut list = vec![];
+        let mut res = Self::col(db).find(doc! {}, None).await?;
+        while let Some(record) = res.next().await {
+            list.push(record?)
+        }
+        Ok(list)
+    }
+    pub async fn pagination(db: &Database, data: &QueryPayload) -> QueryResult<PaginationResult>{
+        let start = data.page;
+        let size = data.size;
+
+        let options = FindOptions::builder()
+            .skip((start - 1) * size)
+            .limit(size as i64)
+            .build();
+        let mut res = Self::col(db).find(doc! {}, options).await?;
+
+        let total = Self::col(db).count_documents(doc! {}, None).await?;
+        let mut list = vec![];
+        while let Some(record) = res.next().await {
+            list.push(record?);
+        }
+
+        Ok(PaginationResult {
+            total,
+            list,
+        })
     }
 }
 

@@ -2,6 +2,10 @@ use mongodb::{bson::{oid, Bson}, results::UpdateResult, Database};
 use crate::model::source::*;
 use super::ServiceResult;
 
+pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult> {
+    let res = Model::pagination(db, &data).await?;
+    Ok(res)
+}
 pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {
     let filter = Filter { name: Some(data.name.to_owned()) };
     let res = Model::find_one(db, filter).await?;

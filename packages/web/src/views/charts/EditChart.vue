@@ -2,7 +2,6 @@
   <section>
     <ElSteps :active="active">
       <ElStep title="类型选择" />
-      <ElStep title="数据源" />
       <ElStep title="参数配置" />
       <ElStep title="预览" />
     </ElSteps>
@@ -24,13 +23,12 @@
       v-else-if="active === 1"
       :model="formData"
     >
-      <div>TODO: 数据源</div>
+      <ElFormItem label="数据源">
+        <BcSelect
+          v-model="formData.source"
+        />
+      </ElFormItem>
     </ElForm>
-
-    <!-- <ElForm
-      v-else-if="active === 2"
-      :model="formData"
-    ></ElForm> -->
 
     <footer style="text-align: right;">
       <ElButton>取消</ElButton>

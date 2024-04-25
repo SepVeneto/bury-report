@@ -3,15 +3,30 @@ use mongodb::Database;
 use serde_json::Value;
 use crate::services::{ServiceError, Response};
 use crate::services::source;
-use crate::model::source::BasePayload;
+use crate::model::source::{BasePayload, QueryPayload};
 
 
 pub fn init_service(config: &mut web::ServiceConfig) {
+    config.service(get_list);
     config.service(get_source);
     config.service(set_source);
     config.service(update_source);
     config.service(modify_source);
     config.service(delete_source);
+}
+
+#[get("/source")]
+async fn get_list(
+    db: web::Data<Database>,
+    query: web::Query<QueryPayload>,
+) -> Result<HttpResponse, ServiceError> {
+    match source::list(&db, query.0).await {
+        Ok(res) => Response::ok(res, None).to_json(),
+        Err(err) => {
+            Response::err(500, err.to_string()).to_json()
+            // Ok(HttpResponse::InternalServerError().json(err.to_string()))
+        }
+    }
 }
 
 #[get("/source/{source_id}")]
