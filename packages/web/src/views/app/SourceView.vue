@@ -15,6 +15,7 @@
       :config="tableConfig"
       :api="getList"
       pagination
+      :save="handleSave"
     />
   </section>
 </template>
@@ -41,5 +42,8 @@ function handleSearch() {
 }
 function handleAdd() {
 
+}
+function handleSave([]) {
+  console.log(args)
 }
 </script>
