@@ -17,6 +17,7 @@ import { walkRoute } from '@/util/tools'
 const router = useRouter()
 const route = useRoute()
 const store = useApp()
+store.appid = route.params.appid
 
 let MOD: number | undefined
 if (store.isMicroApp()) {

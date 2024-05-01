@@ -5,6 +5,7 @@ import { sign } from '@rx-frontend/php-sign'
 import 'nprogress/nprogress.css'
 import { ElMessage, ElNotification } from 'element-plus'
 import type { AxiosRequestConfig, AxiosResponse } from 'axios'
+import { useApp } from '@/store'
 
 interface Response<T = any> {
   code: number;
@@ -26,9 +27,11 @@ export const requestInspector = (config: AxiosRequestConfig<any>) => {
   if (!token) {
     // window.location.href = '#/login'
   } else {
+    const app = useApp()
     config.headers = {
       ...config.headers,
       authorization: token,
+      appid: app.appid,
     }
   }
   return config
@@ -212,10 +215,6 @@ export class Restful {
     this.resource = resource
   }
 
-  get prefix() {
-    return this.resource.endsWith('/') ? this.resource : this.resource + '/'
-  }
-
   list<Req, Res>(params: Req) {
     return request<Res>({
       url: this.resource,
@@ -225,16 +224,21 @@ export class Restful {
     })
   }
 
+  private normalizeUrl(prefix: string, resource: string) {
+    const _res = prefix.endsWith('/') ? prefix : prefix + '/'
+    return _res + resource
+  }
+
   detail<Res>(name: string | number) {
     return request<Res>({
-      url: this.prefix + name,
+      url: this.normalizeUrl(this.resource, String(name)),
       method: 'get',
     })
   }
 
   create<Req>(data: Req) {
     return request({
-      url: this.prefix,
+      url: this.resource,
       method: 'post',
       data,
     }, true)
@@ -242,7 +246,7 @@ export class Restful {
 
   edit<Req>(name: string | number, data: Req) {
     return request({
-      url: this.prefix + name,
+      url: this.normalizeUrl(this.resource, String(name)),
       method: 'put',
       data,
     }, true)
@@ -250,7 +254,7 @@ export class Restful {
 
   delete(name: string | number) {
     return request({
-      url: this.prefix + name,
+      url: this.normalizeUrl(this.resource, String(name)),
       method: 'delete',
     }, true)
   }

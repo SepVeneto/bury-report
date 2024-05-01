@@ -15,14 +15,27 @@
       :config="tableConfig"
       :api="getList"
       pagination
-      :save="handleSave"
-    />
+      @save="handleSave"
+    >
+      <template #operate="{ row }">
+        <BcButton
+          confirm
+          type="danger"
+          text
+          @click="handleDel(row.id)"
+        >
+          删除
+        </BcButton>
+      </template>
+    </bc-table>
   </section>
 </template>
 
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import { source } from '@/apis'
+import type { TableInstance } from '@sepveneto/basic-comp'
+import type { SourceRecord } from '@/apis/source'
 
 const params = ref({
   page: 1,
@@ -31,7 +44,8 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '名称', prop: 'name', editable: true },
-  { label: '标识', prop: 'source', editable: true },
+  { label: '标识', prop: 'value', editable: true },
+  { label: '操作', prop: 'operate' },
 ])
 const searchConfig = shallowRef([])
 function getList() {
@@ -40,10 +54,21 @@ function getList() {
 function handleSearch() {
   tableRef.value.getList()
 }
-function handleAdd() {
-
+async function handleDel(id: string) {
+  await source.del(id)
+  params.value.page = 1
+  handleSearch()
 }
-function handleSave([]) {
-  console.log(args)
+async function handleAdd() {
+  await source.update({ name: `自定义指标 ${new Date().toLocaleString()}`, value: 'custom' })
+  handleSearch()
+}
+const handleSave: TableInstance['onSave'] = async (cell, props, record) => {
+  const data: SourceRecord = {
+    ...record as SourceRecord,
+    [props]: cell,
+  }
+  console.log('?')
+  await source.update(data)
 }
 </script>

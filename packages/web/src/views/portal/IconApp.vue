@@ -41,7 +41,7 @@ const props = defineProps({
 const icon = computed(() => props.name.slice(0, 1))
 
 function handleDetail() {
-  window.open(`${window.origin}/#/manage/apps/${props.appId}`, '_blank')
+  window.open(`${window.origin}/#/${props.appId}`, '_blank')
 }
 </script>
 
