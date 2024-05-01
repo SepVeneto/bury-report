@@ -60,7 +60,7 @@ async function handleDel(id: string) {
   handleSearch()
 }
 async function handleAdd() {
-  await source.update({ name: `自定义指标 ${new Date().toLocaleString()}`, value: 'custom' })
+  await source.update({ name: `自定义指标 ${new Date().toLocaleString()}`, value: 'custom' + Date.now() })
   handleSearch()
 }
 const handleSave: TableInstance['onSave'] = async (cell, props, record) => {

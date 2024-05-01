@@ -1,6 +1,15 @@
-import { Restful } from '@/util/request'
+import { Restful, request } from '@/util/request'
 
-const source = new Restful('/source')
+class Source extends Restful {
+  options() {
+    return request({
+      url: this.normalizeUrl(this.resource, 'options'),
+      method: 'get',
+      raw: 'data',
+    })
+  }
+}
+const source = new Source('/source')
 
 export function getList(params: { page: number, size: number }) {
   return source.list(params)
@@ -21,4 +30,8 @@ export function update(data: SourceRecord) {
 
 export function del(id: string) {
   return source.delete(id)
+}
+
+export function options() {
+  return source.options()
 }

@@ -47,6 +47,8 @@ pub struct PaginationResult {
 
 pub struct Filter {
     pub name: Option<String>,
+    pub value: Option<String>,
+    pub appid: String,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -84,9 +86,14 @@ impl Model {
         Ok(Self::col(db).insert_one(new_doc, None).await?)
     }
     pub async fn find_one(db: &Database, data: Filter) -> QueryResult<Option<Self>> {
-        let mut query = doc! {};
+        let mut query = doc! {
+            "appid": data.appid,
+        };
         if let Some(name) = data.name {
             query.insert("name", name);
+        }
+        if let Some(value) = data.value {
+            query.insert("value", value);
         }
 
         Ok(Self::col(db).find_one(query, None).await?)
@@ -108,11 +115,13 @@ impl Model {
             .await?;
         Ok(res)
     }
-    pub async fn find_many(db: &Database) -> QueryResult<Vec<Model>>{
+    pub async fn find_many(db: &Database, appid: &str) -> QueryResult<Vec<Model>>{
         let mut list = vec![];
-        let mut res = Self::col(db).find(doc! {}, None).await?;
+        let mut res = Self::col(db).find(doc! {
+            "appid": appid.to_string(),
+        }, None).await.unwrap();
         while let Some(record) = res.next().await {
-            list.push(record?)
+            list.push(record.unwrap())
         }
         Ok(list)
     }

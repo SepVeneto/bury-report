@@ -8,11 +8,28 @@ use crate::model::source::{BasePayload, QueryPayload};
 
 
 pub fn init_service(config: &mut web::ServiceConfig) {
+    config.service(get_options);
     config.service(get_list);
     config.service(get_source);
     config.service(set_source);
     config.service(update_source);
     config.service(delete_source);
+}
+
+#[get("/source/options")]
+async fn get_options(
+    req: HttpRequest,
+    db: web::Data<Database>,
+) -> Result<HttpResponse, ServiceError> {
+    match req.headers().get("appid") {
+        Some(appid) => {
+            let res = source::options(&db, &appid.to_str().unwrap()).await.unwrap();
+            Response::ok(res, None).to_json()
+        },
+        None => {
+            Response::err(500, "缺少appid".to_string()).to_json()
+        }
+    }
 }
 
 #[get("/source")]

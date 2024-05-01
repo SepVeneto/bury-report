@@ -26,6 +26,8 @@
       <ElFormItem label="数据源">
         <BcSelect
           v-model="formData.source"
+          custom-label="name"
+          :api="getSourceOptions"
         />
       </ElFormItem>
     </ElForm>
@@ -59,6 +61,7 @@
 import ChartIcon from './components/ChartIcon.vue'
 import { ref } from 'vue'
 import { useSteps } from './hooks'
+import { source } from '@/apis'
 
 const { active, showNext, showPrevious, isEnd, next, previous } = useSteps(2)
 const type = [
@@ -68,6 +71,9 @@ const type = [
 ] as const
 const formData = ref({})
 
+function getSourceOptions() {
+  return source.options()
+}
 function handleSubmit() {
 
 }

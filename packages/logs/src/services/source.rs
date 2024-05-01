@@ -3,15 +3,23 @@ use mongodb::{bson::{oid, Bson}, results::UpdateResult, Database};
 use crate::model::source::*;
 use super::ServiceResult;
 
+pub async fn options(db: &Database, appid: &str) -> ServiceResult<Vec<Model>> {
+    let res = Model::find_many(&db, &appid).await.unwrap();
+    Ok(res)
+}
+
 pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult> {
     let res = Model::pagination(db, &data).await?;
     Ok(res)
 }
 pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {
     let filter = Filter {
-        name: Some(data.name.to_owned()),
+        name: None,
+        value: Some(data.value.to_owned()),
+        appid: data.appid.to_string(),
     };
     let res = Model::find_one(db, filter).await?;
+    info!("{:?}, {}, {}", res, data.value, data.appid);
 
     if let Some(_) = res {
         return Err("数据源已存在".into());

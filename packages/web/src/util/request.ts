@@ -210,7 +210,7 @@ export function uploadOssSave(data: IOssSave) {
 }
 
 export class Restful {
-  private resource: string
+  protected resource: string
   constructor(resource: string) {
     this.resource = resource
   }
@@ -224,7 +224,7 @@ export class Restful {
     })
   }
 
-  private normalizeUrl(prefix: string, resource: string) {
+  protected normalizeUrl(prefix: string, resource: string) {
     const _res = prefix.endsWith('/') ? prefix : prefix + '/'
     return _res + resource
   }
