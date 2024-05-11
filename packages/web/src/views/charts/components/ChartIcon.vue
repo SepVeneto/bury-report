@@ -1,7 +1,7 @@
 <template>
   <div
     class="icon-wrap"
-    :class="[active && 'active']"
+    :class="[active && 'active', disabled && 'disabled']"
   >
     <ElImage :src="icon" />
     <div>{{ label }}</div>
@@ -17,9 +17,10 @@ import { computed } from 'vue'
 
 const props = defineProps({
   type: {
-    type: String as PropType<'pie' | 'line' | 'bar'>,
+    type: String as PropType<'Pie' | 'Line' | 'Bar'>,
     required: true,
   },
+  disabled: Boolean,
   label: {
     type: String,
     required: true,
@@ -27,23 +28,31 @@ const props = defineProps({
   active: Boolean,
 })
 const icon = computed(() => ({
-  pie: IconPie,
-  line: IconLine,
-  bar: IconBar,
+  Pie: IconPie,
+  Line: IconLine,
+  Bar: IconBar,
 })[props.type])
 </script>
 
 <style lang="scss" scoped>
 .active {
-  box-shadow: inset 0 0 0 2px #409eff;
+  box-shadow: inset 0 0 0 2px var(--el-color-primary);
+  &.disabled {
+    box-shadow: inset 0 0 0 2px var(--el-text-color-disabled);
+  }
 }
 .icon-wrap {
   padding: 10px;
-  cursor: pointer;
-  &:not(.active):hover {
+  &:not(.active, .disabled):hover {
     animation-name: pulse;
     animation-duration: 0.3s;
-    box-shadow: inset 0 0 0 2px #409eff;
+    box-shadow: inset 0 0 0 2px var(--el-color-primary);
+  }
+  &.disabled {
+    cursor: not-allowed;
+  }
+  &:not(.active, .disabled) {
+    cursor: pointer;
   }
 }
 

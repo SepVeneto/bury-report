@@ -1,8 +1,9 @@
 use chrono::{Datelike, LocalResult, TimeZone};
 use log::info;
+use maplit::hashmap;
 use mongodb::{bson::{bson, doc, Bson, DateTime}, Database};
 
-use crate::model::{logs, statistics::DataType};
+use crate::model::{logs, statistics::{self, DataType, Model, Rule}};
 
 use super::ServiceResult;
 
@@ -10,22 +11,33 @@ use super::ServiceResult;
 //     logs::Model::find_by_chart(db, pipeline)
 // }
 
+pub async fn create_chart(db: &Database, chart_type: &str, appid: &str, data: statistics::Rule) -> ServiceResult<()> {
+    let source = data.get_source();
+    let dimension = &data.get_dimension();
+    let sort = &data.get_sort();
+    let cache = query_pie(db, appid, &source, dimension, sort).await?;
+    let _ = Model::insert_pie(
+        db,
+        chart_type,
+        appid,
+        data,
+        cache,
+    ).await;
+    Ok(())
+}
+
 // 饼图
-pub async fn create (
+pub async fn query_pie(
     db: &Database,
     appid: &str,
     log_type: &str,
     dimension: &str,
+    sort: &str,
 ) -> ServiceResult<Vec<DataType>> {
-    let (start, end) = get_recent_30day()?;
     let pipeline_match= doc! {
         "$match": {
             "appid": appid.to_string(),
             "type": log_type.to_string(),
-            // "create_time": {
-            //     "$gte": start,
-            //     "$lte": end,
-            // }
         }
     };
     let pipeline_distinct = doc! {
@@ -41,8 +53,13 @@ pub async fn create (
     };
     let pipeline_output = doc! {
         "$project": {
-            "output": "$_id",
-            "sum": "$count"
+            "name": "$_id",
+            "value": "$count"
+        }
+    };
+    let pipeline_sort = doc! {
+        "$sort": {
+            format!("{sort}", ): 1,
         }
     };
 
@@ -51,6 +68,7 @@ pub async fn create (
         pipeline_distinct,
         pipeline_count,
         pipeline_output,
+        pipeline_sort,
     ];
     let res = logs::Model::find_by_chart::<DataType>(db, combine_pipeline).await?;
 
@@ -58,7 +76,7 @@ pub async fn create (
 
 }
 
-pub async fn create_with_date(
+pub async fn query_with_date(
     db: &Database,
     appid: &str,
     log_type: &str,
@@ -81,7 +99,6 @@ pub async fn create_with_date(
             "$or": or
         }
     };
-    info!("match: {}", &pipeline_match.get("$match").unwrap());
     let pipeline_distinct = doc! {
         "$group": {
             "_id": {
@@ -326,4 +343,40 @@ fn get_recent_30day() -> ServiceResult<(DateTime, DateTime)>{
         Err("获取近30天日期失败".into())
     }
 
+}
+
+pub async fn find_all(db: &Database, appid: &str) -> ServiceResult<Vec<Model>> {
+    let res = Model::find_many(db, appid).await?;
+    Ok(res)
+}
+
+pub async fn find_cache(db: &Database, id: &str) -> ServiceResult<Vec<DataType>> {
+    let res = Model::find_by_id(db, id).await?;
+    if let Some(model) = res {
+        Ok(model.cache)
+    } else {
+        Ok(vec![])
+    }
+}
+
+pub async fn update(db: &Database, statistic_id: &str, data: Rule) -> ServiceResult<()> {
+    let config = Model::find_by_id(db, statistic_id).await?;
+    if let Some(config) = config {
+        let rule = config.data;
+        let appid = config.appid;
+        let source = rule.get_source();
+        let dimension = rule.get_dimension();
+        let sort = rule.get_sort();
+
+        let cache = query_pie(db, &appid, &source, &dimension, &sort).await?;
+        let res = Model::update_one(db, statistic_id, data, cache).await?;
+        Ok(res)
+    } else {
+        Err("修改的图表不存在".into())
+    }
+}
+
+pub async fn delete(db: &Database, statistic_id: &str) -> ServiceResult<()> {
+    Model::delete_one(db, statistic_id).await?;
+    Ok(())
 }

@@ -99,10 +99,13 @@ impl Model {
         let mut chart_data = vec![];
 
         while let Some(record) = res.next().await {
-            println!("{:?}", record);
             // match
-            let res = from_document(record?).context(format!("{}", line!())).unwrap();
-            chart_data.push(res);
+            match from_document(record?) {
+                Ok(res) => {
+                    chart_data.push(res);
+                },
+                Err(_) => {}
+            };
             // {
             //     Ok(res) => chart_data.push(res),
             //     Err(err) => {

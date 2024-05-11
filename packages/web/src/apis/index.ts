@@ -6,6 +6,7 @@ import type { App } from './app'
 export * from './app'
 export * from './project'
 export * as source from './source'
+export * as statistics from './statistics'
 
 const mockMenus = [
   {

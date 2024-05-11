@@ -1,8 +1,11 @@
+use std::str::FromStr;
+use crate::config::serialize_oid;
+
+use futures_util::StreamExt;
 use mongodb::{
-    bson::oid::ObjectId, Database, Collection,
-    results::InsertOneResult,
+    bson::{doc, oid, to_bson},
+    results::InsertOneResult, Collection, Database
 };
-use serde_json::Value;
 use serde::{Deserialize, Serialize};
 
 use super::QueryResult;
@@ -16,8 +19,8 @@ pub struct StatisticTotal {
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct StatisticPie {
-    pub output: String,
-    pub sum: usize,
+    pub name: String,
+    pub value: usize,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct StatisticLine {
@@ -33,41 +36,99 @@ pub enum DataType {
     Pie(StatisticPie),
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Model {
-    _id: Option<ObjectId>,
-    appid: String,
+    #[serde(
+        serialize_with = "serialize_oid",
+        rename(serialize = "id"),
+        skip_serializing_if = "Option::is_none"
+    )]
+    _id: Option<oid::ObjectId>,
+    pub appid: String,
     r#type: String,
-    data: DataType,
-}
-pub struct Payload {
-    appid: String,
-    r#type: String,
-    data: DataType,
+    pub data: Rule,
+    #[serde(skip_serializing)]
+    pub cache: Vec<DataType>
 }
 
 impl Model {
     pub fn col (db: &Database) -> Collection<Self> {
         db.collection(NAME)
     }
-    pub async fn insert(db: &Database, data: &Payload) -> QueryResult<InsertOneResult> {
+    pub async fn insert_pie(
+        db: &Database,
+        chart_type: &str,
+        appid: &str,
+        data: Rule,
+        cache: Vec<DataType>,
+    ) -> QueryResult<InsertOneResult> {
         let new_doc = Model {
             _id: None,
-            r#type: data.r#type.to_string(),
-            appid: data.appid.to_string(),
-            data: data.data.clone(),
+            r#type: chart_type.to_string(),
+            appid: appid.to_string(),
+            data,
+            cache,
         };
         Ok(Self::col(db).insert_one(new_doc, None).await?)
+    }
+    pub async fn find_many(db: &Database, appid: &str) -> QueryResult<Vec<Model>> {
+        let mut list = vec![];
+        let mut res = Self::col(db).find(doc! {
+            "appid": appid,
+        }, None).await?;
+        while let Some(record) = res.next().await {
+            list.push(record?)
+        }
+        Ok(list)
+    }
+    pub async fn find_by_id(db: &Database, id: &str) -> QueryResult<Option<Model>> {
+        let oid = oid::ObjectId::from_str(id)?;
+        let res = Self::col(db).find_one(doc! {
+            "_id": oid
+        }, None).await?;
+        Ok(res)
+    }
+    pub async fn update_one(
+        db: &Database,
+        statistic_id: &str,
+        data: Rule,
+        cache: Vec<DataType>
+    ) -> QueryResult<()> {
+        let query = doc! {
+            "_id": oid::ObjectId::from_str(statistic_id)?,
+        };
+        let new_doc = doc! {
+            "$set": {
+                "data": to_bson(&data)?,
+                "cache": to_bson(&cache)?
+            }
+        };
+        Self::col(db).update_one(query, new_doc, None).await?;
+        Ok(())
+    }
+
+    pub async fn delete_one(
+        db: &Database,
+        statistic_id: &str,
+    ) -> QueryResult<()> {
+        let query = doc! {
+            "_id": oid::ObjectId::from_str(statistic_id)?
+        };
+        Self::col(db).delete_one(query, None).await?;
+        Ok(())
     }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct RulePie {
+    name: String,
     source: String,
-    dimension: String
+    dimension: String,
+    sort: String,
 }
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct RuleLine {
+    name: String,
     source: String,
     dimension: String,
     value: Option<Vec<String>>,
@@ -105,6 +166,13 @@ impl Rule {
         match self {
             Rule::Pie(_) => vec![],
             Rule::Line(line) => line.value.to_owned().unwrap_or(vec![])
+        }
+    }
+
+    pub fn get_sort(&self) -> String {
+        match self {
+            Rule::Pie(pie) => pie.sort.to_owned(),
+            Rule::Line(line) => String::from(""),
         }
     }
 }
