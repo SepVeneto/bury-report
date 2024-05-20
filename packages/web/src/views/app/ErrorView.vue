@@ -56,7 +56,7 @@ const searchConfig = shallowRef([
 ])
 
 function getList() {
-  return getAppErrors(route.params.id as string, params.value)
+  return getAppErrors(params.value)
 }
 function handleSearch() {
   tableRef.value.getList()

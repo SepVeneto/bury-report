@@ -76,9 +76,9 @@ export function getAppLogs(appId: string, params: { page: number, size: number }
   })
 }
 
-export function getAppErrors(appId: string, params: { page: number, size: number }) {
+export function getAppErrors(params: { page: number, size: number }) {
   return request<{ list: any[], total: number }>({
-    url: `/app/${appId}/errors`,
+    url: '/record/errors',
     params,
     raw: 'data',
   })

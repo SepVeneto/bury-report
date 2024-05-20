@@ -1,4 +1,5 @@
 use crate::services::ServiceError;
+use serde::{Deserialize, Serialize};
 
 pub mod logs;
 pub mod captcha;
@@ -37,4 +38,16 @@ impl From<mongodb::bson::de::Error> for QueryError {
     fn from(err: mongodb::bson::de::Error) -> Self {
         QueryError::FindError(err.to_string())
     }
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+pub struct QueryPayload {
+    pub page: u64,
+    pub size: u64,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct PaginationResult<T> {
+    pub total: u64,
+    pub list: Vec<T>,
 }

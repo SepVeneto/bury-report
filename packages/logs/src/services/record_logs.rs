@@ -5,7 +5,9 @@ use mongodb::Database;
 
 use crate::model::{
     apps,
-    logs::{RecordPayload, Model},
+    logs::{Model, RecordPayload},
+    PaginationResult,
+    QueryPayload,
 };
 
 use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceResult};
@@ -48,4 +50,9 @@ pub fn create_ws(
         Ok(res) => Ok(res),
         Err(err) => Err(err.to_string().into())
     }
+}
+
+pub async fn get_error_list(db: &Database, appid: &str, data: &QueryPayload) -> ServiceResult<PaginationResult<Model>> {
+    let res = Model::pagination(db, appid, data).await?;
+    Ok(res)
 }

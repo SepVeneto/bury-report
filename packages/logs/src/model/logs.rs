@@ -1,12 +1,14 @@
+use std::{fmt::Debug, str::FromStr};
+
 use failure::{Fail, ResultExt};
 use futures_util::StreamExt;
-use mongodb::{bson::{doc, from_document, DateTime, Deserializer, Document}, results::InsertManyResult};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use mongodb::{bson::{doc, from_document, DateTime, Deserializer, Document}, options::FindOptions, results::InsertManyResult};
+use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
 use mongodb::{Database, Collection};
 use log::error;
 
-use super::QueryResult;
+use super::{PaginationResult, QueryPayload, QueryResult};
 
 pub const NAME: &str = "logs";
 
@@ -69,15 +71,29 @@ pub struct Filter {
     pub appid: Option<String>,
     pub uuid: Option<String>,
 }
+
 #[derive(Deserialize, Serialize)]
 pub struct Model {
   pub r#type: String,
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
-//   #[serde(serialize_with = "serialize_create_time")]
+  #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
 }
+pub fn serialize_time<S>(time: &DateTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
+    let time_str = time.to_string();
+    if let Ok(res) = chrono::DateTime::<chrono::Utc>::from_str(&time_str) {
+        let fmt_str = res.format("%Y-%m-%d %H:%M:%S");
+        serializer.serialize_str(&format!("{}", fmt_str))
+    } else {
+        serializer.serialize_str(&format!("test"))
+    }
+}
+
 pub type Log = Model;
 
 impl Model {
@@ -115,5 +131,35 @@ impl Model {
             // };
         }
         Ok(chart_data)
+    }
+
+    pub async fn pagination(
+        db: &Database,
+        appid: &str,
+        data: &QueryPayload
+    ) -> QueryResult<PaginationResult<Model>>{
+        let start = data.page;
+        let size = data.size;
+
+        let options = FindOptions::builder()
+            .sort(doc! {"_id": -1})
+            .skip((start - 1) * size)
+            .limit(size as i64)
+            .build();
+        let query = doc! {
+            "appid": appid
+        };
+        let mut res = Self::collection(db).find(query.clone(), options).await?;
+
+        let total = Self::collection(db).count_documents(query.clone(), None).await?;
+        let mut list = vec![];
+        while let Some(record) = res.next().await {
+            list.push(record?);
+        }
+
+        Ok(PaginationResult {
+            total,
+            list,
+        })
     }
 }

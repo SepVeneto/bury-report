@@ -1,13 +1,16 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
 use mongodb::Database;
+use crate::apis::get_appid;
+
 use super::ApiResult;
-use crate::{model::*, services::{record_logs, ServiceError}};
+use crate::{model::*, services::record_logs};
 use crate::services::{Response, actor::WsActor};
 
 pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_log);
   config.service(record_ws);
+  config.service(record_error);
 }
 
 #[get("/record/ws/{app_id}")]
@@ -46,4 +49,16 @@ async fn record_log(
     record_logs::send_to_ws(&svr, &json_body)?;
 
     Response::ok("", None).to_json()
+}
+
+#[get("/record/errors")]
+async fn record_error(
+    db: web::Data<Database>,
+    req: HttpRequest,
+    query: web::Query<QueryPayload>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let res = record_logs::get_error_list(&db, &appid, &query.0).await?;
+
+    Response::ok(res, None).to_json()
 }
