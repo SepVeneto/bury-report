@@ -1,8 +1,7 @@
-use std::{fmt::Debug, str::FromStr};
+use std::fmt::Debug;
 
-use failure::{Fail, ResultExt};
 use futures_util::StreamExt;
-use mongodb::{bson::{doc, from_document, DateTime, Deserializer, Document}, options::FindOptions, results::InsertManyResult};
+use mongodb::{bson::{doc, from_document, DateTime, Document}, options::FindOptions, results::InsertManyResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
 use mongodb::{Database, Collection};
@@ -63,15 +62,6 @@ pub struct RecordV2 {
   pub data: Vec<RecordV1>,
 }
 
-
-
-
-pub struct Filter {
-    pub r#type: Option<String>,
-    pub appid: Option<String>,
-    pub uuid: Option<String>,
-}
-
 #[derive(Deserialize, Serialize)]
 pub struct Model {
   pub r#type: String,
@@ -85,13 +75,25 @@ pub fn serialize_time<S>(time: &DateTime, serializer: S) -> Result<S::Ok, S::Err
 where
     S: Serializer
 {
-    let time_str = time.to_string();
-    if let Ok(res) = chrono::DateTime::<chrono::Utc>::from_str(&time_str) {
-        let fmt_str = res.format("%Y-%m-%d %H:%M:%S");
-        serializer.serialize_str(&format!("{}", fmt_str))
-    } else {
-        serializer.serialize_str(&format!("test"))
+    match time.try_to_rfc3339_string() {
+        Ok(time_str) => {
+            match chrono::DateTime::parse_from_rfc3339(&time_str) {
+                Ok(res) => {
+                    let fmt_str = res.format("%Y-%m-%d %H:%M:%S");
+                    serializer.serialize_str(&format!("{}", fmt_str))
+                },
+                Err(err) => {
+                    error!("{:?}", err);
+                    serializer.serialize_none()
+                }
+            }
+        },
+        Err(err) => {
+            error!("{:?}", err);
+            serializer.serialize_none()
+        }
     }
+
 }
 
 pub type Log = Model;
