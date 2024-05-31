@@ -10,6 +10,7 @@ pub mod source;
 pub mod projects;
 pub mod charts;
 pub mod statistics;
+pub mod device;
 
 #[derive(Error, Debug)]
 pub enum ModelError {

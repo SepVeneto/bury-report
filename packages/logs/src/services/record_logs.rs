@@ -1,12 +1,15 @@
+use std::collections::HashMap;
+
 use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
+use maplit::hashmap;
 use mongodb::Database;
 use anyhow::anyhow;
 
 use crate::model::{
     apps,
-    logs::{Model, RecordPayload},
+    logs::{self, Model, RecordPayload, RecordV1, RecordV2},
     PaginationResult,
     QueryPayload,
 };
@@ -21,14 +24,60 @@ pub async fn check_appid(db: &Database, appid: &str) -> ServiceResult<bool> {
         Ok(true)
     }
 }
-pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
+pub async fn record(db: &Database, appid: &str, data: &RecordPayload) -> ServiceResult<()> {
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {
         return Err(anyhow!("没有对应的应用").into());
     }
+
+    match data {
+        RecordPayload::V1(_) => {
+            // Model::insert_many(db, data).await?;
+        },
+        RecordPayload::V2(v2) => {
+            let group  = group_records(&v2.data);
+            let appid = v2.appid.to_string();
+            let collect = RecordPayload::V2(RecordV2 {
+                appid: appid.to_owned(),
+                data: group["collect"].clone(),
+            });
+            let network = RecordPayload::V2(RecordV2 {
+                appid: appid.to_owned(),
+                data: group["network"].clone(),
+            });
+            let error = RecordPayload::V2(RecordV2 {
+                appid: appid.to_owned(),
+                data: group["error"].clone(),
+            });
+            logs::Model::insert_many(db, &collect);
+        }
+    }
+
     Model::insert_many(db, &data).await?;
     Ok(())
+}
+
+fn group_records<'a>(list: &'a Vec<RecordV1>) -> HashMap<&'a str, Vec<RecordV1>> {
+    let mut list_collect = vec![];
+    let mut list_network = vec![];
+    let mut list_error = vec![];
+
+    list.iter().for_each(|item| {
+        if item.r#type == "__BR_COLLECT_INFO__" {
+            list_collect.push(item.clone());
+        } else if item.r#type == "__BR_COLLECT_ERROR__" {
+            list_error.push(item.clone());
+        } else if item.r#type == "__BR_API__" {
+            list_network.push(item.clone());
+        }
+    });
+
+    hashmap! {
+        "collect" => list_collect,
+        "network" => list_network,
+        "error" => list_error,
+    }
 }
 
 pub fn send_to_ws(svr: &Addr<WsActor>, data: &RecordPayload) -> ServiceResult<()> {

@@ -56,10 +56,30 @@ pub struct RecordV1 {
   pub uuid: String,
 }
 
+impl RecordV1 {
+    pub fn normalize_from(&self) -> Log {
+        Log {
+            r#type: self.r#type.to_string(),
+            uuid: self.uuid.to_string(),
+            appid: self.appid.to_string(),
+            data: self.data.clone(),
+            create_time: DateTime::now(),
+        }
+    }
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct RecordV2 {
   pub appid: String,
   pub data: Vec<RecordV1>,
+}
+
+impl RecordV2 {
+    pub fn normalize(&self) -> Vec<Log> {
+        let data = &self.data;
+        let res = data.into_iter().map(|item| item.normalize_from());
+        res.collect()
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -101,6 +121,18 @@ pub type Log = Model;
 impl Model {
     pub fn collection(db: &Database) -> Collection<Log> {
         db.collection::<Log>(NAME)
+    }
+    pub async fn insert_collects(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+        let records = data.normalize();
+        Ok(Self::collection(db).insert_many(records, None).await?)
+    }
+    pub async fn insert_networks(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+        let records = data.normalize();
+        Ok(Self::collection(db).insert_many(records, None).await?)
+    }
+    pub async fn insert_errors(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+        let records = data.normalize();
+        Ok(Self::collection(db).insert_many(records, None).await?)
     }
     pub async fn insert_many(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
         let records = data.normalize();
