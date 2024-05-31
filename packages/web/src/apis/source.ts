@@ -16,6 +16,7 @@ export function getList(params: { page: number, size: number }) {
 }
 
 export type SourceRecord = {
+  pid?: string,
   id?: string
   name: string
   value: string

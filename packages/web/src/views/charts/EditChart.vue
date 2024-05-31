@@ -141,6 +141,7 @@ const type = [
   { label: '饼图', type: 'Pie' },
   { label: '折线图', type: 'Line' },
   { label: '柱状图', type: 'Bar' },
+  { label: '二维表', type: 'Table' },
 ] as const
 const rules = {
   source: { required: true, message: '请选择数据源' },

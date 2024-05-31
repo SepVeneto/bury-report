@@ -12,12 +12,13 @@
 import IconBar from '../assets/bar.svg'
 import IconLine from '../assets/line.svg'
 import IconPie from '../assets/pie.svg'
+import IconTable from '../assets/table.svg'
 import type { PropType } from 'vue'
 import { computed } from 'vue'
 
 const props = defineProps({
   type: {
-    type: String as PropType<'Pie' | 'Line' | 'Bar'>,
+    type: String as PropType<'Pie' | 'Line' | 'Bar' | 'Table'>,
     required: true,
   },
   disabled: Boolean,
@@ -31,6 +32,7 @@ const icon = computed(() => ({
   Pie: IconPie,
   Line: IconLine,
   Bar: IconBar,
+  Table: IconTable,
 })[props.type])
 </script>
 

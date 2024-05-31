@@ -12,7 +12,9 @@
     <bc-table
       ref="tableRef"
       v-model="params"
+      class="source-table"
       :config="tableConfig"
+      row-key="id"
       :api="getList"
       pagination
       @save="handleSave"
@@ -25,6 +27,11 @@
           @click="handleDel(row.id)"
         >
           删除
+        </BcButton>
+        <BcButton
+          @click="handleAddDimension(row)"
+        >
+          添加统计维度
         </BcButton>
       </template>
     </bc-table>
@@ -48,6 +55,13 @@ const tableConfig = shallowRef([
   { label: '操作', prop: 'operate' },
 ])
 const searchConfig = shallowRef([])
+async function handleAddDimension(record: any) {
+  await source.update({
+    pid: record.id,
+    name: `自定义维度 ${new Date().toLocaleString()}`,
+    value: 'custom' + Date.now(),
+  })
+}
 function getList() {
   return source.getList(params.value)
 }
@@ -72,3 +86,13 @@ const handleSave: TableInstance['onSave'] = async (cell, props, record) => {
   await source.update(data)
 }
 </script>
+
+<style lang="scss" scoped>
+.source-table :deep(.cell) {
+  display: flex;
+  align-items: center;
+}
+.source-table :deep(.bc-table-cell-edit) {
+  flex: 1;
+}
+</style>

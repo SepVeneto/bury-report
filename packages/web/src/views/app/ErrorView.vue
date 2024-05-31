@@ -25,7 +25,6 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
-import { useRoute } from 'vue-router'
 
 const deviceOptions = [
   { label: '苹果', value: 'ios' },
@@ -35,7 +34,6 @@ const platformOptions = [
   { label: '微信小程序', value: 'mp-weixin' },
   { label: 'Web', value: 'h5' },
 ]
-const route = useRoute()
 const params = ref({
   page: 1,
   size: 20,
