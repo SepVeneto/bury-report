@@ -1,12 +1,11 @@
-use core::fmt;
-
-use crate::model::QueryError;
-use actix_web::{HttpResponse, error};
-use mongodb::bson::oid;
+use actix_web::HttpResponse;
 use serde::Serialize;
-use std::error::Error;
-use failure::{self, Fail, Context};
-use failure::format_err;
+use thiserror::Error;
+
+use crate::apis::ApiError;
+use crate::model::logs::RecordPayload;
+use crate::model::ModelError;
+use anyhow::Result;
 
 pub mod ws;
 pub mod actor;
@@ -14,10 +13,22 @@ pub mod source;
 pub mod auth;
 pub mod record_logs;
 pub mod statistics;
+pub mod apps;
+
+#[derive(Debug, Error)]
+pub enum ServiceError {
+    #[error("Internal error")]
+    InternalError(#[from] ModelError),
+    #[error("transform to string error {result:?} with {origin:?}")]
+    ToStrError {
+        origin: RecordPayload,
+        result: String,
+    },
+    #[error(transparent)]
+    Common(#[from] anyhow::Error),
+}
 
 pub type ServiceResult<T> = Result<T, ServiceError>;
-
-pub type ServiceError = Box<dyn Error>;
 
 //     fn from(error: Context<String>) -> Self {
 //         Box::new(format!("test"))
@@ -73,7 +84,7 @@ impl <T: Serialize> Response<T> {
     Response { code: 0, message, data: Some(data) }
   }
 
-  pub fn to_json (&self) -> Result<HttpResponse, ServiceError> {
+  pub fn to_json (&self) -> Result<HttpResponse, ApiError> {
     Ok(HttpResponse::Ok().json(self))
   }
 }

@@ -23,10 +23,7 @@ async fn record_ws(
 ) -> ApiResult {
     let app_id = path.into_inner();
 
-    let app = apps::Model::find_by_id(&db, &app_id).await?;
-    if let None = app {
-        return Err("找不到指定应用".into());
-    }
+    record_logs::check_appid(&db, &app_id).await?;
     
     let resp = record_logs::create_ws(
         app_id,

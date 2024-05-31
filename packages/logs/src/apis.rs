@@ -3,14 +3,38 @@ pub mod record;
 pub mod source;
 pub mod statistics;
 
-use actix_web::{HttpResponse, HttpRequest};
+use actix_web::{http::header::ToStrError, HttpRequest, HttpResponse};
+use thiserror::Error;
+use anyhow::Result;
+
 use crate::services::ServiceError;
 
-pub type ApiResult = Result<HttpResponse, ServiceError>;
+#[derive(Error, Debug)]
+pub enum ApiError {
+    #[error("服务器错误，请稍候重试...")]
+    InternalError(#[from] ServiceError),
+    #[error("请求错误")]
+    AppidError(#[from] AppidError),
+    #[error(transparent)]
+    CommonError(#[from] anyhow::Error),
+}
+impl actix_web::error::ResponseError for ApiError {}
 
-pub fn get_appid(req: &HttpRequest) -> Result<String, ServiceError> {
-    let appid = req.headers().get("appid").ok_or("缺少appid")?;
+pub type ApiResult = Result<HttpResponse, ApiError>;
 
-    let appid = appid.to_str()?;
-    Ok(appid.to_string())
+#[derive(Error, Debug)]
+pub enum AppidError {
+    #[error("cannot find appid")]
+    GetError,
+    #[error("get appid failed")]
+    ToStrError(#[from] ToStrError)
+}
+
+pub fn get_appid(req: &HttpRequest) -> anyhow::Result<String, AppidError> {
+    if let Some(appid) = req.headers().get("appid") {
+        let appid = appid.to_str()?;
+        Ok(appid.to_string())
+    } else {
+        Err(AppidError::GetError)
+    }
 }

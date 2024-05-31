@@ -1,15 +1,14 @@
-use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
+use actix_web::{delete, get, post, put, web, HttpRequest};
 use log::info;
 use mongodb::Database;
 use serde_json::json;
-use crate::apis::get_appid;
+use crate::apis::{get_appid, ApiResult};
 
 use crate::{
     model::statistics::Rule,
     services::{
         statistics,
         Response,
-        ServiceError
     }
 };
 
@@ -48,7 +47,7 @@ pub async fn create_statistics(
     req: HttpRequest,
     db: web::Data<Database>,
     payload: web::Json<Rule>,
-) -> Result<HttpResponse, ServiceError> {
+) -> ApiResult {
     info!("{:?}", payload);
     let appid = get_appid(&req)?;
     let res = match payload.0 {
@@ -64,7 +63,7 @@ pub async fn update_statistics(
     db: web::Data<Database>,
     path: web::Path<String>,
     json: web::Json<Rule>,
-) -> Result<HttpResponse, ServiceError> {
+) -> ApiResult {
     let statistic_id = path.into_inner();
     statistics::update(&db, &statistic_id, json.0).await?;
     Response::ok(json!({}), "修改成功").to_json()
@@ -74,7 +73,7 @@ pub async fn update_statistics(
 pub async fn get_statistic(
     db: web::Data<Database>,
     path: web::Path<String>
-) -> Result<HttpResponse, ServiceError> {
+) -> ApiResult {
     let chart_id = path.into_inner();
     let res = statistics::find_cache(&db, &chart_id).await?;
     Response::ok(res, None).to_json()
@@ -83,7 +82,7 @@ pub async fn get_statistic(
 pub async fn del_statistic(
     db: web::Data<Database>,
     path: web::Path<String>
-) -> Result<HttpResponse, ServiceError> {
+) -> ApiResult {
     let statistic_id = path.into_inner();
     statistics::delete(&db, &statistic_id).await?;
     Response::ok(json!({}), "删除成功").to_json()
@@ -93,7 +92,7 @@ pub async fn del_statistic(
 pub async fn get_list(
     req: HttpRequest,
     db: web::Data<Database>,
-) -> Result<HttpResponse, ServiceError> {
+) -> ApiResult {
     let appid = get_appid(&req)?;
     let res = statistics::find_all(&db, &appid).await?;
     Response::ok(res, None).to_json()
@@ -104,7 +103,7 @@ pub async fn preview_statistics(
     req: HttpRequest,
     db: web::Data<Database>,
     payload: web::Query<Rule>,
-) -> Result<HttpResponse, ServiceError> {
+) -> ApiResult {
     let appid = get_appid(&req)?;
     let source= payload.get_source();
     let dimension = payload.get_dimension();

@@ -172,7 +172,7 @@ impl Rule {
     pub fn get_sort(&self) -> String {
         match self {
             Rule::Pie(pie) => pie.sort.to_owned(),
-            Rule::Line(line) => String::from(""),
+            Rule::Line(_line) => String::from(""),
         }
     }
 }

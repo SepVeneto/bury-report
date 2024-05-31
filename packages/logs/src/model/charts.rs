@@ -1,4 +1,4 @@
-pub struct Chart {
+pub struct _Chart {
     title: String,
     appid: String,
     range: Vec<String>,

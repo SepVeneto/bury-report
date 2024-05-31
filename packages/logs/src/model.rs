@@ -1,5 +1,6 @@
-use crate::services::ServiceError;
+use mongodb::bson;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 pub mod logs;
 pub mod captcha;
@@ -10,35 +11,18 @@ pub mod projects;
 pub mod charts;
 pub mod statistics;
 
-pub type QueryResult<T> = Result<T, ServiceError>;
-#[derive(Debug)]
-pub enum QueryError {
-    OidError(String),
-    FindError(String),
+#[derive(Error, Debug)]
+pub enum ModelError {
+    #[error("生成oid失败")]
+    OidGenError(#[from] bson::oid::Error),
+    #[error("数据库操作失败")]
+    OperateError(#[from] mongodb::error::Error),
+    #[error("bson序列化失败")]
+    BsonSerError(#[from] mongodb::bson::ser::Error),
 }
-impl QueryError {
-    pub fn to_string(&self) -> String {
-        match self {
-            QueryError::OidError(str) => str.to_owned(),
-            QueryError::FindError(str) => str.to_owned(),
-        }
-    }
-}
-impl From<mongodb::bson::oid::Error> for QueryError {
-    fn from(err: mongodb::bson::oid::Error) -> Self {
-        QueryError::OidError(err.to_string())
-    }
-}
-impl From<mongodb::error::Error> for QueryError {
-    fn from(err: mongodb::error::Error) -> Self {
-        QueryError::FindError(err.to_string())
-    }
-}
-impl From<mongodb::bson::de::Error> for QueryError {
-    fn from(err: mongodb::bson::de::Error) -> Self {
-        QueryError::FindError(err.to_string())
-    }
-}
+
+
+pub type QueryResult<T> = anyhow::Result<T, ModelError>;
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct QueryPayload {

@@ -1,7 +1,7 @@
 use chrono::{Datelike, LocalResult, TimeZone};
 use log::info;
-use maplit::hashmap;
 use mongodb::{bson::{bson, doc, Bson, DateTime}, Database};
+use anyhow::anyhow;
 
 use crate::model::{logs, statistics::{self, DataType, Model, Rule}};
 
@@ -164,7 +164,7 @@ pub async fn query_with_date(
 /**
  * 累计打开次数(设备)
  */
-pub async fn count_total(
+pub async fn _count_total(
     db: &Database,
     appid: &String,
     log_type: &str,
@@ -229,7 +229,7 @@ pub async fn count_total(
 /**
  * 昨日累计打开次数(设备)
  */
-pub async fn count_yesterday(
+pub async fn _count_yesterday(
     db: &Database,
     appid: &String,
     log_type: &str,
@@ -306,14 +306,14 @@ fn get_sub_date() -> ServiceResult<(DateTime, DateTime)>{
             let end = DateTime::from_millis(yesterday_end.timestamp_millis());
             Ok((start, end))
         } else {
-            Err("获取前一天失败".into())
+            Err(anyhow!("获取前一天失败").into())
         }
     } else {
-        Err("获取前一天失败".into())
+        Err(anyhow!("获取前一天失败").into())
     }
 }
 
-pub async fn total_trend(
+pub async fn _total_trend(
     db: &Database,
     appid: &String,
     log_type: &str,
@@ -340,7 +340,7 @@ fn get_recent_30day() -> ServiceResult<(DateTime, DateTime)>{
             DateTime::from_millis(end_time.timestamp_millis()),
         ))
     } else {
-        Err("获取近30天日期失败".into())
+        Err(anyhow!("获取近30天日期失败").into())
     }
 
 }
@@ -372,7 +372,7 @@ pub async fn update(db: &Database, statistic_id: &str, data: Rule) -> ServiceRes
         let res = Model::update_one(db, statistic_id, data, cache).await?;
         Ok(res)
     } else {
-        Err("修改的图表不存在".into())
+        Err(anyhow!("修改的图表不存在").into())
     }
 }
 

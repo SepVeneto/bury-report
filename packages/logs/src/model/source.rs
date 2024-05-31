@@ -11,10 +11,12 @@ pub const NAME: &str = "source";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct BasePayload {
+    pub pid: Option<String>,
     #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
     pub id: Option<oid::ObjectId>,
     #[serde(skip_deserializing)]
     pub appid: String,
+    pub level: u32,
     pub name: String,
     pub value: String,
 }
@@ -49,6 +51,7 @@ pub struct Filter {
     pub name: Option<String>,
     pub value: Option<String>,
     pub appid: String,
+    pub pid: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -56,6 +59,8 @@ pub struct Model {
     name: String,
     value: String,
     appid: String,
+    level: u32,
+    children: Vec<Model>,
     #[serde(
         serialize_with = "serialize_oid",
         rename(serialize = "id"),
@@ -71,7 +76,7 @@ impl Model {
     pub async fn find_by_id(db: &Database, id: &str) -> QueryResult<Option<Self>> {
         let oid = oid::ObjectId::from_str(id)?;
         let options = FindOneOptions::builder()
-            .projection(Some(doc! { "id": "$_id", "name": 1, "value": 1, "appid": 1 }))
+            .projection(Some(doc! { "id": "$_id", "name": 1, "value": 1, "appid": 1, "level": 1 }))
             .build();
         Ok(Self::col(db).find_one(doc! {"_id": oid }, options).await?)
     }
@@ -81,6 +86,8 @@ impl Model {
             name: data.name.to_string(),
             value: data.value.to_string(),
             appid: data.appid.to_string(),
+            children: vec![],
+            level: 1,
         };
         info!("{:?}", new_doc);
         Ok(Self::col(db).insert_one(new_doc, None).await?)
