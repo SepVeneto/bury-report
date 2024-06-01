@@ -1,7 +1,8 @@
 use mongodb::{bson::{doc, oid::ObjectId}, Collection, Database};
 use serde::{Deserialize, Serialize};
+use futures_util::StreamExt;
 
-use super::QueryResult;
+use super::{PagintionModel, QueryResult};
 
 pub const NAME:&str = "apps";
 
@@ -19,4 +20,9 @@ impl Model {
         let oid = ObjectId::parse_str(id)?;
         Ok(Self::collection(db).find_one(doc! { "_id": oid }, None).await?)
     }
+}
+
+impl PagintionModel for Model {
+    const NAME: &'static str = NAME;
+    type Model = Model;
 }

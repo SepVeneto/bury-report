@@ -2,6 +2,7 @@ pub mod auth;
 pub mod record;
 pub mod source;
 pub mod statistics;
+pub mod apps;
 
 use actix_web::{http::header::ToStrError, HttpRequest, HttpResponse};
 use thiserror::Error;

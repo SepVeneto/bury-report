@@ -1,6 +1,6 @@
 use log::info;
 use mongodb::{bson::{oid, Bson}, results::UpdateResult, Database};
-use crate::model::source::*;
+use crate::model::{source::*, PagintionModel, QueryPayload, PaginationResult};
 use super::ServiceResult;
 use anyhow::{anyhow, Context};
 
@@ -9,7 +9,7 @@ pub async fn options(db: &Database, appid: &str) -> ServiceResult<Vec<Model>> {
     Ok(res)
 }
 
-pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult> {
+pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult<Model>> {
     let res = Model::pagination(db, &data).await?;
     Ok(res)
 }

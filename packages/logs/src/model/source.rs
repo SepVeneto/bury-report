@@ -5,7 +5,7 @@ use mongodb::{bson::{doc, oid}, options::{FindOneOptions, FindOptions}, results:
 use serde::{Deserialize, Serialize};
 use crate::config::serialize_oid;
 
-use super::QueryResult;
+use super::{PagintionModel, QueryResult};
 
 pub const NAME: &str = "source";
 
@@ -132,30 +132,10 @@ impl Model {
         }
         Ok(list)
     }
-    pub async fn pagination(db: &Database, data: &QueryPayload) -> QueryResult<PaginationResult>{
-        let start = data.page;
-        let size = data.size;
+}
 
-        let options = FindOptions::builder()
-            .sort(doc! {"_id": -1})
-            .skip((start - 1) * size)
-            .limit(size as i64)
-            .build();
-        let query = doc! {
-            "appid": &data.appid
-        };
-        let mut res = Self::col(db).find(query.clone(), options).await?;
-
-        let total = Self::col(db).count_documents(query.clone(), None).await?;
-        let mut list = vec![];
-        while let Some(record) = res.next().await {
-            list.push(record?);
-        }
-
-        Ok(PaginationResult {
-            total,
-            list,
-        })
-    }
+impl PagintionModel for Model {
+    const NAME: &'static str = NAME;
+    type Model = Model;
 }
 

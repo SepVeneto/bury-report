@@ -24,7 +24,7 @@ pub async fn check_appid(db: &Database, appid: &str) -> ServiceResult<bool> {
         Ok(true)
     }
 }
-pub async fn record(db: &Database, appid: &str, data: &RecordPayload) -> ServiceResult<()> {
+pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {

@@ -22,8 +22,12 @@ futures-util = "0.3.30"
 log = "0.4.20"
 maplit = "1.0.2"
 md5 = "0.7.0"
-mongodb = "2.8.0"
 serde = "1.0.195"
 serde_json = "1.0.113"
 thiserror = "1.0.61"
 uuid = "1.7.0"
+
+[dependencies.mongodb]
+version = "2.8.2"
+default-features = false
+features = ["async-std-runtime"]

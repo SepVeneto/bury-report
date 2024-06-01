@@ -1,4 +1,5 @@
 use core::time::Duration;
+use log::info;
 use mongodb::options::IndexOptions;
 use mongodb::{Client, Database, IndexModel};
 use mongodb::bson::doc;
@@ -15,10 +16,16 @@ pub async fn connect_db() -> Database {
 
   init_collection(&db).await;
 
+
+  create_cols_from_apps(&db);
   create_captcha_index(&db).await;
   create_logs_index(&db).await;
 
   db
+}
+
+async fn create_cols_from_apps(db: &Database)  {
+    // db.collection("apps")
 }
 
 async fn create_logs_index(db: &Database) {
@@ -53,20 +60,21 @@ async fn create_captcha_index(db: &Database) {
 
 async fn init_collection(db: &Database) {
     
-  const COLLECTIONS: [&str; 6] = [
+  const COLLECTIONS: [&str; 5] = [
     model::captcha::NAME,
     model::apps::NAME,
     model::projects::NAME,
     model::users::NAME,
-    model::logs::NAME,
     model::source::NAME,
   ];
   let collections = db.list_collection_names(doc! {}).await.unwrap();
 
-  for collection in collections {
-    if COLLECTIONS.contains(&collection.as_str()) {
+  for collection in COLLECTIONS {
+    info!("check collection: {}", collection);
+    if collections.contains(&collection.to_string()) {
       continue;
     }
-    db.create_collection(collection, None).await.expect_err("collection already exists");
+    info!("create collection: {}", collection);
+    db.create_collection(&collection, None).await.unwrap();
   }
 }
