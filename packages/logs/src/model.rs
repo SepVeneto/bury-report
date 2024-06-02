@@ -1,4 +1,4 @@
-use mongodb::{bson::{self, doc, Document}, options::FindOptions, Collection, Cursor};
+use mongodb::{bson::{self, doc, Document}, options::{FindOptions, InsertOneOptions}, Collection, Cursor};
 use serde::{Deserialize, Serialize};
 use source::Model;
 use thiserror::Error;
@@ -25,6 +25,24 @@ pub enum ModelError {
     BsonSerError(#[from] mongodb::bson::ser::Error),
 }
 
+pub struct Operate {
+    appid: String
+}
+
+pub trait BaseModel {
+    const NAME: &'static str;
+    type Model: for<'a> Deserialize<'a> + Serialize;
+    fn col(db: &Database, appid: &str) -> Collection<Self::Model> {
+        let col_name = format!("{}_{}", appid, Self::NAME);
+        db.collection(&col_name)
+    }
+    // async fn create(db: &Database, data: Self::Model, options: InsertOneOptions) -> QueryResult<String> {
+    //     let col = Self::col(&db);
+
+    //     let res = col.insert_one(data, options).await?;
+    //     Ok(res.inserted_id.to_string())
+    // }
+}
 
 pub type QueryResult<T> = anyhow::Result<T, ModelError>;
 
@@ -33,11 +51,11 @@ pub struct QueryPayload {
     pub page: u64,
     pub size: u64,
     #[serde(skip_deserializing)]
-    pub appid: String,
+    pub appid: Option<String>,
 }
 impl QueryPayload {
     pub fn set_appid(&mut self, appid: &str) -> () {
-        self.appid = appid.to_string();
+        self.appid = Some(appid.to_string());
     }
 }
 
