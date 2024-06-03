@@ -9,8 +9,10 @@ use anyhow::anyhow;
 
 use crate::model::{
     apps,
-    logs::{self, Model, RecordPayload, RecordV1, RecordV2},
+    logs::{self, Model, RecordPayload, RecordV1},
+    CreateModel,
     PaginationResult,
+    PaginationModel,
     QueryPayload,
 };
 
@@ -38,38 +40,40 @@ pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
         RecordPayload::V2(v2) => {
             let group  = group_records(&v2.data);
             let appid = v2.appid.to_string();
-            let collect = RecordPayload::V2(RecordV2 {
-                appid: appid.to_owned(),
-                data: group["collect"].clone(),
-            });
-            let network = RecordPayload::V2(RecordV2 {
-                appid: appid.to_owned(),
-                data: group["network"].clone(),
-            });
-            let error = RecordPayload::V2(RecordV2 {
-                appid: appid.to_owned(),
-                data: group["error"].clone(),
-            });
-            logs::Model::insert_many(db, &collect);
+            // let collect = RecordPayload::V2(RecordV2 {
+            //     appid: appid.to_owned(),
+            //     data: group["collect"],
+            // });
+            // let network = RecordPayload::V2(RecordV2 {
+            //     appid: appid.to_owned(),
+            //     data: group["network"],
+            // });
+            // let error = RecordPayload::V2(RecordV2 {
+            //     appid: appid.to_owned(),
+            //     data: group["error"],
+            // });
+            logs::Model::insert_many(db, &appid, group["collect"].clone()).await?;
+            logs::Model::insert_many(db, &appid, group["network"].clone()).await?;
+            logs::Model::insert_many(db, &appid, group["error"].clone()).await?;
         }
     }
 
-    Model::insert_many(db, &data).await?;
+    // Model::insert_many(db, &data).await?;
     Ok(())
 }
 
-fn group_records<'a>(list: &'a Vec<RecordV1>) -> HashMap<&'a str, Vec<RecordV1>> {
+fn group_records<'a>(list: &'a Vec<RecordV1>) -> HashMap<&'a str, Vec<logs::Model>> {
     let mut list_collect = vec![];
     let mut list_network = vec![];
     let mut list_error = vec![];
 
     list.iter().for_each(|item| {
         if item.r#type == "__BR_COLLECT_INFO__" {
-            list_collect.push(item.clone());
+            list_collect.push(item.normalize_from());
         } else if item.r#type == "__BR_COLLECT_ERROR__" {
-            list_error.push(item.clone());
+            list_error.push(item.normalize_from());
         } else if item.r#type == "__BR_API__" {
-            list_network.push(item.clone());
+            list_network.push(item.normalize_from());
         }
     });
 
@@ -114,6 +118,6 @@ pub fn create_ws(
 }
 
 pub async fn get_error_list(db: &Database, appid: &str, data: &QueryPayload) -> ServiceResult<PaginationResult<Model>> {
-    let res = Model::pagination(db, appid, data).await?;
+    let res = logs::Model::pagination(db, appid, data).await?;
     Ok(res)
 }

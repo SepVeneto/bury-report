@@ -1,4 +1,4 @@
-use actix_web::{delete, get, post, web, HttpRequest};
+use actix_web::{delete, get, post, web};
 use mongodb::Database;
 use serde::{Deserialize, Serialize};
 

@@ -1,19 +1,24 @@
 use std::str::FromStr;
 
-use anyhow::anyhow;
 use log::info;
-use mongodb::{bson::{doc, oid::ObjectId, Document}, Collection, Database};
+use mongodb::{bson::{doc, oid::ObjectId}, options::FindOptions, Collection, Database};
 use serde::{Deserialize, Serialize};
 use futures_util::StreamExt;
+use crate::config::serialize_from_oid;
 
 use crate::apis::apps::CreatePayload;
 
-use super::{BaseModel, PagintionModel, QueryResult};
+use super::{QueryResult, QueryPayload, PaginationResult};
 
 pub const NAME:&str = "apps";
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Model {
+    #[serde(
+        rename(serialize  = "id"),
+        serialize_with = "serialize_from_oid",
+    )]
+    pub _id: ObjectId,
     pub name: String,
     pub is_delete: Option<bool>,
 }
@@ -32,6 +37,7 @@ impl Model {
     }
     pub async fn create(db: &Database, data: &CreatePayload) -> QueryResult<Option<ObjectId>> {
         let new_doc = Self {
+            _id: ObjectId::new(),
             name: data.name.clone(),
             is_delete: None,
         };
@@ -52,9 +58,34 @@ impl Model {
         Self::col(db).find_one_and_delete(doc! { "_id": oid }, None).await?;
         Ok(())
     }
+    pub async fn pagination(
+        db: &Database,
+        data: &QueryPayload
+    ) -> QueryResult<PaginationResult<Self>> {
+        let col = Self::col(db);
+        let start = data.page;
+        let size = data.size;
+
+        let options = FindOptions::builder()
+            .sort(doc! {"_id": -1})
+            .skip((start - 1) * size)
+            .limit(size as i64)
+            .build();
+        let query = doc! {
+            "appid": &data.appid
+        };
+        let mut res = col.find(query.clone(), options).await?;
+
+        let total = col.count_documents(query.clone(), None).await?;
+        let mut list = vec![];
+        while let Some(record) = res.next().await {
+            list.push(record?)
+        }
+
+        Ok(PaginationResult {
+            total,
+            list,
+        })
+    }
 }
 
-impl PagintionModel for Model {
-    const NAME: &'static str = NAME;
-    type Model = Model;
-}

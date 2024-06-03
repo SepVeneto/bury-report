@@ -70,7 +70,7 @@ pub async fn query_pie(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_by_chart::<DataType>(db, combine_pipeline).await?;
+    let res = logs::Model::find_by_chart::<DataType>(db, appid, combine_pipeline).await?;
 
     Ok(res)
 
@@ -156,7 +156,7 @@ pub async fn query_with_date(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_by_chart(db, combine_pipeline).await?;
+    let res = logs::Model::find_by_chart(db, appid, combine_pipeline).await?;
 
     Ok(res)
 }
@@ -209,7 +209,7 @@ pub async fn _count_total(
         }
     });
 
-    let res = logs::Model::find_by_chart::<DataType>(db, pipeline).await?;
+    let res = logs::Model::find_by_chart::<DataType>(db, appid, pipeline).await?;
     if let Some(_res) = res.get(0) {
         if let DataType::Total(res) = _res {
             Ok(Some(res.count))
@@ -279,7 +279,7 @@ pub async fn _count_yesterday(
             "count": 1,
         }
     });
-    let res = logs::Model::find_by_chart::<DataType>(db, pipeline).await?;
+    let res = logs::Model::find_by_chart::<DataType>(db, appid, pipeline).await?;
     if let Some(_res) = res.get(0) {
         if let DataType::Total(res) = _res {
             Ok(res.count)

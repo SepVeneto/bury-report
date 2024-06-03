@@ -8,18 +8,25 @@ use actix_web::{http::header::ToStrError, HttpRequest, HttpResponse};
 use thiserror::Error;
 use anyhow::Result;
 
-use crate::services::ServiceError;
+use crate::services::{Response, ServiceError};
 
 #[derive(Error, Debug)]
 pub enum ApiError {
-    #[error("服务器错误，请稍候重试...")]
-    InternalError(#[from] ServiceError),
+    #[error(transparent)]
+    InternalError {
+        #[from]
+        source: ServiceError,
+    },
     #[error("请求错误")]
     AppidError(#[from] AppidError),
     #[error(transparent)]
     CommonError(#[from] anyhow::Error),
 }
-impl actix_web::error::ResponseError for ApiError {}
+impl actix_web::error::ResponseError for ApiError {
+    fn error_response(&self) -> HttpResponse {
+        Response::err(500, self.to_string()).to_json().unwrap()
+    }
+}
 
 pub type ApiResult = Result<HttpResponse, ApiError>;
 

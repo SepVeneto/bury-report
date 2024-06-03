@@ -1,13 +1,15 @@
 use std::fmt::Debug;
 
 use futures_util::StreamExt;
-use mongodb::{bson::{doc, from_document, DateTime, Document}, options::FindOptions, results::InsertManyResult};
+use mongodb::{
+    bson::{doc, DateTime, Document, from_document},
+    Database,
+};
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
-use mongodb::{Database, Collection};
 use log::error;
 
-use super::{PaginationResult, QueryPayload, QueryResult};
+use super::{BaseModel, CreateModel, PaginationModel, QueryResult};
 
 pub const NAME: &str = "logs";
 
@@ -82,7 +84,7 @@ impl RecordV2 {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Clone)]
 pub struct Model {
   pub r#type: String,
   pub appid: String,
@@ -118,34 +120,42 @@ where
 
 pub type Log = Model;
 
+impl BaseModel for Model {
+    const NAME: &'static str = NAME;
+    type Model = Model;
+}
+impl PaginationModel for Model {}
+impl CreateModel for Model {}
+
 impl Model {
-    pub fn collection(db: &Database) -> Collection<Log> {
-        db.collection::<Log>(NAME)
-    }
-    pub async fn insert_collects(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-        let records = data.normalize();
-        Ok(Self::collection(db).insert_many(records, None).await?)
-    }
-    pub async fn insert_networks(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-        let records = data.normalize();
-        Ok(Self::collection(db).insert_many(records, None).await?)
-    }
-    pub async fn insert_errors(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-        let records = data.normalize();
-        Ok(Self::collection(db).insert_many(records, None).await?)
-    }
-    pub async fn insert_many(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-        let records = data.normalize();
-        Ok(Self::collection(db).insert_many(records, None).await?)
-    }
+//     pub fn collection(db: &Database) -> Collection<Log> {
+//         db.collection::<Log>(NAME)
+//     }
+//     pub async fn insert_collects(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+//         let records = data.normalize();
+//         Ok(Self::collection(db).insert_many(records, None).await?)
+//     }
+//     pub async fn insert_networks(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+//         let records = data.normalize();
+//         Ok(Self::collection(db).insert_many(records, None).await?)
+//     }
+//     pub async fn insert_errors(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+//         let records = data.normalize();
+//         Ok(Self::collection(db).insert_many(records, None).await?)
+//     }
+//     pub async fn insert_many(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
+//         let records = data.normalize();
+//         Ok(Self::collection(db).insert_many(records, None).await?)
+//     }
     pub async fn find_by_chart<T>(
         db: &Database,
+        appid: &str,
         pipeline: Vec<Document>
     ) -> QueryResult<Vec<T>>
     where
         T: DeserializeOwned
     {
-        let mut res = Self::collection(db).aggregate(pipeline, None).await?;
+        let mut res = Self::col(db, appid).aggregate(pipeline, None).await?;
         let mut chart_data = vec![];
 
         while let Some(record) = res.next().await {
@@ -167,33 +177,33 @@ impl Model {
         Ok(chart_data)
     }
 
-    pub async fn pagination(
-        db: &Database,
-        appid: &str,
-        data: &QueryPayload
-    ) -> QueryResult<PaginationResult<Model>>{
-        let start = data.page;
-        let size = data.size;
+//     pub async fn pagination(
+//         db: &Database,
+//         appid: &str,
+//         data: &QueryPayload
+//     ) -> QueryResult<PaginationResult<Model>>{
+//         let start = data.page;
+//         let size = data.size;
 
-        let options = FindOptions::builder()
-            .sort(doc! {"_id": -1})
-            .skip((start - 1) * size)
-            .limit(size as i64)
-            .build();
-        let query = doc! {
-            "appid": appid
-        };
-        let mut res = Self::collection(db).find(query.clone(), options).await?;
+//         let options = FindOptions::builder()
+//             .sort(doc! {"_id": -1})
+//             .skip((start - 1) * size)
+//             .limit(size as i64)
+//             .build();
+//         let query = doc! {
+//             "appid": appid
+//         };
+//         let mut res = Self::collection(db).find(query.clone(), options).await?;
 
-        let total = Self::collection(db).count_documents(query.clone(), None).await?;
-        let mut list = vec![];
-        while let Some(record) = res.next().await {
-            list.push(record?);
-        }
+//         let total = Self::collection(db).count_documents(query.clone(), None).await?;
+//         let mut list = vec![];
+//         while let Some(record) = res.next().await {
+//             list.push(record?);
+//         }
 
-        Ok(PaginationResult {
-            total,
-            list,
-        })
-    }
+//         Ok(PaginationResult {
+//             total,
+//             list,
+//         })
+//     }
 }

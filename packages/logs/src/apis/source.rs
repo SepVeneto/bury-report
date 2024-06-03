@@ -46,7 +46,7 @@ async fn get_list(
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     query.set_appid(&appid);
-    match source::list(&db, query.0).await {
+    match source::list(&db, &appid, query.0).await {
         Ok(res) => Response::ok(res, None).to_json(),
         Err(err) => {
             Response::err(500, err.to_string()).to_json()
@@ -57,11 +57,13 @@ async fn get_list(
 
 #[get("/source/{source_id}")]
 async fn get_source(
+    req: HttpRequest,
     path: web::Path<String>,
     db: web::Data<Database>,
 ) -> ApiResult {
+    let appid = get_appid(&req)?;
     let source_id = path.into_inner();
-    match source::detail(&db, &source_id).await? {
+    match source::detail(&db, &appid, &source_id).await? {
         Some(res) => Response::ok(res, None).to_json(),
         None => Err(anyhow!("找不到对应的数据源").into()),
     }
@@ -86,22 +88,26 @@ async fn set_source(
 
 #[put("/source/{source_id}")]
 async fn update_source(
+    req: HttpRequest,
     path: web::Path<String>,
     db: web::Data<Database>,
     json: web::Json<BasePayload>,
 ) -> ApiResult {
+    let appid = get_appid(&req)?;
     let source_id = path.into_inner();
     info!("{:?}", json.0);
-    let res = source::update(&db, &source_id, json.0).await?;
+    let res = source::update(&db, &appid, &source_id, json.0).await?;
     Response::ok(res, "编辑成功").to_json()
 }
 
 #[delete("/source/{source_id}")]
 async fn delete_source(
+    req: HttpRequest,
     path: web::Path<String>,
     db: web::Data<Database>,
 ) -> ApiResult {
+    let appid = get_appid(&req)?;
     let source_id = path.into_inner();
-    source::delete(&db, &source_id).await?;
+    source::delete(&db, &appid, &source_id).await?;
     Response::ok(Value::Null, Some("删除成功")).to_json()
 }

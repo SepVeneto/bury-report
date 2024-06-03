@@ -1,16 +1,25 @@
 use log::info;
-use mongodb::{bson::{oid, Bson}, results::UpdateResult, Database};
-use crate::model::{source::*, PagintionModel, QueryPayload, PaginationResult};
+use mongodb::{bson::{doc, Bson}, results::UpdateResult, Database};
+use crate::model::{
+    source::*,
+    CreateModel,
+    PaginationModel,
+    PaginationResult,
+    EditModel,
+    QueryModel,
+    QueryPayload,
+    DeleteModel,
+};
 use super::ServiceResult;
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 
 pub async fn options(db: &Database, appid: &str) -> ServiceResult<Vec<Model>> {
-    let res = Model::find_many(&db, &appid).await.unwrap();
+    let res = Model::find_all(db, appid, None).await?;
     Ok(res)
 }
 
-pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult<Model>> {
-    let res = Model::pagination(db, &data).await?;
+pub async fn list(db: &Database, appid: &str, data: QueryPayload) -> ServiceResult<PaginationResult<Model>> {
+    let res = Model::pagination(db, appid, &data).await?;
     Ok(res)
 }
 pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {
@@ -27,13 +36,8 @@ pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {
 }
 // TODO: source tree
 pub async fn _add_child(db: &Database, pid: &String, data: BasePayload) -> ServiceResult<()> {
-    let _filter = Filter {
-        name: None,
-        value: None,
-        appid: data.appid.to_string(),
-        pid: Some(pid.to_string()),
-    };
-    let res =Model::find_by_id(db, pid).await?;
+    let appid = data.appid.to_string();
+    let res =Model::find_by_id(db, &appid, pid).await?;
     if let None = res {
         return Err(anyhow!("找不到对应的数据源").into());
     } else {
@@ -43,20 +47,28 @@ pub async fn _add_child(db: &Database, pid: &String, data: BasePayload) -> Servi
     }
 }
 pub async fn add_root(db: &Database, data: BasePayload) -> ServiceResult<String> {
-    let filter = Filter {
-        name: None,
-        value: Some(data.value.to_owned()),
-        appid: data.appid.to_string(),
-        pid: None,
+    let appid = data.appid.to_string();
+    let query = doc! {
+        "appid": &appid,
+        "name": &data.name,
+        "value": &data.value,
     };
-    let res = Model::find_one(db, filter).await?;
+    let res = Model::find_one(db, &appid, query).await?;
     info!("{:?}, {}, {}", res, data.value, data.appid);
 
     if let Some(_) = res {
         return Err(anyhow!("数据源已存在").into());
     }
 
-    let res = Model::insert(db, &data).await?;
+    let new_doc = Model {
+        name: data.name,
+        value: data.value,
+        appid: data.appid,
+        level: data.level,
+        children: vec![],
+        _id: None,
+    };
+    let res = Model::insert_one(db, &appid, new_doc).await?;
     let oid = match res.inserted_id {
         Bson::ObjectId(oid) => oid.to_string(),
         _ => {
@@ -66,22 +78,29 @@ pub async fn add_root(db: &Database, data: BasePayload) -> ServiceResult<String>
     Ok(oid)
 }
 
-pub async fn delete(db: &Database, id: &String) -> ServiceResult<()> {
-    Model::delete_one(db, id).await?;
+pub async fn delete(db: &Database, appid: &str, id: &String) -> ServiceResult<()> {
+    Model::delete_one(db, appid, id).await?;
     Ok(())
 }
 
-pub async fn update(db: &Database, id: &String, data: BasePayload) -> ServiceResult<UpdateResult> {
-    let oid = oid::ObjectId::parse_str(id).with_context(|| format!("transform with {}", id))?;
-    let source = Model::find_by_id(db, id).await.unwrap();
+pub async fn update(db: &Database, appid: &str, id: &String, data: BasePayload) -> ServiceResult<UpdateResult> {
+    let source = Model::find_by_id(db, appid, id).await.unwrap();
     if let None = source {
         return Err(anyhow!("找不到对应的数据源").into());
     }
-    let res = Model::update_one(db, &oid, &data).await.unwrap();
+    let new_doc = Model {
+        name: data.name,
+        value: data.value,
+        appid: data.appid,
+        level: data.level,
+        children: vec![],
+        _id: None,
+    };
+    let res = Model::update_one(db, appid, appid, &new_doc).await.unwrap();
     Ok(res)
 }
 
-pub async fn detail(db: &Database, id: &String) -> ServiceResult<Option<Model>> {
-    let res = Model::find_by_id(db, id).await?;
+pub async fn detail(db: &Database, appid: &str, id: &String) -> ServiceResult<Option<Model>> {
+    let res = Model::find_by_id(db, appid, id).await?;
     Ok(res)
 }

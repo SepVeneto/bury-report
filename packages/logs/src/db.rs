@@ -17,9 +17,9 @@ pub async fn connect_db() -> Database {
   init_collection(&db).await;
 
 
-  create_cols_from_apps(&db);
+//   create_cols_from_apps(&db).await;
   create_captcha_index(&db).await;
-  create_logs_index(&db).await;
+//   create_logs_index(&db).await;
 
   db
 }
@@ -28,19 +28,19 @@ async fn create_cols_from_apps(db: &Database)  {
     // db.collection("apps")
 }
 
-async fn create_logs_index(db: &Database) {
-  let options = IndexOptions::builder()
-    .name(String::from("uuid"))
-    .build();
-  let model = IndexModel::builder()
-    .keys(doc! { "data.uuid": 1 })
-    .options(options)
-    .build();
-  logs::Log::collection(db)
-    .create_index(model, None)
-    .await
-    .expect("the index uuid has already been created");
-}
+// async fn create_logs_index(db: &Database) {
+//   let options = IndexOptions::builder()
+//     .name(String::from("uuid"))
+//     .build();
+//   let model = IndexModel::builder()
+//     .keys(doc! { "data.uuid": 1 })
+//     .options(options)
+//     .build();
+//   logs::Log::collection(db)
+//     .create_index(model, None)
+//     .await
+//     .expect("the index uuid has already been created");
+// }
 
 async fn create_captcha_index(db: &Database) {
   let options = IndexOptions::builder()

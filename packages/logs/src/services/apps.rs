@@ -1,9 +1,8 @@
-use actix_web::{dev::ServiceResponse, web};
 use anyhow::{anyhow, Context};
 use log::info;
-use mongodb::{bson::{doc, Document}, options::DropDatabaseOptions, Database};
+use mongodb::Database;
 
-use crate::{apis::apps::CreatePayload, model::{apps::Model, BaseModel, PaginationResult, PagintionModel, QueryPayload}};
+use crate::{apis::apps::CreatePayload, model::{apps::Model, PaginationResult, QueryPayload}};
 
 use super::{ServiceError, ServiceResult};
 
