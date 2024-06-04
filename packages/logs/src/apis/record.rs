@@ -1,9 +1,11 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
+use log::error;
+use logs::RecordPayload;
 use mongodb::Database;
 use crate::apis::get_appid;
 
-use super::ApiResult;
+use super::{ApiError, ApiResult};
 use crate::{model::*, services::record_logs};
 use crate::services::{Response, actor::WsActor};
 
@@ -38,12 +40,13 @@ async fn record_ws(
 async fn record_log(
     db: web::Data<Database>,
     svr: web::Data<Addr<WsActor>>,
-    json_body: web::Json<logs::RecordPayload>,
+    json_body: web::Payload,
 ) -> ApiResult {
     // default size limit 256KB
-    record_logs::record(&db, &json_body).await?;
+    let json = payload_handler(json_body).await?;
+    record_logs::record(&db, &json).await?;
 
-    record_logs::send_to_ws(&svr, &json_body)?;
+    record_logs::send_to_ws(&svr, &json)?;
 
     Response::ok("", None).to_json()
 }
@@ -58,4 +61,26 @@ async fn record_error(
     let res = record_logs::get_error_list(&db, &appid, &query.0).await?;
 
     Response::ok(res, None).to_json()
+}
+
+async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload, ApiError> {
+    let res = match payload.to_bytes().await {
+        Ok(res) => res,
+        Err(err) => { return Err(ApiError::ValidateError {
+            err: err.to_string(),
+            col: column!(),
+            line: line!(),
+            file: file!().to_string(),
+        }); }
+    };
+
+    let json = serde_json::from_slice::<RecordPayload>(&res);
+
+    match json {
+        Ok(json) => Ok(json),
+        Err(err) => {
+            error!("Invalid JSON: {:?}", err);
+            Err(ApiError::ValidateError { err: err.to_string(), col: column!(), line: line!(), file: file!().to_string() })
+        }
+    }
 }

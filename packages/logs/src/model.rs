@@ -21,12 +21,14 @@ pub mod projects;
 pub mod charts;
 pub mod statistics;
 pub mod device;
+pub mod logs_network;
+pub mod logs_error;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
     #[error("生成oid失败")]
     OidGenError(#[from] bson::oid::Error),
-    #[error("数据库操作失败")]
+    #[error(transparent)]
     OperateError(#[from] mongodb::error::Error),
     #[error("bson序列化失败")]
     BsonSerError(#[from] mongodb::bson::ser::Error),
@@ -36,7 +38,7 @@ pub enum ModelError {
 
 pub trait BaseModel {
     const NAME: &'static str;
-    type Model: for<'a> Deserialize<'a> + Serialize + Unpin + Send + Sync;
+    type Model: for<'a> Deserialize<'a> + Serialize + Unpin + Send + Sync + std::fmt::Debug;
     fn col(db: &Database, appid: &str) -> Collection<Self::Model> {
         let col_name = format!("{}_{}", appid, Self::NAME);
         db.collection(&col_name)
@@ -147,10 +149,10 @@ pub trait CreateModel: BaseModel {
     async fn insert_many(
         db: &Database,
         appid: &str,
-        data: Vec<Self::Model>
+        data: &Vec<Self::Model>
     ) -> QueryResult<InsertManyResult> {
         let col = Self::col(db, appid);
-        let res = col.insert_many(data, None).await?;
+        let res = col.insert_many(data, None).await.unwrap();
         Ok(res)
     }
 }

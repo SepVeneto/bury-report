@@ -12,7 +12,6 @@ use actix::Actor;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use log::info;
 
-
 #[post("/verify_ticket")]
 async fn ticket(req_body: String) -> impl Responder {
   println!("{req_body}");

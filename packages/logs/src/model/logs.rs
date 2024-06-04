@@ -9,7 +9,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
 use log::error;
 
-use super::{BaseModel, CreateModel, PaginationModel, QueryResult};
+use super::{logs_error, logs_network, BaseModel, CreateModel, PaginationModel, QueryResult};
 
 pub const NAME: &str = "logs";
 
@@ -57,16 +57,53 @@ pub struct RecordV1 {
   pub data: Map<String, Value>,
   pub uuid: String,
 }
+const TYPE_LOG: &'static str = "__BR_COLLECT_INFO__";
+const TYPE_NETWORK: &'static str = "__BR_API__";
+const TYPE_ERROR: &'static str = "__BR_COLLECT_ERROR__";
 
+#[derive(Clone, Debug)]
+pub enum RecordItem {
+    Log(Model),
+    Network(logs_network::Model),
+    Error(logs_error::Model),
+    Custom(Model),
+}
 impl RecordV1 {
-    pub fn normalize_from(&self) -> Log {
-        Log {
-            r#type: self.r#type.to_string(),
-            uuid: self.uuid.to_string(),
-            appid: self.appid.to_string(),
-            data: self.data.clone(),
-            create_time: DateTime::now(),
+    pub fn normalize_from(&self) -> RecordItem {
+        if self.r#type == TYPE_LOG {
+            RecordItem::Log(Log {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                create_time: DateTime::now(),
+            })
+        } else if self.r#type == TYPE_NETWORK {
+            RecordItem::Network(logs_network::Model {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                create_time: DateTime::now(),
+            })
+        } else if self.r#type == TYPE_ERROR {
+            RecordItem::Error(logs_error::Model {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                create_time: DateTime::now(),
+            })
+        } else {
+            RecordItem::Custom(Log {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                create_time: DateTime::now(),
+            })
         }
+        
     }
 }
 
@@ -77,14 +114,14 @@ pub struct RecordV2 {
 }
 
 impl RecordV2 {
-    pub fn normalize(&self) -> Vec<Log> {
+    pub fn normalize(&self) -> Vec<RecordItem> {
         let data = &self.data;
         let res = data.into_iter().map(|item| item.normalize_from());
         res.collect()
     }
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
   pub r#type: String,
   pub appid: String,

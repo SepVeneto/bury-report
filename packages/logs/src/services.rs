@@ -17,7 +17,7 @@ pub mod apps;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
-    #[error("Internal error")]
+    #[error(transparent)]
     InternalError(#[from] ModelError),
     #[error("transform to string error {result:?} with {origin:?}")]
     ToStrError {
