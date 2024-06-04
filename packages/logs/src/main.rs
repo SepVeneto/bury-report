@@ -10,7 +10,8 @@ use crate::services::actor;
 
 use actix::Actor;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
-use log::info;
+use log::{info, error};
+use tokio_cron_scheduler::{JobScheduler, Job};
 
 #[post("/verify_ticket")]
 async fn ticket(req_body: String) -> impl Responder {
@@ -29,7 +30,7 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let database = db::connect_db().await;
-
+  let sched = init_sched().await;
   let server = actor::WsActor::new().start();
 
   info!("starting HTTP server at http://localhost:8870");
@@ -37,6 +38,7 @@ async fn main() -> std::io::Result<()> {
     App::new()
       .app_data(web::Data::new(database.clone()))
       .app_data(web::Data::new(server.clone()))
+      .app_data(web::Data::new(sched.clone()))
       .wrap(middleware::Auth)
       .configure(routes::services)
   })
@@ -45,6 +47,28 @@ async fn main() -> std::io::Result<()> {
   .await
 }
 
+async fn init_sched() -> JobScheduler {
+    let sched = JobScheduler::new().await.unwrap();
+    sched.add(
+        // 每天分别清理最近3天的请求日志，30天的错误日志，7天的用户信息收集日志
+        Job::new_async("0 0 0 1/1 * *", |_uuid, _l|{
+            Box::pin(async move {
+                let db = crate::db::connect_db().await;
+                if let Err(err) = services::apps::gc_networks(&db, 3).await {
+                    error!("{}", err.to_string());
+                }
+                if let Err(err) = services::apps::gc_errors(&db, 30).await {
+                    error!("{}", err.to_string());
+                }
+                if let Err(err) = services::apps::gc_logs(&db, 7).await {
+                    error!("{}", err.to_string());
+                }
+            })
+        }).unwrap()
+    ).await.unwrap();
+    sched.start().await.unwrap();
+    sched
+}
 fn init_log() {
   use std::io::Write;
   use chrono::Local;

@@ -1,4 +1,4 @@
-use super::{BaseModel, CreateModel};
+use super::{BaseModel, CreateModel, DeleteModel};
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
 use mongodb::bson::DateTime;
@@ -43,3 +43,4 @@ impl BaseModel for Model {
     type Model = Model;
 }
 impl CreateModel for Model {}
+impl DeleteModel for Model {}

@@ -47,6 +47,15 @@ impl Model {
         let oid = res.inserted_id.as_object_id();
         Ok(oid)
     }
+    pub async fn find_all(db: &Database) -> QueryResult<Vec<Model>> {
+        let mut cursor = Self::col(db).find(None, None).await?;
+        let mut list = vec![];
+        while let Some(record) = cursor.next().await {
+            list.push(record?);
+        }
+
+        Ok(list)
+    }
     pub async fn find_by_id(db: &Database, id: &str) -> QueryResult<Option<Self>> {
         let oid = ObjectId::from_str(id)?;
         let res = Self::col(db).find_one(doc! { "_id": oid }, None).await?;

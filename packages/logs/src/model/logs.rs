@@ -9,7 +9,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
 use log::error;
 
-use super::{logs_error, logs_network, BaseModel, CreateModel, PaginationModel, QueryResult};
+use super::{logs_error, logs_network, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryResult};
 
 pub const NAME: &str = "logs";
 
@@ -163,6 +163,7 @@ impl BaseModel for Model {
 }
 impl PaginationModel for Model {}
 impl CreateModel for Model {}
+impl DeleteModel for Model {}
 
 impl Model {
 //     pub fn collection(db: &Database) -> Collection<Log> {

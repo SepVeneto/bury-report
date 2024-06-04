@@ -199,4 +199,21 @@ pub trait DeleteModel: BaseModel {
             Ok(())
         }
     }
+    async fn delete_all(
+        db: &Database,
+        appid: &str,
+    ) -> QueryResult<()> {
+        let col = Self::col(db, appid);
+        col.drop(None).await?;
+        Ok(())
+    }
+    async fn delete_many(
+        db: &Database,
+        appid: &str,
+        query: Document,
+    ) -> QueryResult<()> {
+        let col = Self::col(db, appid);
+        col.delete_many(query, None).await?;
+        Ok(())
+    }
 }
