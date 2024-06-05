@@ -2,7 +2,7 @@ import type { Options } from '@/type'
 import { REPORT_QUEUE, REPORT_REQUEST } from '@/utils/constant'
 import { getLocalStorage, setLocalStorage } from '@/utils/storage'
 
-let time = Date.now()
+let timer: number | undefined
 
 export function __BR_REPORT_INIT__(
   appid: Options['appid'],
@@ -17,16 +17,23 @@ export function __BR_REPORT_INIT__(
   ) {
     const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
     list.push({ uuid, type, data, appid })
-    const offset = Date.now() - time
 
-    if (!immediate && offset < interval * 1000) {
-      setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
-      time = Date.now()
+    const sendRequest = () => {
+      window.navigator.sendBeacon(url, JSON.stringify({ appid, data: list }))
+      setLocalStorage(REPORT_QUEUE, JSON.stringify([]))
+      clearInterval(timer)
+      timer = undefined
+    }
+
+    if (immediate) {
+      sendRequest()
       return
     }
 
-    window.navigator.sendBeacon(url, JSON.stringify({ appid, data: list }))
-
-    setLocalStorage(REPORT_QUEUE, JSON.stringify([]))
+    if (!timer) {
+      timer = (globalThis.setTimeout(() => sendRequest, interval * 1000)) as unknown as number
+    } else {
+      setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+    }
   }
 }
