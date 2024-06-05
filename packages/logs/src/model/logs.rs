@@ -8,10 +8,9 @@ use mongodb::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
 use log::error;
-
 use super::{logs_error, logs_network, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryResult};
 
-pub const NAME: &str = "logs";
+pub const NAME: &str = "records_log";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(untagged)]
@@ -187,13 +186,12 @@ impl Model {
 //     }
     pub async fn find_by_chart<T>(
         db: &Database,
-        appid: &str,
         pipeline: Vec<Document>
     ) -> QueryResult<Vec<T>>
     where
         T: DeserializeOwned
     {
-        let mut res = Self::col(db, appid).aggregate(pipeline, None).await?;
+        let mut res = Self::col(db).aggregate(pipeline, None).await?;
         let mut chart_data = vec![];
 
         while let Some(record) = res.next().await {

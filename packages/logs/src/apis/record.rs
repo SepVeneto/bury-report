@@ -2,8 +2,9 @@ use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
 use log::error;
 use logs::RecordPayload;
-use mongodb::Database;
+use mongodb::{Client, Database};
 use crate::apis::get_appid;
+use crate::db;
 
 use super::{ApiError, ApiResult};
 use crate::{model::*, services::record_logs};
@@ -38,13 +39,14 @@ async fn record_ws(
 
 #[post("/record")]
 async fn record_log(
+    client: web::Data<Client>,
     db: web::Data<Database>,
     svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
 ) -> ApiResult {
     // default size limit 256KB
     let json = payload_handler(json_body).await?;
-    record_logs::record(&db, &json).await?;
+    record_logs::record(&client, &db, &json).await?;
 
     record_logs::send_to_ws(&svr, &json)?;
 
@@ -53,12 +55,13 @@ async fn record_log(
 
 #[get("/record/errors")]
 async fn record_error(
-    db: web::Data<Database>,
+    client: web::Data<Client>,
     req: HttpRequest,
     query: web::Query<QueryPayload>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
-    let res = record_logs::get_error_list(&db, &appid, &query.0).await?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let res = record_logs::get_error_list(&db, &query.0).await?;
 
     Response::ok(res, None).to_json()
 }

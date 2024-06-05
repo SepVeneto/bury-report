@@ -29,14 +29,15 @@ async fn main() -> std::io::Result<()> {
 
   init_log();
 
-  let database = db::connect_db().await;
+  let (client, db) = db::connect_db().await;
   let sched = init_sched().await;
   let server = actor::WsActor::new().start();
 
   info!("starting HTTP server at http://localhost:8870");
   HttpServer::new(move || {
     App::new()
-      .app_data(web::Data::new(database.clone()))
+      .app_data(web::Data::new(client.clone()))
+      .app_data(web::Data::new(db.clone()))
       .app_data(web::Data::new(server.clone()))
       .app_data(web::Data::new(sched.clone()))
       .wrap(middleware::Auth)
@@ -53,14 +54,14 @@ async fn init_sched() -> JobScheduler {
         // 每天分别清理最近3天的请求日志，30天的错误日志，7天的用户信息收集日志
         Job::new_async("0 0 0 1/1 * *", |_uuid, _l|{
             Box::pin(async move {
-                let db = crate::db::connect_db().await;
-                if let Err(err) = services::apps::gc_networks(&db, 3).await {
+                let (client, _) = crate::db::connect_db().await;
+                if let Err(err) = services::apps::gc_networks(&client, 3).await {
                     error!("{}", err.to_string());
                 }
-                if let Err(err) = services::apps::gc_errors(&db, 30).await {
+                if let Err(err) = services::apps::gc_errors(&client, 30).await {
                     error!("{}", err.to_string());
                 }
-                if let Err(err) = services::apps::gc_logs(&db, 7).await {
+                if let Err(err) = services::apps::gc_logs(&client, 7).await {
                     error!("{}", err.to_string());
                 }
             })

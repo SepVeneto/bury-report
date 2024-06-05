@@ -4,6 +4,8 @@ use serde_json::{Map, Value};
 use mongodb::bson::DateTime;
 use log::error;
 
+pub const NAME: &'static str = "records_api";
+
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
   pub r#type: String,
@@ -39,7 +41,7 @@ where
 }
 
 impl BaseModel for Model {
-    const NAME: &'static str = "api";
+    const NAME: &'static str = NAME;
     type Model = Model;
 }
 impl CreateModel for Model {}

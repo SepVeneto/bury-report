@@ -5,7 +5,23 @@ use mongodb::{Client, Database, IndexModel};
 use mongodb::bson::doc;
 use crate::model::{self, *};
 
-pub async fn connect_db() -> Database {
+pub struct DbApp {}
+
+impl DbApp {
+    pub fn get_db_name(appid: &str) -> String {
+        format!("app_{}", appid)
+    }
+    pub fn get_by_appid(client: &Client, appid: &str) -> Database {
+        let db_name = Self::get_db_name(appid);
+        client.database(&db_name)
+    }
+    pub fn create_by_appid(client: &Client, appid: &str) -> Database {
+        let db_name = Self::get_db_name(appid);
+        client.database(&db_name)
+    }
+}
+
+pub async fn connect_db() -> (Client, Database) {
   let db_url = std::env::var("REPORT_DB_URL").expect("enviroment missing REPORT_DB_URL");
   let db_name = std::env::var("DB_NAME").expect("enviroment missing DB_NAME");
   let db_pwd = std::env::var("DB_PWD").expect("enviroment missing DB_PWD");
@@ -21,7 +37,7 @@ pub async fn connect_db() -> Database {
   create_captcha_index(&db).await;
 //   create_logs_index(&db).await;
 
-  db
+  (client, db)
 }
 
 async fn create_cols_from_apps(db: &Database)  {

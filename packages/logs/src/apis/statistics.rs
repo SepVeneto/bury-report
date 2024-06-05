@@ -1,9 +1,10 @@
 use actix_web::{delete, get, post, put, web, HttpRequest};
 use log::info;
-use mongodb::Database;
+use mongodb::{Client, Database};
 use serde_json::json;
 use crate::apis::{get_appid, ApiResult};
 
+use crate::db;
 use crate::{
     model::statistics::Rule,
     services::{
@@ -45,14 +46,15 @@ pub fn init_service(config: &mut web::ServiceConfig) {
 #[post("/statistics/create")]
 pub async fn create_statistics(
     req: HttpRequest,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
     payload: web::Json<Rule>,
 ) -> ApiResult {
     info!("{:?}", payload);
     let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
     let res = match payload.0 {
-        Rule::Pie(_) => statistics::create_chart(&db, "Pie", &appid, payload.0).await?,
-        Rule::Line(_) => statistics::create_chart(&db, "Line", &appid, payload.0).await?,
+        Rule::Pie(_) => statistics::create_chart(&db, "Pie", payload.0).await?,
+        Rule::Line(_) => statistics::create_chart(&db, "Line", payload.0).await?,
     };
 
     Response::ok(res, None).to_json()
@@ -101,10 +103,11 @@ pub async fn get_list(
 #[get("/statistics/preview")]
 pub async fn preview_statistics(
     req: HttpRequest,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
     payload: web::Query<Rule>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
     let source= payload.get_source();
     let dimension = payload.get_dimension();
     let range = payload.get_range();
@@ -113,14 +116,12 @@ pub async fn preview_statistics(
     let res = match payload.0 {
         Rule::Pie(_) => statistics::query_pie(
             &db,
-            &appid,
             &source,
             &dimension,
             &sort,
         ).await?,
         Rule::Line(_) => statistics::query_with_date(
             &db,
-            &appid,
             &source,
             &dimension,
             &value,

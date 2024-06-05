@@ -1,9 +1,11 @@
 use actix_web::{delete, get, post, put, web, HttpRequest};
 use anyhow::anyhow;
+use mongodb::Client;
 use super::ApiResult;
 use log::{error, info};
 use mongodb::Database;
 use serde_json::Value;
+use crate::db;
 use crate::services::Response;
 use crate::services::source;
 use crate::model::{
@@ -25,28 +27,24 @@ pub fn init_service(config: &mut web::ServiceConfig) {
 #[get("/source/options")]
 async fn get_options(
     req: HttpRequest,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
 ) -> ApiResult {
-    match req.headers().get("appid") {
-        Some(appid) => {
-            let res = source::options(&db, &appid.to_str().unwrap()).await.unwrap();
-            Response::ok(res, None).to_json()
-        },
-        None => {
-            Response::err(500, "缺少appid".to_string()).to_json()
-        }
-    }
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let res = source::options(&db).await?;
+    Response::ok(res, None).to_json()
 }
 
 #[get("/source")]
 async fn get_list(
     req: HttpRequest,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
     mut query: web::Query<QueryPayload>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
     query.set_appid(&appid);
-    match source::list(&db, &appid, query.0).await {
+    match source::list(&db, query.0).await {
         Ok(res) => Response::ok(res, None).to_json(),
         Err(err) => {
             Response::err(500, err.to_string()).to_json()
@@ -59,11 +57,12 @@ async fn get_list(
 async fn get_source(
     req: HttpRequest,
     path: web::Path<String>,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
     let source_id = path.into_inner();
-    match source::detail(&db, &appid, &source_id).await? {
+    match source::detail(&db, &source_id).await? {
         Some(res) => Response::ok(res, None).to_json(),
         None => Err(anyhow!("找不到对应的数据源").into()),
     }
@@ -90,13 +89,14 @@ async fn set_source(
 async fn update_source(
     req: HttpRequest,
     path: web::Path<String>,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
     json: web::Json<BasePayload>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
     let source_id = path.into_inner();
     info!("{:?}", json.0);
-    let res = source::update(&db, &appid, &source_id, json.0).await?;
+    let res = source::update(&db, &source_id, json.0).await?;
     Response::ok(res, "编辑成功").to_json()
 }
 
@@ -104,10 +104,11 @@ async fn update_source(
 async fn delete_source(
     req: HttpRequest,
     path: web::Path<String>,
-    db: web::Data<Database>,
+    client: web::Data<Client>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
     let source_id = path.into_inner();
-    source::delete(&db, &appid, &source_id).await?;
+    source::delete(&db, &source_id).await?;
     Response::ok(Value::Null, Some("删除成功")).to_json()
 }

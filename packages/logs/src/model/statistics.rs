@@ -44,7 +44,6 @@ pub struct Model {
         skip_serializing_if = "Option::is_none"
     )]
     _id: Option<oid::ObjectId>,
-    pub appid: String,
     r#type: String,
     pub data: Rule,
     #[serde(skip_serializing)]
@@ -58,14 +57,12 @@ impl Model {
     pub async fn insert_pie(
         db: &Database,
         chart_type: &str,
-        appid: &str,
         data: Rule,
         cache: Vec<DataType>,
     ) -> QueryResult<InsertOneResult> {
         let new_doc = Model {
             _id: None,
             r#type: chart_type.to_string(),
-            appid: appid.to_string(),
             data,
             cache,
         };

@@ -39,9 +39,9 @@ pub enum ModelError {
 pub trait BaseModel {
     const NAME: &'static str;
     type Model: for<'a> Deserialize<'a> + Serialize + Unpin + Send + Sync + std::fmt::Debug;
-    fn col(db: &Database, appid: &str) -> Collection<Self::Model> {
-        let col_name = format!("{}_{}", appid, Self::NAME);
-        db.collection(&col_name)
+    fn col(db: &Database) -> Collection<Self::Model> {
+        let col_name = Self::NAME;
+        db.collection(col_name)
     }
 }
 
@@ -69,10 +69,9 @@ pub struct PaginationResult<T> {
 pub trait PaginationModel: BaseModel {
     async fn pagination(
         db: &Database,
-        appid: &str,
         data: &QueryPayload
     ) -> QueryResult<PaginationResult<Self::Model>> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let start = data.page;
         let size = data.size;
 
@@ -102,30 +101,27 @@ pub trait PaginationModel: BaseModel {
 pub trait QueryModel: BaseModel {
     async fn find_one(
         db: &Database,
-        appid: &str,
         filter: Document,
     ) -> QueryResult<Option<Self::Model>> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let res = col.find_one(filter, None).await?;
         Ok(res)
     }
 
     async fn find_by_id(
         db: &Database,
-        appid: &str,
         id: &str,
     ) -> QueryResult<Option<Self::Model>> {
         let oid = ObjectId::from_str(id)?;
-        let res = Self::find_one(db, appid, doc! { "_id": oid }).await?;
+        let res = Self::find_one(db, doc! { "_id": oid }).await?;
         Ok(res)
     }
 
     async fn find_all(
         db: &Database,
-        appid: &str,
         filter: impl Into<Option<Document>>,
     ) -> QueryResult<Vec<Self::Model>> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let mut list: Vec<Self::Model> = vec![];
         let mut cursor = col.find(filter, None).await?;
         while let Some(res) = cursor.next().await {
@@ -138,20 +134,18 @@ pub trait QueryModel: BaseModel {
 pub trait CreateModel: BaseModel {
     async fn insert_one(
         db: &Database,
-        appid: &str,
         data: Self::Model
     ) -> QueryResult<InsertOneResult> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let res = col.insert_one(data, None).await?;
         Ok(res)
     }
 
     async fn insert_many(
         db: &Database,
-        appid: &str,
         data: &Vec<Self::Model>
     ) -> QueryResult<InsertManyResult> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let res = col.insert_many(data, None).await.unwrap();
         Ok(res)
     }
@@ -160,13 +154,12 @@ pub trait CreateModel: BaseModel {
 pub trait EditModel: BaseModel + QueryModel {
     async fn update_one(
         db: &Database,
-        appid: &str,
         id: &str,
         data: &Self::Model,
     ) -> QueryResult<UpdateResult> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let oid = ObjectId::from_str(id)?;
-        let res = Self::find_by_id(db, appid, id).await?;
+        let res = Self::find_by_id(db, id).await?;
         if let Some(_) = res {
             let res = bson::to_bson(data)?;
             let new_doc = doc! {
@@ -187,10 +180,9 @@ pub trait EditModel: BaseModel + QueryModel {
 pub trait DeleteModel: BaseModel {
     async fn delete_one(
         db: &Database,
-        appid: &str,
         id: &str,
     ) -> QueryResult<()> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         let oid = ObjectId::from_str(id)?;
         let res = col.find_one_and_delete(doc! { "_id": oid }, None).await?;
         if let None = res {
@@ -201,18 +193,16 @@ pub trait DeleteModel: BaseModel {
     }
     async fn delete_all(
         db: &Database,
-        appid: &str,
     ) -> QueryResult<()> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         col.drop(None).await?;
         Ok(())
     }
     async fn delete_many(
         db: &Database,
-        appid: &str,
         query: Document,
     ) -> QueryResult<()> {
-        let col = Self::col(db, appid);
+        let col = Self::col(db);
         col.delete_many(query, None).await?;
         Ok(())
     }

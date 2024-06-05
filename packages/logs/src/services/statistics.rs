@@ -11,15 +11,14 @@ use super::ServiceResult;
 //     logs::Model::find_by_chart(db, pipeline)
 // }
 
-pub async fn create_chart(db: &Database, chart_type: &str, appid: &str, data: statistics::Rule) -> ServiceResult<()> {
+pub async fn create_chart(db: &Database, chart_type: &str, data: statistics::Rule) -> ServiceResult<()> {
     let source = data.get_source();
     let dimension = &data.get_dimension();
     let sort = &data.get_sort();
-    let cache = query_pie(db, appid, &source, dimension, sort).await?;
+    let cache = query_pie(db, &source, dimension, sort).await?;
     let _ = Model::insert_pie(
         db,
         chart_type,
-        appid,
         data,
         cache,
     ).await;
@@ -29,14 +28,12 @@ pub async fn create_chart(db: &Database, chart_type: &str, appid: &str, data: st
 // 饼图
 pub async fn query_pie(
     db: &Database,
-    appid: &str,
     log_type: &str,
     dimension: &str,
     sort: &str,
 ) -> ServiceResult<Vec<DataType>> {
     let pipeline_match= doc! {
         "$match": {
-            "appid": appid.to_string(),
             "type": log_type.to_string(),
         }
     };
@@ -70,7 +67,7 @@ pub async fn query_pie(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_by_chart::<DataType>(db, appid, combine_pipeline).await?;
+    let res = logs::Model::find_by_chart::<DataType>(db, combine_pipeline).await?;
 
     Ok(res)
 
@@ -78,7 +75,6 @@ pub async fn query_pie(
 
 pub async fn query_with_date(
     db: &Database,
-    appid: &str,
     log_type: &str,
     dimension: &str,
     value: &Vec<String>,
@@ -90,7 +86,6 @@ pub async fn query_with_date(
     }).collect::<Vec<Bson>>();
     let pipeline_match = doc! {
         "$match": {
-            "appid": appid.to_string(),
             "type": log_type.to_string(),
             "create_time": {
                 "$gte": start,
@@ -156,7 +151,7 @@ pub async fn query_with_date(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_by_chart(db, appid, combine_pipeline).await?;
+    let res = logs::Model::find_by_chart(db, combine_pipeline).await?;
 
     Ok(res)
 }
@@ -166,14 +161,12 @@ pub async fn query_with_date(
  */
 pub async fn _count_total(
     db: &Database,
-    appid: &String,
     log_type: &str,
     unique: bool,
 ) -> ServiceResult<Option<usize>> {
     let mut pipeline = vec![
         doc! {
             "$match": {
-                "appid": appid.to_string(),
                 "type": log_type.to_string(),
             }
         },
@@ -209,7 +202,7 @@ pub async fn _count_total(
         }
     });
 
-    let res = logs::Model::find_by_chart::<DataType>(db, appid, pipeline).await?;
+    let res = logs::Model::find_by_chart::<DataType>(db, pipeline).await?;
     if let Some(_res) = res.get(0) {
         if let DataType::Total(res) = _res {
             Ok(Some(res.count))
@@ -231,7 +224,6 @@ pub async fn _count_total(
  */
 pub async fn _count_yesterday(
     db: &Database,
-    appid: &String,
     log_type: &str,
     unique: bool,
 ) -> ServiceResult<usize> {
@@ -239,7 +231,6 @@ pub async fn _count_yesterday(
     let mut pipeline = vec![
         doc! {
             "$match": {
-                "appid": appid.to_string(),
                 "type": log_type.to_string(),
                 "create_time": {
                     "$gte": start,
@@ -279,7 +270,7 @@ pub async fn _count_yesterday(
             "count": 1,
         }
     });
-    let res = logs::Model::find_by_chart::<DataType>(db, appid, pipeline).await?;
+    let res = logs::Model::find_by_chart::<DataType>(db, pipeline).await?;
     if let Some(_res) = res.get(0) {
         if let DataType::Total(res) = _res {
             Ok(res.count)
@@ -363,12 +354,11 @@ pub async fn update(db: &Database, statistic_id: &str, data: Rule) -> ServiceRes
     let config = Model::find_by_id(db, statistic_id).await?;
     if let Some(config) = config {
         let rule = config.data;
-        let appid = config.appid;
         let source = rule.get_source();
         let dimension = rule.get_dimension();
         let sort = rule.get_sort();
 
-        let cache = query_pie(db, &appid, &source, &dimension, &sort).await?;
+        let cache = query_pie(db, &source, &dimension, &sort).await?;
         let res = Model::update_one(db, statistic_id, data, cache).await?;
         Ok(res)
     } else {

@@ -1,7 +1,13 @@
 use std::str::FromStr;
 
 use log::info;
-use mongodb::{bson::{doc, oid::ObjectId}, options::FindOptions, Collection, Database};
+use mongodb::{
+    bson::{doc, oid::ObjectId},
+    options::FindOptions,
+    Collection,
+    Database,
+    Client,
+};
 use serde::{Deserialize, Serialize};
 use futures_util::StreamExt;
 use crate::config::serialize_from_oid;
@@ -46,6 +52,10 @@ impl Model {
         .await?;
         let oid = res.inserted_id.as_object_id();
         Ok(oid)
+    }
+    pub async fn find_all_from_client(client: &Client) -> QueryResult<Vec<Model>> {
+        let db = client.database("reporter");
+        Ok(Self::find_all(&db).await?)
     }
     pub async fn find_all(db: &Database) -> QueryResult<Vec<Model>> {
         let mut cursor = Self::col(db).find(None, None).await?;

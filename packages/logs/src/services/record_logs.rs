@@ -4,16 +4,16 @@ use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use maplit::hashmap;
-use mongodb::Database;
+use mongodb::{Database, Client};
 use anyhow::anyhow;
 
-use crate::model::{
+use crate::{db, model::{
     apps,
     logs::{self, Model, RecordItem, RecordPayload, RecordV1},
     logs_error,
     logs_network,
     CreateModel, PaginationModel, PaginationResult, QueryPayload
-};
+}};
 
 use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceError, ServiceResult};
 
@@ -33,7 +33,7 @@ enum RecordList {
     ErrorList(Vec<logs_error::Model>),
     CustomList(Vec<logs::Model>),
 }
-pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
+pub async fn record(client: &Client, db: &Database, data: &RecordPayload) -> ServiceResult<()> {
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {
@@ -48,9 +48,10 @@ pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
             let group  = group_records(&v2.data);
             let appid = v2.appid.to_string();
 
-            insert_group(db, &appid, &group["collect"]).await?;
-            insert_group(db, &appid, &group["network"]).await?;
-            insert_group(db, &appid, &group["error"]).await?;
+            let db = &db::DbApp::get_by_appid(client, &appid);
+            insert_group(db, &group["collect"]).await?;
+            insert_group(db, &group["network"]).await?;
+            insert_group(db, &group["error"]).await?;
         }
     }
 
@@ -58,31 +59,31 @@ pub async fn record(db: &Database, data: &RecordPayload) -> ServiceResult<()> {
     Ok(())
 }
 
-async fn insert_group(db: &Database, appid: &str, list: &RecordList) -> anyhow::Result<(), ServiceError>{
+async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), ServiceError>{
     match list {
         RecordList::LogList(data) => {
             if data.len() == 0 {
                 return Ok(());
             }
-            logs::Model::insert_many(db, appid, data).await?;
+            logs::Model::insert_many(db, data).await?;
         },
         RecordList::NetworkList(data) => {
             if data.len() == 0 {
                 return Ok(());
             }
-            logs_network::Model::insert_many(db, appid, data).await?;
+            logs_network::Model::insert_many(db, data).await?;
         },
         RecordList::ErrorList(data) => {
             if data.len() == 0 {
                 return Ok(());
             }
-            logs_error::Model::insert_many(db, appid, data).await?;
+            logs_error::Model::insert_many(db, data).await?;
         },
         RecordList::CustomList(data) => {
             if data.len() == 0 {
                 return Ok(());
             }
-            logs::Model::insert_many(db, appid, data).await?;
+            logs::Model::insert_many(db, data).await?;
         }
     }
     Ok(())
@@ -150,7 +151,7 @@ pub fn create_ws(
     }
 }
 
-pub async fn get_error_list(db: &Database, appid: &str, data: &QueryPayload) -> ServiceResult<PaginationResult<Model>> {
-    let res = logs::Model::pagination(db, appid, data).await?;
+pub async fn get_error_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<Model>> {
+    let res = logs::Model::pagination(db, data).await?;
     Ok(res)
 }

@@ -1,5 +1,5 @@
 use actix_web::{delete, get, post, web};
-use mongodb::Database;
+use mongodb::{Client, Database};
 use serde::{Deserialize, Serialize};
 
 use crate::{model::QueryPayload, services::{apps, Response}};
@@ -28,18 +28,20 @@ pub struct CreatePayload {
 #[post("/app")]
 pub async fn create_app(
     db: web::Data<Database>,
+    client: web::Data<Client>,
     json: web::Json<CreatePayload>
 ) -> ApiResult {
-    let res = apps::create_app(&db, &json).await?;
+    let res = apps::create_app(&client, &db, &json).await?;
     Response::ok(res, "创建成功").to_json()
 }
 
 #[delete("/app/{appid}")]
 pub async fn delete_app(
+    client: web::Data<Client>,
     db: web::Data<Database>,
     path: web::Path<String>,
 ) -> ApiResult {
     let appid = path.into_inner();
-    apps::delete_app(&db, &appid).await?;
+    apps::delete_app(&client, &db, &appid).await?;
     Response::ok("", "删除成功").to_json()
 }

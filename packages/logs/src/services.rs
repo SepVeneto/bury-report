@@ -25,6 +25,8 @@ pub enum ServiceError {
         result: String,
     },
     #[error(transparent)]
+    DbError(#[from] mongodb::error::Error),
+    #[error(transparent)]
     Common(#[from] anyhow::Error),
 }
 

@@ -1,11 +1,10 @@
 use anyhow::{anyhow, Context};
 use futures_util::future::join_all;
 use log::info;
-use mongodb::{bson::{doc, DateTime}, Database};
+use mongodb::{bson::{doc, DateTime}, Database, Client};
 
 use crate::{
-    apis::apps::CreatePayload,
-    model::{
+    apis::apps::CreatePayload, db, model::{
         apps::Model,
         logs,
         logs_error,
@@ -18,41 +17,32 @@ use crate::{
 
 use super::{ServiceError, ServiceResult};
 
-pub async fn create_collections(db: &Database, appid: &str) -> ServiceResult<()> {
-    let log_col = format!("{}_log", appid);
-    let api_col = format!("{}_api", appid);
-    let error_col = format!("{}_err", appid);
-    db.create_collection(&log_col, None).await
-        .with_context(|| format!("创建日志集合失败: {}", log_col))?;
-    db.create_collection(&api_col, None).await
-        .with_context(|| format!("创建网络集合失败: {}", api_col))?;
-    db.create_collection(&error_col, None).await
-        .with_context(|| format!("创建错误集合失败: {}", error_col))?;
+pub const LOG_COL: &'static str = crate::model::logs::NAME;
+pub const API_COL: &'static str = crate::model::logs_network::NAME;
+pub const ERROR_COL: &'static str = crate::model::logs_error::NAME;
+
+pub async fn create_collections(client: &Client, appid: &str) -> ServiceResult<()> {
+    let db = db::DbApp::create_by_appid(client, appid);
+    db.create_collection(&LOG_COL, None).await
+        .with_context(|| format!("创建日志集合失败: {}", LOG_COL))?;
+    db.create_collection(&API_COL, None).await
+        .with_context(|| format!("创建网络集合失败: {}", API_COL))?;
+    db.create_collection(&ERROR_COL, None).await
+        .with_context(|| format!("创建错误集合失败: {}", ERROR_COL))?;
     Ok(())
 }
 
-pub async fn delete_collections(db: &Database, appid: &str) -> ServiceResult<()> {
-    let log_col = format!("{}_log", appid);
-    let api_col = format!("{}_api", appid);
-    let error_col = format!("{}_err", appid);
-
-    db.collection::<Model>(&log_col).drop(None).await
-        .with_context(|| format!("删除日志集合失败: {}", log_col))?;
-    db.collection::<Model>(&api_col).drop(None).await
-        .with_context(|| format!("删除网络集合失败: {}", api_col))?;
-    db.collection::<Model>(&error_col).drop(None).await
-        .with_context(|| format!("删除错误集合失败: {}", error_col))?;
-
-    Ok(())
-}
-
-pub async fn create_app(db: &Database, payload: &CreatePayload) -> ServiceResult<String> {
+pub async fn create_app(
+    client: &Client,
+    db: &Database,
+    payload: &CreatePayload
+) -> ServiceResult<String> {
     let is_unique = Model::unique_check(db, payload.name.to_owned()).await?;
     if is_unique {
         let appid = Model::create(db, payload).await?;
         if let Some(appid) = appid {
             let str = appid.to_string();
-            create_collections(db, &str).await?;
+            create_collections(client, &str).await?;
             Ok(str)
         } else {
             Err(anyhow!("应用{}创建失败！", payload.name).into())
@@ -64,11 +54,10 @@ pub async fn create_app(db: &Database, payload: &CreatePayload) -> ServiceResult
     }
 }
 
-pub async fn delete_app(db: &Database, id: &str) -> ServiceResult<()> {
+pub async fn delete_app(client: &Client, db: &Database, id: &str) -> ServiceResult<()> {
     Model::delete_by_id(db, id).await?;
-
-    delete_collections(db, id).await?;
-
+    let db_name = db::DbApp::get_db_name(id);
+    client.database(&db_name).drop(None).await?;
     Ok(())
 }
 
@@ -78,17 +67,16 @@ pub async fn get_list(db: &Database, query: &QueryPayload) -> ServiceResult<Pagi
     Ok(res)
 }
 
-async fn get_all(db: &Database) -> ServiceResult<Vec<Model>> {
-    let res = Model::find_all(db).await?;
+async fn get_all(client: &Client) -> ServiceResult<Vec<Model>> {
+    let res = Model::find_all_from_client(client).await?;
 
     Ok(res)
 }
 
-async fn clear_logs(db: &Database, appid: &str, limit: u32) -> ServiceResult<()> {
+async fn clear_logs(db: &Database, limit: u32) -> ServiceResult<()> {
     let (_, start_time) = get_recent_days(limit)?;
     logs::Model::delete_many(
         db,
-        appid,
         doc! {
             "create_time": {
                 "$gte": start_time,
@@ -97,11 +85,10 @@ async fn clear_logs(db: &Database, appid: &str, limit: u32) -> ServiceResult<()>
     ).await?;
     Ok(())
 }
-async fn clear_networks(db: &Database, appid: &str, limit: u32) -> ServiceResult<()> {
+async fn clear_networks(db: &Database, limit: u32) -> ServiceResult<()> {
     let (_, start_time) = get_recent_days(limit)?;
     logs_network::Model::delete_many(
         db,
-        appid,
         doc! {
             "create_time": {
                 "$gte": start_time,
@@ -110,11 +97,10 @@ async fn clear_networks(db: &Database, appid: &str, limit: u32) -> ServiceResult
     ).await?;
     Ok(())
 }
-async fn clear_errors(db: &Database, appid: &str, limit: u32) -> ServiceResult<()> {
+async fn clear_errors(db: &Database, limit: u32) -> ServiceResult<()> {
     let (_, start_time) = get_recent_days(limit)?;
     logs_error::Model::delete_many(
         db,
-        appid,
         doc! {
             "create_time": {
                 "$gte": start_time,
@@ -166,46 +152,49 @@ fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
 //     Ok(())
 // }
 
-pub async fn gc_logs(db: &Database, limit: u32) -> ServiceResult<()> {
-    let appids: Vec<String>  = get_all(db)
+pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
+    let appids: Vec<String>  = get_all(client)
         .await?
         .iter()
         .map(|item| item._id.to_string())
         .collect();
 
     join_all(appids.iter().map(|appid| async {
-        let res = clear_logs(db, appid, limit).await;
-        info!("gc {}_logs successfully", appid.clone());
+        let db = db::DbApp::get_by_appid(client, appid);
+        let res = clear_logs(&db, limit).await;
+        info!("gc {} logs successfully", appid.clone());
         res
     })).await;
 
     Ok(())
 }
-pub async fn gc_networks(db: &Database, limit: u32) -> ServiceResult<()> {
-    let appids: Vec<String>  = get_all(db)
+pub async fn gc_networks(client: &Client, limit: u32) -> ServiceResult<()> {
+    let appids: Vec<String>  = get_all(client)
         .await?
         .iter()
         .map(|item| item._id.to_string())
         .collect();
 
     join_all(appids.iter().map(|appid| async {
-        let res = clear_networks(db, appid, limit).await;
-        info!("gc {}_api successfully", appid.clone());
+        let db = db::DbApp::get_by_appid(client, appid);
+        let res = clear_networks(&db, limit).await;
+        info!("gc {} api successfully", appid.clone());
         res
     })).await;
 
     Ok(())
 }
-pub async fn gc_errors(db: &Database, limit: u32) -> ServiceResult<()> {
-    let appids: Vec<String>  = get_all(db)
+pub async fn gc_errors(client: &Client, limit: u32) -> ServiceResult<()> {
+    let appids: Vec<String>  = get_all(client)
         .await?
         .iter()
         .map(|item| item._id.to_string())
         .collect();
 
     join_all(appids.iter().map(|appid| async {
-        let res = clear_errors(db, appid, limit).await;
-        info!("gc {}_err successfully", appid.clone());
+        let db = db::DbApp::get_by_appid(client, appid);
+        let res = clear_errors(&db, limit).await;
+        info!("gc {} err successfully", appid.clone());
         res
     })).await;
 
