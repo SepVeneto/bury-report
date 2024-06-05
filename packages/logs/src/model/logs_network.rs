@@ -1,10 +1,38 @@
-use super::{BaseModel, CreateModel, DeleteModel};
-use serde::{Deserialize, Serialize, Serializer};
+use super::{BaseModel, CreateModel, DeleteModel, PaginationModel};
+use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
-use mongodb::bson::DateTime;
-use log::error;
+use chrono::{DateTime,Utc, NaiveDateTime};
+use log::{error, info};
 
 pub const NAME: &'static str = "records_api";
+
+fn serialize_time<S>(time: &String, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
+    let naive = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").unwrap();
+    let chrono_datetime = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
+    let s = mongodb::bson::DateTime::from_chrono(chrono_datetime);
+
+    Ok(serializer.serialize_struct(s, 1))
+}
+
+struct DateVisitor;
+impl<'de> Visitor<'de> for DateVisitor {
+    type Value = DateTime<Utc>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a string representing a date and time")
+    }
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S")
+            .map_err(E::custom)
+            .map(|naive| DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc))
+    }
+}
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
@@ -12,32 +40,14 @@ pub struct Model {
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
-  #[serde(serialize_with = "serialize_time")]
-  pub create_time: DateTime,
+  #[serde(serialize_with = "serialize_time", deserialize_with = "deserialize_time")]
+  pub create_time: String,
 }
-pub fn serialize_time<S>(time: &DateTime, serializer: S) -> Result<S::Ok, S::Error>
+pub fn deserialize_time<'de, D>(deserializer: D) -> Result<DateTime<Utc>, D::Error>
 where
-    S: Serializer
+    D: Deserializer<'de>
 {
-    match time.try_to_rfc3339_string() {
-        Ok(time_str) => {
-            match chrono::DateTime::parse_from_rfc3339(&time_str) {
-                Ok(res) => {
-                    let fmt_str = res.format("%Y-%m-%d %H:%M:%S");
-                    serializer.serialize_str(&format!("{}", fmt_str))
-                },
-                Err(err) => {
-                    error!("{:?}", err);
-                    serializer.serialize_none()
-                }
-            }
-        },
-        Err(err) => {
-            error!("{:?}", err);
-            serializer.serialize_none()
-        }
-    }
-
+    deserializer.deserialize_str(DateVisitor)
 }
 
 impl BaseModel for Model {
@@ -46,3 +56,4 @@ impl BaseModel for Model {
 }
 impl CreateModel for Model {}
 impl DeleteModel for Model {}
+impl PaginationModel for Model {}

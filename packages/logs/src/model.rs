@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
+use log::info;
 use mongodb::{
     bson::{self, doc, oid::ObjectId, Document},
     options::FindOptions,
@@ -80,15 +81,14 @@ pub trait PaginationModel: BaseModel {
             .skip((start - 1) * size)
             .limit(size as i64)
             .build();
-        let query = doc! {
-            "appid": &data.appid
-        };
+        let query = doc! {};
         let mut res = col.find(query.clone(), options).await?;
 
         let total = col.count_documents(query.clone(), None).await?;
         let mut list = vec![];
         while let Some(record) = res.next().await {
-            list.push(record?)
+            info!("record: {:?}", record);
+            list.push(record.unwrap())
         }
 
         Ok(PaginationResult {

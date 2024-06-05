@@ -14,6 +14,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_log);
   config.service(record_ws);
   config.service(record_error);
+  config.service(record_network);
 }
 
 #[get("/record/ws/{app_id}")]
@@ -86,4 +87,17 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
             Err(ApiError::ValidateError { err: err.to_string(), col: column!(), line: line!(), file: file!().to_string() })
         }
     }
+}
+
+#[get("/record/networks")]
+async fn record_network(
+    client: web::Data<Client>,
+    req: HttpRequest,
+    query: web::Query<QueryPayload>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let res = record_logs::get_network_list(&db, &query.0).await?;
+
+    Response::ok(res, None).to_json()
 }

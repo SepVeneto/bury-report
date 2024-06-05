@@ -155,3 +155,8 @@ pub async fn get_error_list(db: &Database, data: &QueryPayload) -> ServiceResult
     let res = logs::Model::pagination(db, data).await?;
     Ok(res)
 }
+
+pub async fn get_network_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<logs_network::Model>> {
+    let res = logs_network::Model::pagination(db, data).await?;
+    Ok(res)
+}

@@ -7,7 +7,7 @@ use mongodb::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
 use serde_json::{Map, Value};
-use log::error;
+use log::{error, info};
 use super::{logs_error, logs_network, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryResult};
 
 pub const NAME: &str = "records_log";
@@ -78,12 +78,13 @@ impl RecordV1 {
                 create_time: DateTime::now(),
             })
         } else if self.r#type == TYPE_NETWORK {
+            info!("create_time: {}", DateTime::now());
             RecordItem::Network(logs_network::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
-                create_time: DateTime::now(),
+                create_time: chrono::Utc::now(),
             })
         } else if self.r#type == TYPE_ERROR {
             RecordItem::Error(logs_error::Model {

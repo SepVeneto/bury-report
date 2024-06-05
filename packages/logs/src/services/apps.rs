@@ -87,11 +87,12 @@ async fn clear_logs(db: &Database, limit: u32) -> ServiceResult<()> {
 }
 async fn clear_networks(db: &Database, limit: u32) -> ServiceResult<()> {
     let (_, start_time) = get_recent_days(limit)?;
+    info!("from {}", start_time);
     logs_network::Model::delete_many(
         db,
         doc! {
             "create_time": {
-                "$gte": start_time,
+                "$lte": start_time,
             },
         },
     ).await?;
@@ -113,8 +114,8 @@ async fn clear_errors(db: &Database, limit: u32) -> ServiceResult<()> {
 fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
     let now = chrono::Utc::now();
     if let (Some(end_time), Some(start_time)) = (
-        now.checked_sub_signed(chrono::Duration::days(1)),
-        now.checked_sub_signed(chrono::Duration::days(num as i64)),
+        now.checked_sub_signed(chrono::Duration::seconds(1)),
+        now.checked_sub_signed(chrono::Duration::seconds(num as i64)),
     ) {
         Ok((
             DateTime::from_millis(start_time.timestamp_millis()),

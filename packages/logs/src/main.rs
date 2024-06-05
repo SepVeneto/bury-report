@@ -30,7 +30,7 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let (client, db) = db::connect_db().await;
-  let sched = init_sched().await;
+//   let sched = init_sched().await;
   let server = actor::WsActor::new().start();
 
   info!("starting HTTP server at http://localhost:8870");
@@ -39,7 +39,7 @@ async fn main() -> std::io::Result<()> {
       .app_data(web::Data::new(client.clone()))
       .app_data(web::Data::new(db.clone()))
       .app_data(web::Data::new(server.clone()))
-      .app_data(web::Data::new(sched.clone()))
+    //   .app_data(web::Data::new(sched.clone()))
       .wrap(middleware::Auth)
       .configure(routes::services)
   })
@@ -52,7 +52,9 @@ async fn init_sched() -> JobScheduler {
     let sched = JobScheduler::new().await.unwrap();
     sched.add(
         // 每天分别清理最近3天的请求日志，30天的错误日志，7天的用户信息收集日志
-        Job::new_async("0 0 0 1/1 * *", |_uuid, _l|{
+        // Job::new_async("0 0 0 1/1 * *", |_uuid, _l|{
+        Job::new_async("1/10 * * * * *", |_uuid, _l|{
+            info!("starting gc...");
             Box::pin(async move {
                 let (client, _) = crate::db::connect_db().await;
                 if let Err(err) = services::apps::gc_networks(&client, 3).await {
