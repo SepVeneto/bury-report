@@ -5,10 +5,11 @@ use mongodb::{
     bson::{doc, DateTime, Document, from_document},
     Database,
 };
-use serde::{de::DeserializeOwned, Deserialize, Serialize, Serializer};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{Map, Value};
-use log::{error, info};
-use super::{logs_error, logs_network, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryResult};
+use super::{
+    logs_error, logs_network, serialize_time, BaseModel, CreateModel, DeleteModel, EditModel, PaginationModel, QueryModel, QueryResult
+};
 
 pub const NAME: &str = "records_log";
 
@@ -78,13 +79,12 @@ impl RecordV1 {
                 create_time: DateTime::now(),
             })
         } else if self.r#type == TYPE_NETWORK {
-            info!("create_time: {}", DateTime::now());
             RecordItem::Network(logs_network::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
-                create_time: chrono::Utc::now(),
+                create_time: DateTime::now(),
             })
         } else if self.r#type == TYPE_ERROR {
             RecordItem::Error(logs_error::Model {
@@ -130,30 +130,6 @@ pub struct Model {
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
 }
-pub fn serialize_time<S>(time: &DateTime, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer
-{
-    match time.try_to_rfc3339_string() {
-        Ok(time_str) => {
-            match chrono::DateTime::parse_from_rfc3339(&time_str) {
-                Ok(res) => {
-                    let fmt_str = res.format("%Y-%m-%d %H:%M:%S");
-                    serializer.serialize_str(&format!("{}", fmt_str))
-                },
-                Err(err) => {
-                    error!("{:?}", err);
-                    serializer.serialize_none()
-                }
-            }
-        },
-        Err(err) => {
-            error!("{:?}", err);
-            serializer.serialize_none()
-        }
-    }
-
-}
 
 pub type Log = Model;
 
@@ -162,30 +138,13 @@ impl BaseModel for Model {
     type Model = Model;
 }
 impl PaginationModel for Model {}
+impl QueryModel for Model {}
 impl CreateModel for Model {}
 impl DeleteModel for Model {}
+impl EditModel for Model {}
 
 impl Model {
-//     pub fn collection(db: &Database) -> Collection<Log> {
-//         db.collection::<Log>(NAME)
-//     }
-//     pub async fn insert_collects(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-//         let records = data.normalize();
-//         Ok(Self::collection(db).insert_many(records, None).await?)
-//     }
-//     pub async fn insert_networks(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-//         let records = data.normalize();
-//         Ok(Self::collection(db).insert_many(records, None).await?)
-//     }
-//     pub async fn insert_errors(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-//         let records = data.normalize();
-//         Ok(Self::collection(db).insert_many(records, None).await?)
-//     }
-//     pub async fn insert_many(db: &Database, data: &RecordPayload) -> QueryResult<InsertManyResult>{
-//         let records = data.normalize();
-//         Ok(Self::collection(db).insert_many(records, None).await?)
-//     }
-    pub async fn find_by_chart<T>(
+    pub async fn find_from_aggregrate<T>(
         db: &Database,
         pipeline: Vec<Document>
     ) -> QueryResult<Vec<T>>
@@ -193,54 +152,13 @@ impl Model {
         T: DeserializeOwned
     {
         let mut res = Self::col(db).aggregate(pipeline, None).await?;
-        let mut chart_data = vec![];
+        let mut collect_data = vec![];
 
         while let Some(record) = res.next().await {
             // match
-            match from_document(record?) {
-                Ok(res) => {
-                    chart_data.push(res);
-                },
-                Err(_) => {}
-            };
-            // {
-            //     Ok(res) => chart_data.push(res),
-            //     Err(err) => {
-            //         error!("{}", err.to_string());
-            //         // Err("Internal error".to_owned())
-            //     },
-            // };
+            let record = from_document(record?)?;
+            collect_data.push(record);
         }
-        Ok(chart_data)
+        Ok(collect_data)
     }
-
-//     pub async fn pagination(
-//         db: &Database,
-//         appid: &str,
-//         data: &QueryPayload
-//     ) -> QueryResult<PaginationResult<Model>>{
-//         let start = data.page;
-//         let size = data.size;
-
-//         let options = FindOptions::builder()
-//             .sort(doc! {"_id": -1})
-//             .skip((start - 1) * size)
-//             .limit(size as i64)
-//             .build();
-//         let query = doc! {
-//             "appid": appid
-//         };
-//         let mut res = Self::collection(db).find(query.clone(), options).await?;
-
-//         let total = Self::collection(db).count_documents(query.clone(), None).await?;
-//         let mut list = vec![];
-//         while let Some(record) = res.next().await {
-//             list.push(record?);
-//         }
-
-//         Ok(PaginationResult {
-//             total,
-//             list,
-//         })
-//     }
 }

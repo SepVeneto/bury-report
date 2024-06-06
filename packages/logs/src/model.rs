@@ -8,7 +8,7 @@ use mongodb::{
     results::{InsertManyResult, InsertOneResult, UpdateResult},
     Collection,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Deserializer, Serializer};
 use thiserror::Error;
 use mongodb::Database;
 use futures_util::StreamExt;
@@ -33,6 +33,8 @@ pub enum ModelError {
     OperateError(#[from] mongodb::error::Error),
     #[error("bson序列化失败")]
     BsonSerError(#[from] mongodb::bson::ser::Error),
+    #[error(transparent)]
+    BsonDeError(#[from] mongodb::bson::de::Error),
     #[error(transparent)]
     CommonError(#[from] anyhow::Error)
 }
@@ -203,7 +205,51 @@ pub trait DeleteModel: BaseModel {
         query: Document,
     ) -> QueryResult<()> {
         let col = Self::col(db);
-        col.delete_many(query, None).await?;
+        let res = col.delete_many(query, None).await?;
+        info!("logs delete: {:?}", res);
         Ok(())
     }
+}
+
+// pub fn serialize_time<S>(time: &String, serializer: S) -> Result<S::Ok, S::Error>
+// where
+//     S: Serializer
+// {
+//     // JSON序列化
+//     if serializer.is_human_readable() {
+//         serializer.serialize_str(time)
+//     } else {
+//         // BSON序列化
+//         let naive = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").unwrap();
+//         let chrono_datetime = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
+//         let s = mongodb::bson::DateTime::from_chrono(chrono_datetime);
+//         s.serialize(serializer)
+//     }
+// }
+
+pub fn serialize_time<S>(time: &bson::DateTime, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer
+{
+    // JSON序列化
+    if serializer.is_human_readable() {
+        let chrono_time = time.to_chrono();
+        serializer.serialize_str(&chrono_time.format("%Y-%m-%d %H:%M:%S").to_string())
+    } else {
+        time.serialize(serializer)
+        // BSON序列化
+        // let naive = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").unwrap();
+        // let chrono_datetime = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
+        // let s = mongodb::bson::DateTime::from_chrono(chrono_datetime);
+        // s.serialize(serializer)
+    }
+}
+
+pub fn _deserialize_time<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>
+{
+    let bson_datetime = mongodb::bson::DateTime::deserialize(deserializer)?;
+    let res = bson_datetime.to_chrono().format("%Y-%m-%d %H:%M:%S").to_string();
+    Ok(res)
 }

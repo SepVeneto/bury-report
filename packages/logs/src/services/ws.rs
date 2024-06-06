@@ -37,7 +37,6 @@ impl Actor for WebsocketConnect {
         .then(|res, act, ctx| {
            match res {
             Ok(res) => {
-                info!("{}", res);
                 act.id = res;
             },
             _ => ctx.stop(),

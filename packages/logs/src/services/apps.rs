@@ -1,17 +1,11 @@
 use anyhow::{anyhow, Context};
 use futures_util::future::join_all;
-use log::info;
+use log::{info, error};
 use mongodb::{bson::{doc, DateTime}, Database, Client};
 
 use crate::{
     apis::apps::CreatePayload, db, model::{
-        apps::Model,
-        logs,
-        logs_error,
-        logs_network,
-        DeleteModel,
-        PaginationResult,
-        QueryPayload
+        apps::Model, logs, logs_error, logs_network, BaseModel, DeleteModel, PaginationResult, QueryPayload
     }
 };
 
@@ -48,7 +42,6 @@ pub async fn create_app(
             Err(anyhow!("应用{}创建失败！", payload.name).into())
         }
     } else {
-        info!("error");
         Err(ServiceError::Common(anyhow!("应用{}已存在！", payload.name)))
         // Err()
     }
@@ -74,19 +67,24 @@ async fn get_all(client: &Client) -> ServiceResult<Vec<Model>> {
 }
 
 async fn clear_logs(db: &Database, limit: u32) -> ServiceResult<()> {
-    let (_, start_time) = get_recent_days(limit)?;
+    let (start_time, _) = get_recent_days(limit)?;
+    let filter = doc! {
+        "create_time": {
+            "$lte": start_time,
+        }
+    };
+    info!("query db: {:?}", logs::Model::col(db).count_documents(None, None).await?);
+    info!("filter: {:?}", &filter);
+    let count = logs::Model::col(db).count_documents(filter.clone(), None).await?;
+    info!("count: {}", count);
     logs::Model::delete_many(
         db,
-        doc! {
-            "create_time": {
-                "$gte": start_time,
-            },
-        },
+        filter.clone(),
     ).await?;
     Ok(())
 }
 async fn clear_networks(db: &Database, limit: u32) -> ServiceResult<()> {
-    let (_, start_time) = get_recent_days(limit)?;
+    let (start_time, _) = get_recent_days(limit)?;
     info!("from {}", start_time);
     logs_network::Model::delete_many(
         db,
@@ -99,23 +97,23 @@ async fn clear_networks(db: &Database, limit: u32) -> ServiceResult<()> {
     Ok(())
 }
 async fn clear_errors(db: &Database, limit: u32) -> ServiceResult<()> {
-    let (_, start_time) = get_recent_days(limit)?;
+    let (start_time, _) = get_recent_days(limit)?;
     logs_error::Model::delete_many(
         db,
         doc! {
             "create_time": {
-                "$gte": start_time,
+                "$lte": start_time,
             },
         },
     ).await?;
     Ok(())
 }
 
-fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
+pub fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
     let now = chrono::Utc::now();
     if let (Some(end_time), Some(start_time)) = (
         now.checked_sub_signed(chrono::Duration::seconds(1)),
-        now.checked_sub_signed(chrono::Duration::seconds(num as i64)),
+        now.checked_sub_signed(chrono::Duration::minutes(num as i64)),
     ) {
         Ok((
             DateTime::from_millis(start_time.timestamp_millis()),
@@ -160,6 +158,10 @@ pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
         .map(|item| item._id.to_string())
         .collect();
 
+    if let Err(err) = crate::services::apps::aggregate_devices(&client, limit).await {
+        error!("{}", err.to_string());
+    }
+
     join_all(appids.iter().map(|appid| async {
         let db = db::DbApp::get_by_appid(client, appid);
         let res = clear_logs(&db, limit).await;
@@ -196,6 +198,23 @@ pub async fn gc_errors(client: &Client, limit: u32) -> ServiceResult<()> {
         let db = db::DbApp::get_by_appid(client, appid);
         let res = clear_errors(&db, limit).await;
         info!("gc {} err successfully", appid.clone());
+        res
+    })).await;
+
+    Ok(())
+}
+
+pub async fn aggregate_devices(client: &Client, limit: u32) -> ServiceResult<()> {
+    let appids: Vec<String>  = get_all(client)
+        .await?
+        .iter()
+        .map(|item| item._id.to_string())
+        .collect();
+
+    join_all(appids.iter().map(|appid| async {
+        let db = db::DbApp::get_by_appid(client, appid);
+        let res = super::statistics::aggregate_devices(&db, limit).await;
+        info!("aggregate {} device successfully", appid.clone());
         res
     })).await;
 

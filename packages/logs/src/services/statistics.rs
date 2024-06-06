@@ -1,9 +1,13 @@
+use std::collections::HashMap;
+
+use bson::Document;
 use chrono::{Datelike, LocalResult, TimeZone};
 use log::info;
-use mongodb::{bson::{bson, doc, Bson, DateTime}, Database};
+use mongodb::{bson::{bson, doc, Bson, DateTime}, options::UpdateOptions, Database};
 use anyhow::anyhow;
+use maplit::hashmap;
 
-use crate::model::{logs, statistics::{self, DataType, Model, Rule}};
+use crate::model::{device, logs, statistics::{self, DataType, Model, Rule}, BaseModel, EditModel, QueryModel};
 
 use super::ServiceResult;
 
@@ -67,7 +71,7 @@ pub async fn query_pie(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_by_chart::<DataType>(db, combine_pipeline).await?;
+    let res = logs::Model::find_from_aggregrate::<DataType>(db, combine_pipeline).await?;
 
     Ok(res)
 
@@ -151,7 +155,7 @@ pub async fn query_with_date(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_by_chart(db, combine_pipeline).await?;
+    let res = logs::Model::find_from_aggregrate(db, combine_pipeline).await?;
 
     Ok(res)
 }
@@ -202,7 +206,7 @@ pub async fn _count_total(
         }
     });
 
-    let res = logs::Model::find_by_chart::<DataType>(db, pipeline).await?;
+    let res = logs::Model::find_from_aggregrate::<DataType>(db, pipeline).await?;
     if let Some(_res) = res.get(0) {
         if let DataType::Total(res) = _res {
             Ok(Some(res.count))
@@ -270,7 +274,7 @@ pub async fn _count_yesterday(
             "count": 1,
         }
     });
-    let res = logs::Model::find_by_chart::<DataType>(db, pipeline).await?;
+    let res = logs::Model::find_from_aggregrate::<DataType>(db, pipeline).await?;
     if let Some(_res) = res.get(0) {
         if let DataType::Total(res) = _res {
             Ok(res.count)
@@ -368,5 +372,64 @@ pub async fn update(db: &Database, statistic_id: &str, data: Rule) -> ServiceRes
 
 pub async fn delete(db: &Database, statistic_id: &str) -> ServiceResult<()> {
     Model::delete_one(db, statistic_id).await?;
+    Ok(())
+}
+
+pub async fn aggregate_devices(db: &Database, limit: u32) -> ServiceResult<()> {
+    let (start_time, _) = super::apps::get_recent_days(limit)?;
+    let pipeline = vec![
+        doc! {
+            "$match": {
+                "create_time": {
+                    "$lte": start_time,
+                }
+            },
+        },
+        doc! {
+            "$group": {
+                "_id": {
+                    "uuid": "$uuid",
+                },
+                "device": {"$last": "$data"},
+                "total_open": {"$sum": 1},
+                "last_open": {"$last": "$create_time"},
+            }
+        },
+        doc! {
+            "$project": {
+                "_id": 0,
+                "uuid": "$_id.uuid",
+                "total_open": 1,
+                "last_open": 1,
+                "data": "$device"
+            }
+        },
+    ];
+    let res = logs::Model::find_from_aggregrate::<device::Model>(db, pipeline).await.unwrap();
+
+    let updates: Vec<HashMap<&str, Document>> = res.iter().map(|device| {
+        hashmap! {
+            "filter" => doc! {
+                "uuid": device.uuid.clone(),
+            },
+            "update" => doc! {
+                "$set": {
+                    "last_open": device.last_open.clone(),
+                },
+                "$inc": {
+                    "total_open": device.total_open.clone(),
+                }
+            }
+        }
+    }).collect();
+
+    let col = device::Model::col(db);
+    let options = UpdateOptions::builder().upsert(true).build();
+    for update in updates {
+        let filter = update["filter"].clone();
+        let update = update["update"].clone();
+        col.update_one(filter, update, options.clone()).await?;
+    }
+
     Ok(())
 }
