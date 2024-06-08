@@ -30,13 +30,6 @@ pub async fn connect_db() -> (Client, Database) {
   let client = Client::with_uri_str(uri).await.expect("failed to connect to Mongo");
   let db = client.database("reporter");
 
-  init_collection(&db).await;
-
-
-//   create_cols_from_apps(&db).await;
-  create_captcha_index(&db).await;
-//   create_logs_index(&db).await;
-
   (client, db)
 }
 
@@ -44,19 +37,14 @@ async fn create_cols_from_apps(db: &Database)  {
     // db.collection("apps")
 }
 
-// async fn create_logs_index(db: &Database) {
-//   let options = IndexOptions::builder()
-//     .name(String::from("uuid"))
-//     .build();
-//   let model = IndexModel::builder()
-//     .keys(doc! { "data.uuid": 1 })
-//     .options(options)
-//     .build();
-//   logs::Log::collection(db)
-//     .create_index(model, None)
-//     .await
-//     .expect("the index uuid has already been created");
-// }
+pub async fn init_db(db: &Database) {
+    init_collection(db).await;
+    init_index(db).await;
+}
+
+async fn init_index(db: &Database) -> () {
+    create_captcha_index(db).await;
+}
 
 async fn create_captcha_index(db: &Database) {
   let options = IndexOptions::builder()
@@ -76,12 +64,11 @@ async fn create_captcha_index(db: &Database) {
 
 async fn init_collection(db: &Database) {
     
-  const COLLECTIONS: [&str; 5] = [
+  const COLLECTIONS: [&str; 4] = [
     model::captcha::NAME,
     model::apps::NAME,
     model::projects::NAME,
     model::users::NAME,
-    model::source::NAME,
   ];
   let collections = db.list_collection_names(doc! {}).await.unwrap();
 

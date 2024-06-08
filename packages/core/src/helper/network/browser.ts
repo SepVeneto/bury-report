@@ -1,4 +1,5 @@
 import { report } from '@/index'
+import { COLLECT_API } from '@/utils/constant'
 
 export function __BR_API_INIT__(
   success: boolean,
@@ -16,24 +17,24 @@ export function __BR_API_INIT__(
         const duration = performance.now() - this._start
         if (this.status === 200) {
           const info = this._collectInfo('success', { duration })
-          report('__BR_API__', info)
+          report(COLLECT_API, info)
         } else {
           const info = this._collectInfo('fail', { duration })
-          report('__BR_API__', info)
+          report(COLLECT_API, info)
         }
       })
       error && super.addEventListener('abort', () => {
         const info = this._collectInfo('abort')
-        report('__BR_API__', info)
+        report(COLLECT_API, info)
       })
 
       error && super.addEventListener('error', () => {
         const info = this._collectInfo('error')
-        report('__BR_API__', info)
+        report(COLLECT_API, info)
       })
       error && super.addEventListener('timeout', () => {
         const info = this._collectInfo('timeout', { timeout: this.timeout })
-        report('__BR_API__', info)
+        report(COLLECT_API, info)
       })
       super.open(...args)
     }

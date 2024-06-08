@@ -1,4 +1,5 @@
 import { report } from '@/index'
+import { COLLECT_API } from '@/utils/constant'
 
 export function __BR_API_INIT__(
   successReport: boolean,
@@ -26,7 +27,7 @@ export function __BR_API_INIT__(
             responseHeaders: res.header,
             response: typeof res.data === 'string' ? res.data : null,
           })
-          report('__BR_API__', info)
+          report(COLLECT_API, info)
         }
         _success?.(res)
       },
@@ -36,7 +37,7 @@ export function __BR_API_INIT__(
             timeout: options.timeout,
             err: res.errMsg,
           })
-          report('__BR_API__', info)
+          report(COLLECT_API, info)
           console.log(info)
         }
         _fail?.(res)

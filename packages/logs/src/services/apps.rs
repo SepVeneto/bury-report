@@ -113,7 +113,7 @@ pub fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
     let now = chrono::Utc::now();
     if let (Some(end_time), Some(start_time)) = (
         now.checked_sub_signed(chrono::Duration::seconds(1)),
-        now.checked_sub_signed(chrono::Duration::minutes(num as i64)),
+        now.checked_sub_signed(chrono::Duration::days(num as i64)),
     ) {
         Ok((
             DateTime::from_millis(start_time.timestamp_millis()),

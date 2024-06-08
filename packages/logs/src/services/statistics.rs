@@ -380,6 +380,7 @@ pub async fn aggregate_devices(db: &Database, limit: u32) -> ServiceResult<()> {
     let pipeline = vec![
         doc! {
             "$match": {
+                "type": "__BR_COLLECT_INFO__",
                 "create_time": {
                     "$lte": start_time,
                 }

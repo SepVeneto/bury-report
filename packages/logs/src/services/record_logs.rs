@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
+use log::info;
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
@@ -41,8 +42,22 @@ pub async fn record(client: &Client, db: &Database, data: &RecordPayload) -> Ser
     }
 
     match data {
-        RecordPayload::V1(_) => {
-            // Model::insert_many(db, data).await?;
+        RecordPayload::V1(v1) => {
+            // let db = &db::DbApp::get_by_appid(client, &appid);
+            match v1.normalize_from() {
+                RecordItem::Log(log) => {
+                    logs::Model::insert_one(db, log).await?;
+                },
+                RecordItem::Network(net) => {
+                    logs_network::Model::insert_one(db, net).await?;
+                },
+                RecordItem::Error(err) => {
+                    logs_error::Model::insert_one(db, err).await?;
+                },
+                RecordItem::Custom(data) => {
+                    logs::Model::insert_one(db, data).await?;
+                }
+            }
         },
         RecordPayload::V2(v2) => {
             let group  = group_records(&v2.data);
