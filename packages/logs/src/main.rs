@@ -59,13 +59,17 @@ async fn init_sched() -> JobScheduler {
             info!("starting gc...");
             Box::pin(async move {
                 let (client, _) = crate::db::connect_db().await;
-                if let Err(err) = services::apps::gc_networks(&client, 3).await {
+                
+                let db = client.database("reporter");
+                let config = crate::services::config::get_config(&db).await.unwrap_or_default();
+                info!("set config: {:?}", config);
+                if let Err(err) = services::apps::gc_networks(&client, config.cycle_api).await {
                     error!("{}", err.to_string());
                 }
-                if let Err(err) = services::apps::gc_errors(&client, 30).await {
+                if let Err(err) = services::apps::gc_errors(&client, config.cycle_log).await {
                     error!("{}", err.to_string());
                 }
-                if let Err(err) = services::apps::gc_logs(&client, 2).await {
+                if let Err(err) = services::apps::gc_logs(&client, config.cycle_log).await {
                     error!("{}", err.to_string());
                 }
             })

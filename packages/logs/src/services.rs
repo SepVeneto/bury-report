@@ -14,6 +14,7 @@ pub mod auth;
 pub mod record_logs;
 pub mod statistics;
 pub mod apps;
+pub mod config;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

@@ -33,10 +33,6 @@ pub async fn connect_db() -> (Client, Database) {
   (client, db)
 }
 
-async fn create_cols_from_apps(db: &Database)  {
-    // db.collection("apps")
-}
-
 pub async fn init_db(db: &Database) {
     init_collection(db).await;
     init_index(db).await;
@@ -64,11 +60,12 @@ async fn create_captcha_index(db: &Database) {
 
 async fn init_collection(db: &Database) {
     
-  const COLLECTIONS: [&str; 4] = [
+  const COLLECTIONS: [&str; 5] = [
     model::captcha::NAME,
     model::apps::NAME,
     model::projects::NAME,
     model::users::NAME,
+    model::config::NAME,
   ];
   let collections = db.list_collection_names(doc! {}).await.unwrap();
 

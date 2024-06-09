@@ -24,6 +24,7 @@ pub mod statistics;
 pub mod device;
 pub mod logs_network;
 pub mod logs_error;
+pub mod config;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
