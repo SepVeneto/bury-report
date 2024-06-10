@@ -16,9 +16,11 @@ export function __BR_REPORT_INIT__(
     immediate = false,
   ) {
     const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-    list.push({ uuid, type, data, appid })
+    list.push({ uuid, type, data, appid, time: new Date().toLocaleString() })
+    setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
 
     const sendRequest = () => {
+      const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
       window.navigator.sendBeacon(url, JSON.stringify({ appid, data: list }))
       setLocalStorage(REPORT_QUEUE, JSON.stringify([]))
       clearInterval(timer)
@@ -31,9 +33,7 @@ export function __BR_REPORT_INIT__(
     }
 
     if (!timer) {
-      timer = (globalThis.setTimeout(() => sendRequest, interval * 1000)) as unknown as number
-    } else {
-      setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+      timer = (globalThis.setTimeout(sendRequest, interval * 1000)) as unknown as number
     }
   }
 }

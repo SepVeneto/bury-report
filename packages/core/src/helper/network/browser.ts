@@ -65,5 +65,5 @@ export function __BR_API_INIT__(
   }
 
   window.XMLHttpRequest = CustomRequest
-  console.warn('[@sepveneto/report-core] XMLHttpRequest has been extended')
+  console.info('[@sepveneto/report-core] XMLHttpRequest has been extended')
 }

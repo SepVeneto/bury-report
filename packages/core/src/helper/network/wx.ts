@@ -5,7 +5,6 @@ export function __BR_API_INIT__(
   successReport: boolean,
   error: boolean,
 ) {
-  console.log(successReport, error)
   const _request = wx.request
 
   function customRequest(this: any, options: WechatMiniprogram.RequestOption): ReturnType<typeof uni.request> {
@@ -38,7 +37,6 @@ export function __BR_API_INIT__(
             err: res.errMsg,
           })
           report(COLLECT_API, info)
-          console.log(info)
         }
         _fail?.(res)
       },
@@ -66,5 +64,5 @@ export function __BR_API_INIT__(
   }
 
   wx.request = customRequest
-  console.warn('[@sepveneto/report-core] wx.request has been extended')
+  console.info('[@sepveneto/report-core] wx.request has been extended')
 }

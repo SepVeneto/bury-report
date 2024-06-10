@@ -1,12 +1,2 @@
-export function isUniapp() {
-  if (!globalThis.process) return false
-  return !!process.env.UNI_PLATFORM
-}
-
-export function isUniH5() {
-  return process.env.UNI_PLATFORM === 'h5'
-}
-
-export function isUniWeixin() {
-  return process.env.UNI_PLATFORM === 'mp-weixin'
-}
+export const IS_UNIAPP = !!process.env.UNI_PLATFORM
+export const IS_UNI_WEIXIN = process.env.UNI_PLATFORM === 'mp-weixin'

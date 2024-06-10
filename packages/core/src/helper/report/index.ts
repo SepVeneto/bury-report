@@ -1,8 +1,8 @@
 import type { Options } from '@/type'
-import { isUniWeixin } from '@/utils'
+import { IS_UNI_WEIXIN } from '@/utils/env'
 
 export function initReport(config: Required<Options>) {
-  if (isUniWeixin()) {
+  if (IS_UNI_WEIXIN) {
     return [
       'import { __BR_REPORT_INIT__ } from "@sepveneto/report-core/helper/report/wx"',
       `__BR_REPORT_INIT__("${config.appid}", "${config.url}", ${config.interval})`,

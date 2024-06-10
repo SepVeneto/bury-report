@@ -1,10 +1,10 @@
 import type { Options } from '@/type'
-import { isUniWeixin } from '@/utils'
+import { IS_UNI_WEIXIN } from '@/utils/env'
 
 export function initCollect(config: Required<Options>) {
   if (!config.collect) return ''
 
-  if (isUniWeixin()) {
+  if (IS_UNI_WEIXIN) {
     return [
       'import { __BR_COLLECT_INIT__ } from "@sepveneto/report-core/helper/collect/wx"',
       '__BR_COLLECT_INIT__()',

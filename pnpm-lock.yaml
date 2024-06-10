@@ -217,10 +217,6 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
 
-  packages/sign/pkg-client: {}
-
-  packages/sign/pkg-server: {}
-
   packages/web:
     dependencies:
       '@element-plus/icons-vue':
@@ -6496,7 +6492,7 @@ packages:
     dependencies:
       lodash-unified: 1.0.3(@types/lodash-es@4.17.12)(lodash-es@4.17.21)(lodash@4.17.21)
       uuid: 9.0.1
-      vue-demi: 0.14.7(vue@3.4.25)
+      vue-demi: 0.14.8(vue@3.4.25)
     transitivePeerDependencies:
       - '@types/lodash-es'
       - '@vue/composition-api'
@@ -7372,7 +7368,7 @@ packages:
     dependencies:
       '@vue/compiler-ssr': 3.4.25
       '@vue/shared': 3.4.25
-      vue: 3.4.25(typescript@5.4.5)
+      vue: 3.4.25(typescript@4.9.5)
 
   /@vue/shared@3.0.5:
     resolution: {integrity: sha512-gYsNoGkWejBxNO6SNRjOh/xKeZ0H0V+TFzaPzODfBjkAIb0aQgBuixC1brandC/CDJy1wYPwSoYrXpvul7m6yw==}
@@ -16661,6 +16657,21 @@ packages:
 
   /vue-demi@0.14.7(vue@3.4.25):
     resolution: {integrity: sha512-EOG8KXDQNwkJILkx/gPcoL/7vH+hORoBaKgGe+6W7VFMvCYJfmF2dGbvgDroVnI8LU7/kTu8mbjRZGBU1z9NTA==}
+    engines: {node: '>=12'}
+    hasBin: true
+    requiresBuild: true
+    peerDependencies:
+      '@vue/composition-api': ^1.0.0-rc.1
+      vue: ^3.0.0-0 || ^2.6.0
+    peerDependenciesMeta:
+      '@vue/composition-api':
+        optional: true
+    dependencies:
+      vue: 3.4.25(typescript@5.4.5)
+    dev: false
+
+  /vue-demi@0.14.8(vue@3.4.25):
+    resolution: {integrity: sha512-Uuqnk9YE9SsWeReYqK2alDI5YzciATE0r2SkA6iMAtuXvNTMNACJLJEXNXaEy94ECuBe4Sk6RzRU80kjdbIo1Q==}
     engines: {node: '>=12'}
     hasBin: true
     requiresBuild: true
