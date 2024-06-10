@@ -18,6 +18,7 @@ pub struct Model {
   pub uuid: String,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: bson::DateTime,
+  pub device_time: Option<String>,
 }
 
 impl BaseModel for Model {

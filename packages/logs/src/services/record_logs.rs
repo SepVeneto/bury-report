@@ -43,7 +43,7 @@ pub async fn record(client: &Client, db: &Database, data: &RecordPayload) -> Ser
 
     match data {
         RecordPayload::V1(v1) => {
-            // let db = &db::DbApp::get_by_appid(client, &appid);
+            let db = &db::DbApp::get_by_appid(client, &appid);
             match v1.normalize_from() {
                 RecordItem::Log(log) => {
                     logs::Model::insert_one(db, log).await?;

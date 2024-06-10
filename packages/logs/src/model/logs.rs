@@ -46,6 +46,7 @@ impl RecordPayload {
             appid: record.appid,
             data: record.data,
             create_time: DateTime::now(),
+            device_time: record.time,
         }
     }
 }
@@ -56,6 +57,7 @@ pub struct RecordV1 {
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
+  pub time: Option<String>,
 }
 const TYPE_LOG: &'static str = "__BR_COLLECT_INFO__";
 const TYPE_NETWORK: &'static str = "__BR_API__";
@@ -77,6 +79,7 @@ impl RecordV1 {
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
+                device_time: self.time.clone(),
             })
         } else if self.r#type == TYPE_NETWORK {
             RecordItem::Network(logs_network::Model {
@@ -85,6 +88,7 @@ impl RecordV1 {
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
+                device_time: self.time.clone(),
             })
         } else if self.r#type == TYPE_ERROR {
             RecordItem::Error(logs_error::Model {
@@ -93,6 +97,7 @@ impl RecordV1 {
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
+                device_time: self.time.clone(),
             })
         } else {
             RecordItem::Custom(Log {
@@ -101,6 +106,7 @@ impl RecordV1 {
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
+                device_time: self.time.clone(),
             })
         }
         
@@ -129,6 +135,7 @@ pub struct Model {
   pub uuid: String,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
+  pub device_time: Option<String>,
 }
 
 pub type Log = Model;
