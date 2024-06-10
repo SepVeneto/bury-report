@@ -55,13 +55,6 @@ pub type QueryResult<T> = anyhow::Result<T, ModelError>;
 pub struct QueryPayload {
     pub page: u64,
     pub size: u64,
-    #[serde(skip_deserializing)]
-    pub appid: Option<String>,
-}
-impl QueryPayload {
-    pub fn set_appid(&mut self, appid: &str) -> () {
-        self.appid = Some(appid.to_string());
-    }
 }
 
 #[derive(Deserialize, Serialize)]

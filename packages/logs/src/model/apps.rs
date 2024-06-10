@@ -90,12 +90,9 @@ impl Model {
             .skip((start - 1) * size)
             .limit(size as i64)
             .build();
-        let query = doc! {
-            "appid": &data.appid
-        };
-        let mut res = col.find(query.clone(), options).await?;
+        let mut res = col.find(doc! {}, options).await?;
 
-        let total = col.count_documents(query.clone(), None).await?;
+        let total = col.count_documents(doc! {}, None).await?;
         let mut list = vec![];
         while let Some(record) = res.next().await {
             list.push(record?)

@@ -1,13 +1,14 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
 use log::error;
-use logs::RecordPayload;
 use mongodb::{Client, Database};
 use crate::apis::get_appid;
 use crate::db;
+use crate::model::logs::RecordPayload;
 
 use super::{ApiError, ApiResult};
-use crate::{model::*, services::record_logs};
+use crate::model::QueryPayload;
+use crate::services::{device, record_logs};
 use crate::services::{Response, actor::WsActor};
 
 pub fn init_service(config: &mut web::ServiceConfig) {
@@ -15,6 +16,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_ws);
   config.service(record_error);
   config.service(record_network);
+  config.service(get_record_log);
 }
 
 #[get("/record/ws/{app_id}")]
@@ -100,4 +102,35 @@ async fn record_network(
     let res = record_logs::get_network_list(&db, &query.0).await?;
 
     Response::ok(res, None).to_json()
+}
+
+#[get("/record/logs")]
+async fn get_record_log(
+    client: web::Data<Client>,
+    req: HttpRequest,
+    query: web::Query<QueryPayload>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let res = record_logs::get_log_list(&db, &query.0).await?;
+
+    Response::ok(res, None).to_json()
+}
+
+#[get("/device/{id}")]
+async fn get_device(
+    client: web::Data<Client>,
+    req: HttpRequest,
+    path: web::Path<String>
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let device_id = path.into_inner();
+    let res = device::get_device_by_id(&db, &device_id).await?;
+
+    if let Some(device) = res{
+        Response::ok(device, None).to_json()
+    } else {
+        Response::err(404, "设备不存在".to_string()).to_json()
+    }
 }

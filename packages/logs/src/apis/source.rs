@@ -39,11 +39,10 @@ async fn get_options(
 async fn get_list(
     req: HttpRequest,
     client: web::Data<Client>,
-    mut query: web::Query<QueryPayload>,
+    query: web::Query<QueryPayload>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
-    query.set_appid(&appid);
     match source::list(&db, query.0).await {
         Ok(res) => Response::ok(res, None).to_json(),
         Err(err) => {

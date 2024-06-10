@@ -175,3 +175,8 @@ pub async fn get_network_list(db: &Database, data: &QueryPayload) -> ServiceResu
     let res = logs_network::Model::pagination(db, data).await?;
     Ok(res)
 }
+
+pub async fn get_log_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<logs::Model>> {
+    let res = logs::Model::pagination(db, data).await?;
+    Ok(res)
+}
