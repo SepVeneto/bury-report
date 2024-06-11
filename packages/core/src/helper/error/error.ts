@@ -11,7 +11,7 @@ export function initErrorProxy(reportFn: (...args: any[]) => void) {
         reportFn(error)
         break
       }
-      if (globalThis.PromiseRejectionEvent && arg instanceof PromiseRejectionEvent) {
+      if (globalThis.PromiseRejectionEvent && arg instanceof PromiseRejectionEvent && arg.reason) {
         const error = {
           name: arg.reason.name,
           message: arg.reason.message,
