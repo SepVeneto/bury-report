@@ -5,6 +5,7 @@ import { sign } from '@rx-frontend/php-sign'
 import 'nprogress/nprogress.css'
 import { ElMessage, ElNotification } from 'element-plus'
 import type { AxiosRequestConfig, AxiosResponse } from 'axios'
+import { useApp } from '@/store'
 
 interface Response<T = any> {
   code: number;
@@ -26,9 +27,11 @@ export const requestInspector = (config: AxiosRequestConfig<any>) => {
   if (!token) {
     // window.location.href = '#/login'
   } else {
+    const app = useApp()
     config.headers = {
       ...config.headers,
       authorization: token,
+      appid: app.appid,
     }
   }
   return config
@@ -204,4 +207,55 @@ export function uploadOssSave(data: IOssSave) {
     method: 'post',
     data,
   })
+}
+
+export class Restful {
+  protected resource: string
+  constructor(resource: string) {
+    this.resource = resource
+  }
+
+  list<Req, Res>(params: Req) {
+    return request<Res>({
+      url: this.resource,
+      method: 'get',
+      params,
+      raw: 'data',
+    })
+  }
+
+  protected normalizeUrl(prefix: string, resource: string) {
+    const _res = prefix.endsWith('/') ? prefix : prefix + '/'
+    return _res + resource
+  }
+
+  detail<Res>(name: string | number) {
+    return request<Res>({
+      url: this.normalizeUrl(this.resource, String(name)),
+      method: 'get',
+    })
+  }
+
+  create<Req>(data: Req) {
+    return request({
+      url: this.resource,
+      method: 'post',
+      data,
+    }, true)
+  }
+
+  edit<Req>(name: string | number, data: Req) {
+    return request({
+      url: this.normalizeUrl(this.resource, String(name)),
+      method: 'put',
+      data,
+    }, true)
+  }
+
+  delete(name: string | number) {
+    return request({
+      url: this.normalizeUrl(this.resource, String(name)),
+      method: 'delete',
+    }, true)
+  }
 }

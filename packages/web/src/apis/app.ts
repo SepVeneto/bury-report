@@ -5,6 +5,7 @@ import { useWebSocket } from '@vueuse/core'
 export type App = {
   id: string
   name: string
+  icon?: string
 }
 export function getAppList(params: { page: number, size: number, name?: string }) {
   return request<{ total: number, list: App[] }>({
@@ -75,9 +76,9 @@ export function getAppLogs(appId: string, params: { page: number, size: number }
   })
 }
 
-export function getAppErrors(appId: string, params: { page: number, size: number }) {
+export function getAppErrors(params: { page: number, size: number }) {
   return request<{ list: any[], total: number }>({
-    url: `/app/${appId}/errors`,
+    url: '/record/errors',
     params,
     raw: 'data',
   })

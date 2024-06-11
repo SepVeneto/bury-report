@@ -10,6 +10,12 @@
     >
       <BcInput v-model="formData.name" />
     </ElFormItem>
+    <ElFormItem label="主题色">
+      <ElColorPicker
+        v-model="formData.icon"
+        color-format="rgb"
+      />
+    </ElFormItem>
   </ElForm>
 </template>
 
@@ -23,7 +29,7 @@ const props = defineProps({
     default: undefined,
   },
 })
-const formData = ref({
+const formData = ref<{ name: string, icon?: string}>({
   name: '',
 })
 const formRef = ref()

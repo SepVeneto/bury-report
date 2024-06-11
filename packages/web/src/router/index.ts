@@ -4,27 +4,45 @@ import type { RouteRecordRaw } from 'vue-router'
 import { useApp } from '@/store'
 import RedirectView from '@/layout/RedirectView.vue'
 import NotFound from '@/layout/NotFound.vue'
+import AppView from '@/layout/AppView.vue'
+import Topbar from '@/layout/topbar'
 
 const routes: RouteRecordRaw[] = [
   {
-    path: '/:pathMatch(.*)*',
+    path: '/',
+    name: 'Portal',
+    component: () => import('@/views/portal/indexView.vue'),
+  },
+  // {
+  //   path: '/:appid',
+  //   name: 'App',
+  //   components: {
+  //     default: AppView,
+  //     topbar: Topbar,
+  //   },
+  //   children: [
+  //     {
+  //       path: 'dashboard',
+  //       name: 'dashboard',
+  //       meta: { title: '首页' },
+  //       component: () => import('@/views/DashboardView.vue'),
+  //     },
+  //   ],
+  // },
+  {
+    path: '/:appid/:pathMatch(.*)*',
     name: 'RedirectView',
     component: RedirectView,
   },
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'NotFound',
-    component: NotFound,
-  },
+  // {
+  //   path: '/:pathMatch(.*)*',
+  //   name: 'NotFound',
+  //   component: NotFound,
+  // },
   {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
-  },
-  {
-    path: '/portal',
-    name: 'Portal',
-    component: () => import('@/views/portal/indexView.vue'),
   },
 ]
 

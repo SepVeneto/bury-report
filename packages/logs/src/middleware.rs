@@ -28,7 +28,7 @@ pub struct AuthMiddleware<S> {
     service: S,
 }
 
-const AUTH_WHITELIST: [&str; 1] = ["/record"];
+const AUTH_WHITELIST: [&str; 3] = ["/record", "/login", "/register"];
 impl<S, B> Service<ServiceRequest> for AuthMiddleware<S>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error>,
@@ -62,8 +62,8 @@ where
         }
 
         let res = self.service.call(req);
-        return Box::pin(async move {
+        Box::pin(async move {
             res.await.map(ServiceResponse::map_into_left_body)
-        });
+        })
     }
 }

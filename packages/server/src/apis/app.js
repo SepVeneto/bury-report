@@ -7,11 +7,11 @@ const { SECRET } = require('../utils')
 const { normalize } = require('../utils')
 
 function randomColor() {
-  const r = Math.random() * 255
-  const g = Math.random() * 255
-  const b = Math.random() * 255
+  const r = Math.floor(Math.random() * 256)
+  const g = Math.floor(Math.random() * 256)
+  const b = Math.floor(Math.random() * 256)
 
-  return `rgb(${r, g, b}`
+  return `rgb(${r}, ${g}, ${b})`
 }
 
 router.get('/app/list', async (ctx, next) => {
@@ -89,7 +89,7 @@ router.get('/app', async (ctx, next) => {
   }
 })
 router.post('/app', async (ctx, next) => {
-  const { name } = ctx.request.body
+  const { name, icon } = ctx.request.body
 
   if (!name) {
     await next()
@@ -106,7 +106,7 @@ router.post('/app', async (ctx, next) => {
   } else {
     const res = await db.collection('apps').insertOne({
       name,
-      icon: randomColor(),
+      icon: icon || randomColor(),
     })
     ctx.body = res.insertedId
     await next()

@@ -27,14 +27,20 @@ export function useMenu(mod: Ref<number>) {
 
   watch(mod, (val) => {
     addRoute(val).then(menus => {
-      const isFirstMenu = route.matched[0].path.startsWith(route.path)
-      router.replace(isFirstMenu ? { name: menus[0].route } : route.path)
+      // const matchedRouter = route.matched[0]
+      // const name = Symbol('name')
+      // const routerMatcher = createRouterMatcher([{ name, path: matchedRouter.path } as any], {})
+      // const matcher = routerMatcher.getRecordMatcher(name)
+      // console.log('matcher', matcher, matchedRouter.path)
+      // const isFirstMenu = route.matched[0].path.startsWith(route.path)
+      // router.replace(isFirstMenu ? { name: menus[0].route } : route.path)
+      router.replace({ name: menus[0].route })
     })
   })
 
-  addRoute(mod.value).then((menus) => {
+  addRoute(mod.value).then(() => {
     const isFirstMenu = route.matched[0].path.startsWith(route.path)
-    router.replace(isFirstMenu ? { name: menus[0].route } : route.path)
+    router.replace(isFirstMenu ? { name: 'Portal' } : route.path)
   })
 
   function normalizeRoute(menu: Route, depth = 0): RouteRecordRaw {
@@ -76,7 +82,7 @@ export function useMenu(mod: Ref<number>) {
     const menuList = (await getMenuList(mod)).list
     store.menuList = menuList
 
-    const modName = store.modList.find(item => item.id === mod)!.route
+    const modName = store.modList.find(item => item.id === mod)?.route || ''
     menuList.forEach(menu => {
       router.addRoute(modName, normalizeRoute(menu))
     })

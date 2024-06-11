@@ -17,6 +17,7 @@ import { walkRoute } from '@/util/tools'
 const router = useRouter()
 const route = useRoute()
 const store = useApp()
+store.appid = route.params.appid
 
 let MOD: number | undefined
 if (store.isMicroApp()) {
@@ -82,7 +83,9 @@ async function initMenu() {
 
   router.removeRoute('RedirectView')
   await router.isReady()
-  router.replace(route.path === '/' ? { name: menuList[0].route } : route.fullPath)
+  console.log(router.getRoutes())
+  // router.replace(route.path === '/' ? { name: menuList[0].route } : route.fullPath)
+  router.replace(route.fullPath)
 }
 
 // const menuList = computed(() => store.getMenusByMod(store.modId as any))

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { shallowRef } from 'vue'
+import { ref, shallowRef } from 'vue'
 import type { RouteLocationNormalized } from 'vue-router'
 
 export type Route = {
@@ -17,6 +17,7 @@ export const useApp = defineStore('app', () => {
 
   const menuList = shallowRef<Route[]>([])
   const modList = shallowRef<Route[]>([])
+  const appid = ref()
 
   const mode: 'spa' | 'base' = 'spa'
 
@@ -31,6 +32,7 @@ export const useApp = defineStore('app', () => {
   }
 
   return {
+    appid,
     username,
     title,
     breadcrumb: [] as RouteLocationNormalized[],

@@ -3,12 +3,8 @@ import * as fs from 'node:fs'
 import type { Options } from '../type'
 import MagicString from 'magic-string'
 import { getPackageInfoSync } from 'local-pkg'
-import { proxyConsoleError } from './transform'
-import { isUniapp } from './env'
-import { REPORT_REQUEST } from './constant'
-
-export * from './env'
-export * from './constant'
+import debug from 'debug'
+import { IS_UNIAPP } from './env'
 
 const vue = getPackageInfoSync('vue')
 const [, vueVersion] = vue?.packageJson.version?.match(/(\d+)\.(?:\d+)\.(?:.+)/) ?? []
@@ -19,45 +15,13 @@ export function combineCode(code: string, reportContent: string) {
   s.prepend(reportContent)
   return s.toString()
 }
-export function addErrorReport(code: string) {
-//   const res = insertCodeByVue(code)
-//   const s = new MagicString(code)
-//   s.prepend(`
-// var _tempError = console.error
-// console.error = function(...args) {
-//   _tempError.apply(this, args)
-//   ${REPORT_REQUEST}()
-// }
-// `)
-  // return s.toString()
-  return proxyConsoleError(code)
-}
 export function isEntry(id: string, entryFile: string) {
-  if (isUniapp()) {
+  if (IS_UNIAPP) {
     // 抹平webpack和vite对于windows平台路径分隔符的差异
     return path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
   } else {
     return path.resolve(id) === path.resolve(process.cwd(), entryFile)
   }
-}
-export function genCode(options: Required<Options>) {
-  let request
-  if (isUniapp() && process.env.UNI_PLATFORM !== 'h5') {
-    request = `uni.request({
-      url: '${options.url}',
-      method: 'POST',
-      data: JSON.stringify({ uuid: uuid, type: type, data: data, appid: '${options.appid}'})
-    })`
-  } else {
-    request = `
-const json = { uuid: uuid, type, data: data, appid: '${options.appid}'}
-window.navigator.sendBeacon('${options.url}', JSON.stringify(json))
-`
-  }
-  return `globalThis.${REPORT_REQUEST} = function(uuid, type, data) {
-    if (${!options.report}) return false
-    ${request}
-}\n`
 }
 export function getMainEntry() {
   if (!process.env.UNI_INPUT_DIR) {
@@ -73,10 +37,31 @@ function detectEntryFile(config: Options) {
   return fs.existsSync(path.resolve(process.cwd(), 'src/main.ts')) ? 'src/main.ts' : 'src/main.js'
 }
 
-export function mergeConfig(config: Options, defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry'>>) {
-  return {
-    ...defaultConfig,
-    ...config,
-    entry: detectEntryFile(config),
+export function mergeConfig(defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry'>>, config: Options): Required<Options> {
+  const res: Record<string, any> = {}
+
+  combine(defaultConfig)
+  combine(config)
+  combine({ entry: detectEntryFile(config) })
+
+  return res as unknown as Required<Options>
+  function combine(obj: Record<string, any>) {
+    for (const key in obj) {
+      if (!Object.prototype.hasOwnProperty.call(obj, key)) continue
+
+      // eslint-disable-next-line eqeqeq
+      if (obj[key] == undefined) continue
+
+      if (Object.prototype.toString.call(obj[key]) === '[object Object]') {
+        res[key] = mergeConfig(res[key], obj[key])
+      } else {
+        res[key] = obj[key]
+      }
+    }
   }
+}
+
+export function createDebug(namespace: string) {
+  const _debug = debug(`report-core:${namespace}`)
+  return (...args: Parameters<typeof debug>) => _debug(...args)
 }

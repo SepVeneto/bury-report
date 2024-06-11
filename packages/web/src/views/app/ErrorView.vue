@@ -25,7 +25,6 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
-import { useRoute } from 'vue-router'
 
 const deviceOptions = [
   { label: '苹果', value: 'ios' },
@@ -35,7 +34,6 @@ const platformOptions = [
   { label: '微信小程序', value: 'mp-weixin' },
   { label: 'Web', value: 'h5' },
 ]
-const route = useRoute()
 const params = ref({
   page: 1,
   size: 20,
@@ -43,7 +41,7 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '发生时间', prop: 'create_time', filter: (str: string) => new Date(str).toLocaleString(), width: 200 },
+  { label: '发生时间', prop: 'create_time', width: 200 },
   { label: '设备ID', prop: 'uuid', width: 200 },
   { label: '错误概述', prop: 'error' },
 ])
@@ -56,7 +54,7 @@ const searchConfig = shallowRef([
 ])
 
 function getList() {
-  return getAppErrors(route.params.id as string, params.value)
+  return getAppErrors(params.value)
 }
 function handleSearch() {
   tableRef.value.getList()

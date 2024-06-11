@@ -1,37 +1,51 @@
 pub mod auth;
 pub mod record;
+pub mod source;
+pub mod statistics;
+pub mod apps;
+pub mod config;
 
-use actix_web::HttpResponse;
-use crate::config::BusinessError;
+use actix_web::{http::header::ToStrError, HttpRequest, HttpResponse};
+use thiserror::Error;
+use anyhow::Result;
 
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use crate::services::{Response, ServiceError};
 
-
-pub type ServiceResult = Result<HttpResponse, BusinessError>;
-
-#[derive(Deserialize, Serialize)]
-pub struct RegisterPayload {
-  name: String,
-  password: String,
+#[derive(Error, Debug)]
+pub enum ApiError {
+    #[error(transparent)]
+    InternalError {
+        #[from]
+        source: ServiceError,
+    },
+    #[error("校验错误: {err}, in {file}:{line}:{col}")]
+    ValidateError { err: String, col: u32, line: u32, file: String  },
+    #[error("请求错误")]
+    AppidError(#[from] AppidError),
+    #[error(transparent)]
+    CommonError(#[from] anyhow::Error),
+}
+impl actix_web::error::ResponseError for ApiError {
+    fn error_response(&self) -> HttpResponse {
+        Response::err(500, self.to_string()).to_json().unwrap()
+    }
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct LoginPayload {
-  name: String,
-  password: String,
-  key: String,
-  offset: usize,
+pub type ApiResult = Result<HttpResponse, ApiError>;
+
+#[derive(Error, Debug)]
+pub enum AppidError {
+    #[error("cannot find appid")]
+    GetError,
+    #[error("get appid failed")]
+    ToStrError(#[from] ToStrError)
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct SystemInfo {
-    uuid: String,
-}
-#[derive(Deserialize, Serialize, Clone)]
-pub struct RecordPayload {
-  pub r#type: String,
-  pub appid: Option<String>,
-  pub data: Map<String, Value>,
-  pub uuid: String,
+pub fn get_appid(req: &HttpRequest) -> anyhow::Result<String, AppidError> {
+    if let Some(appid) = req.headers().get("appid") {
+        let appid = appid.to_str()?;
+        Ok(appid.to_string())
+    } else {
+        Err(AppidError::GetError)
+    }
 }

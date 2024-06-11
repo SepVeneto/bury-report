@@ -1,10 +1,14 @@
 export interface Options {
   /**
+   * 数据上报周期, 单位秒，默认10秒
+   */
+  interval?: number
+  /**
    * 项目的入口文件
    */
   entry?: string
   /**
-   * 用来区分每一个应用的
+   * 用来区分每 应用的
    */
   appid: string
   /**
@@ -24,4 +28,21 @@ export interface Options {
    * 默认在开发模式(NODE_ENV == 'development')时关闭，生产模式(NODE_ENV == 'production')时开启
    */
   report?: boolean
+  /**
+   * 网络请求相关配置
+   */
+  network?: {
+    /**
+     * 关闭后将不会扩展原生的请求方式，停止所有网络请求的上报
+     */
+    enable?: boolean
+    /**
+     * 是否上报所有成功发出的请求
+     */
+    success?: boolean
+    /**
+     * 是否启用接口错误（包括超时和拒绝）请求的上报
+     */
+    fail?: boolean
+  }
 }
