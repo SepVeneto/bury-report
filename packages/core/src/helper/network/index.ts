@@ -8,13 +8,13 @@ export function initNetwork(config: Required<Options>) {
   if (IS_UNI_WEIXIN()) {
     return [
       'import { __BR_API_INIT__ } from "@sepveneto/report-core/helper/network/wx"',
-      `__BR_API_INIT__(${success}, ${fail})`,
+      `__BR_API_INIT__("${config.url}", ${success}, ${fail})`,
       '',
     ].join('\n')
   } else {
     return [
       'import { __BR_API_INIT__ } from "@sepveneto/report-core/helper/network/browser"',
-      `__BR_API_INIT__(${success}, ${fail})`,
+      `__BR_API_INIT__("${config.url}", ${success}, ${fail})`,
       '',
     ].join('\n')
   }

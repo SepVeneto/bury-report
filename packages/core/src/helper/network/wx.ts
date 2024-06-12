@@ -2,6 +2,7 @@ import { report } from '@/index'
 import { COLLECT_API } from '@/utils/constant'
 
 export function __BR_API_INIT__(
+  recordUrl: string,
   successReport: boolean,
   error: boolean,
 ) {
@@ -26,7 +27,7 @@ export function __BR_API_INIT__(
             responseHeaders: res.header,
             response: typeof res.data === 'string' ? res.data : null,
           })
-          report(COLLECT_API, info)
+          recordUrl !== info.url && report(COLLECT_API, info)
         }
         _success?.(res)
       },
@@ -36,7 +37,7 @@ export function __BR_API_INIT__(
             timeout: options.timeout,
             err: res.errMsg,
           })
-          report(COLLECT_API, info)
+          recordUrl !== info.url && report(COLLECT_API, info)
         }
         _fail?.(res)
       },
