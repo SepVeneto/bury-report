@@ -16,6 +16,7 @@ pub mod statistics;
 pub mod apps;
 pub mod config;
 pub mod device;
+pub mod project;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

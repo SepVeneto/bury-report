@@ -17,6 +17,17 @@
         :color="item.icon"
         :zoom-in="zoomIn"
       />
+      <div
+        class="icon-add"
+        @click="handleAdd"
+      >
+        <ElIcon
+          :size="120"
+          color="#999"
+        >
+          <IconPlus />
+        </ElIcon>
+      </div>
     </div>
     <div
       ref="titleRef"
@@ -39,10 +50,13 @@
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
+import { Plus as IconPlus } from '@element-plus/icons-vue'
 import type { PropType } from 'vue'
-import type { App } from '@/apis'
+import { type App, updateApp } from '@/apis'
 import AppIcon from './IconApp.vue'
 import { onClickOutside } from '@vueuse/core'
+import DialogApp from '../app/DialogApp.vue'
+import { createDialog } from '@sepveneto/basic-comp'
 
 const projectRef = ref<HTMLElement>()
 const wrapRef = ref<HTMLElement>()
@@ -72,6 +86,17 @@ const titleStyle = computed(() => {
 onClickOutside(projectRef, () => {
   zoomIn.value = false
 })
+function handleAdd() {
+  const { open, close } = createDialog(DialogApp)
+  open(
+    { title: '新增应用', width: '550px' },
+    async (res) => {
+      const data = await res!.getFormData()
+      await updateApp(data)
+      close()
+    },
+  )
+}
 function handleZoom() {
   zoomIn.value = true
 }

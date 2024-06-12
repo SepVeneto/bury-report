@@ -106,7 +106,7 @@ async function onFinish(res: number) {
 
     localStorage.setItem('token', result.token)
     await router.isReady()
-    router.replace({ name: 'RedirectView' })
+    router.replace({ name: 'Portal' })
   } catch {
     popoverRef.value.hide()
     loginState.value = 'wait'

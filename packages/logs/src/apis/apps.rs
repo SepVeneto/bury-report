@@ -24,13 +24,16 @@ pub async fn get_app_list(
 #[derive(Deserialize, Serialize)]
 pub struct CreatePayload {
     pub name: String,
+    pub color: Option<String>,
 }
-#[post("/app")]
+#[post("/{project}/app")]
 pub async fn create_app(
     db: web::Data<Database>,
     client: web::Data<Client>,
-    json: web::Json<CreatePayload>
+    json: web::Json<CreatePayload>,
+    project_id: web::Path<String>,
 ) -> ApiResult {
+    let project_id = project_id.into_inner();
     let res = apps::create_app(&client, &db, &json).await?;
     Response::ok(res, "创建成功").to_json()
 }
