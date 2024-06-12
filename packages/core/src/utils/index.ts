@@ -16,7 +16,7 @@ export function combineCode(code: string, reportContent: string) {
   return s.toString()
 }
 export function isEntry(id: string, entryFile: string) {
-  if (IS_UNIAPP) {
+  if (IS_UNIAPP()) {
     // 抹平webpack和vite对于windows平台路径分隔符的差异
     return path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
   } else {

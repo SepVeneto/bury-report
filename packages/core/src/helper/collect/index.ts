@@ -4,7 +4,7 @@ import { IS_UNI_WEIXIN } from '@/utils/env'
 export function initCollect(config: Required<Options>) {
   if (!config.collect) return ''
 
-  if (IS_UNI_WEIXIN) {
+  if (IS_UNI_WEIXIN()) {
     return [
       'import { __BR_COLLECT_INIT__ } from "@sepveneto/report-core/helper/collect/wx"',
       '__BR_COLLECT_INIT__()',
