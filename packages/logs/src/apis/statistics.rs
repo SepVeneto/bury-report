@@ -22,6 +22,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(update_statistics);
     config.service(del_statistic);
     config.service(debug_aggrate);
+    config.service(debug_gc_logs);
 }
 
 // #[get("/{appid}/statistic/total")]
@@ -141,6 +142,15 @@ pub async fn debug_aggrate(
 ) -> ApiResult {
     let appid = path.into_inner();
     gc_log(&client, &appid, 7).await?;
+
+    Response::ok("", None).to_json()
+}
+
+#[get("/statistics/gc_logs")]
+pub async fn debug_gc_logs(
+    client: web::Data<Client>,
+) -> ApiResult {
+    gc_logs(&client, 7).await?;
 
     Response::ok("", None).to_json()
 }

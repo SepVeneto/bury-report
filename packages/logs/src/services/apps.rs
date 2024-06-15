@@ -162,12 +162,11 @@ pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
         error!("{}", err.to_string());
     }
 
-    join_all(appids.iter().map(|appid| async {
-        let db = db::DbApp::get_by_appid(client, appid);
-        let res = clear_logs(&db, limit).await;
+    for appid in appids {
+        let db = db::DbApp::get_by_appid(client, &appid);
+        clear_logs(&db, limit).await?;
         info!("gc {} logs successfully", appid.clone());
-        res
-    })).await;
+    }
 
     Ok(())
 }
@@ -197,12 +196,11 @@ pub async fn gc_networks(client: &Client, limit: u32) -> ServiceResult<()> {
         .map(|item| item._id.to_string())
         .collect();
 
-    join_all(appids.iter().map(|appid| async {
-        let db = db::DbApp::get_by_appid(client, appid);
-        let res = clear_networks(&db, limit).await;
+    for appid in appids {
+        let db = db::DbApp::get_by_appid(client, &appid);
+        clear_networks(&db, limit).await?;
         info!("gc {} api successfully", appid.clone());
-        res
-    })).await;
+    }
 
     Ok(())
 }
@@ -213,12 +211,11 @@ pub async fn gc_errors(client: &Client, limit: u32) -> ServiceResult<()> {
         .map(|item| item._id.to_string())
         .collect();
 
-    join_all(appids.iter().map(|appid| async {
-        let db = db::DbApp::get_by_appid(client, appid);
-        let res = clear_errors(&db, limit).await;
+    for appid in appids {
+        let db = db::DbApp::get_by_appid(client, &appid);
+        clear_errors(&db, limit).await?;
         info!("gc {} err successfully", appid.clone());
-        res
-    })).await;
+    }
 
     Ok(())
 }
@@ -230,12 +227,12 @@ pub async fn aggregate_devices(client: &Client, limit: u32) -> ServiceResult<()>
         .map(|item| item._id.to_string())
         .collect();
 
-    join_all(appids.iter().map(|appid| async {
-        let db = db::DbApp::get_by_appid(client, appid);
-        let res = super::statistics::aggregate_devices(&db, limit).await;
+    for appid in appids {
+        let db = db::DbApp::get_by_appid(client, &appid);
+        info!("aggregate {} devcie start", appid.clone());
+        super::statistics::aggregate_devices(&db, limit).await?;
         info!("aggregate {} device successfully", appid.clone());
-        res
-    })).await;
+    }
 
     Ok(())
 }
