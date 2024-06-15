@@ -178,7 +178,7 @@ pub async fn gc_log(client: &Client, appid: &str, limit: u32) -> ServiceResult<(
     //     .map(|item| item._id.to_string())
     //     .collect();
 
-    if let Err(err) = crate::services::apps::aggregate_devices(&client, limit).await {
+    if let Err(err) = crate::services::apps::aggregate_device(&client, appid, limit).await {
         error!("{}", err.to_string());
     }
 
@@ -239,3 +239,12 @@ pub async fn aggregate_devices(client: &Client, limit: u32) -> ServiceResult<()>
 
     Ok(())
 }
+pub async fn aggregate_device(client: &Client, appid: &str, limit: u32) -> ServiceResult<()> {
+    let db = db::DbApp::get_by_appid(client, appid);
+    super::statistics::aggregate_devices(&db, limit).await?;
+    info!("aggregate {} device successfully", appid);
+
+    Ok(())
+}
+
+
