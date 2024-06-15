@@ -5,7 +5,7 @@ use serde_json::json;
 use crate::apis::{get_appid, ApiResult};
 
 use crate::db;
-use crate::services::apps::gc_logs;
+use crate::services::apps::{gc_log, gc_logs};
 use crate::{
     model::statistics::Rule,
     services::{
@@ -134,11 +134,13 @@ pub async fn preview_statistics(
     Response::ok(res, None).to_json()
 }
 
-#[get("/statistics/gc_logs")]
+#[get("/statistics/gc_log/{appid}")]
 pub async fn debug_aggrate(
     client: web::Data<Client>,
+    path: web::Path<String>
 ) -> ApiResult {
-    gc_logs(&client, 7).await?;
+    let appid = path.into_inner();
+    gc_log(&client, &appid, 7).await?;
 
     Response::ok("", None).to_json()
 }

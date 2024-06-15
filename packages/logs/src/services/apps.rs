@@ -171,6 +171,25 @@ pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
 
     Ok(())
 }
+pub async fn gc_log(client: &Client, appid: &str, limit: u32) -> ServiceResult<()> {
+    // let appids: Vec<String>  = get_all(client)
+    //     .await?
+    //     .iter()
+    //     .map(|item| item._id.to_string())
+    //     .collect();
+
+    if let Err(err) = crate::services::apps::aggregate_devices(&client, limit).await {
+        error!("{}", err.to_string());
+    }
+
+    // join_all(appids.iter().map(|appid| async {
+    let db = db::DbApp::get_by_appid(client, appid);
+    clear_logs(&db, limit).await?;
+    info!("gc {} logs successfully", appid);
+    // })).await;
+
+    Ok(())
+}
 pub async fn gc_networks(client: &Client, limit: u32) -> ServiceResult<()> {
     let appids: Vec<String>  = get_all(client)
         .await?
