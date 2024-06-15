@@ -5,6 +5,7 @@ use serde_json::json;
 use crate::apis::{get_appid, ApiResult};
 
 use crate::db;
+use crate::services::apps::gc_logs;
 use crate::{
     model::statistics::Rule,
     services::{
@@ -20,6 +21,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(preview_statistics);
     config.service(update_statistics);
     config.service(del_statistic);
+    config.service(debug_aggrate);
 }
 
 // #[get("/{appid}/statistic/total")]
@@ -130,4 +132,13 @@ pub async fn preview_statistics(
     };
 
     Response::ok(res, None).to_json()
+}
+
+#[get("/statistics/gc_logs")]
+pub async fn debug_aggrate(
+    client: web::Data<Client>,
+) -> ApiResult {
+    gc_logs(&client, 7).await?;
+
+    Response::ok("", None).to_json()
 }

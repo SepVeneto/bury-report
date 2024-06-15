@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bson::Document;
 use chrono::{Datelike, LocalResult, TimeZone};
-use log::info;
+use log::{error, info};
 use mongodb::{bson::{bson, doc, Bson, DateTime}, options::UpdateOptions, Database};
 use anyhow::anyhow;
 use maplit::hashmap;
@@ -406,19 +406,37 @@ pub async fn aggregate_devices(db: &Database, limit: u32) -> ServiceResult<()> {
             }
         },
     ];
-    let res = logs::Model::find_from_aggregrate::<device::Model>(db, pipeline).await.unwrap();
+    let res = logs::Model::find_from_aggregrate::<device::Model>(db, pipeline).await?;
 
     let updates: Vec<HashMap<&str, Document>> = res.iter().map(|device| {
-        hashmap! {
-            "filter" => doc! {
-                "uuid": device.uuid.clone(),
-            },
-            "update" => doc! {
-                "$set": {
-                    "last_open": device.last_open.clone(),
+        if let Ok(data) = bson::to_bson(&device.data) {
+            hashmap! {
+                "filter" => doc! {
+                    "uuid": device.uuid.clone(),
                 },
-                "$inc": {
-                    "total_open": device.total_open.clone(),
+                "update" => doc! {
+                    "$set": {
+                        "last_open": device.last_open.clone(),
+                        "data": data,
+                    },
+                    "$inc": {
+                        "total_open": device.total_open.clone(),
+                    }
+                }
+            }
+        } else {
+            error!("to bson failed: {:?}", &device);
+            hashmap! {
+                "filter" => doc! {
+                    "uuid": device.uuid.clone(),
+                },
+                "update" => doc! {
+                    "$set": {
+                        "last_open": device.last_open.clone(),
+                    },
+                    "$inc": {
+                        "total_open": device.total_open.clone(),
+                    }
                 }
             }
         }

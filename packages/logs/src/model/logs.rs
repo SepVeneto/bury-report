@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use log::error;
 
 use futures_util::StreamExt;
 use mongodb::{
@@ -162,9 +163,13 @@ impl Model {
         let mut collect_data = vec![];
 
         while let Some(record) = res.next().await {
+            let record = record?;
             // match
-            let record = from_document(record?)?;
-            collect_data.push(record);
+            if let Ok(record) = from_document(record.clone()) {
+                collect_data.push(record);
+            } else {
+                error!("from document failed: {:?}", record.clone());
+            }
         }
         Ok(collect_data)
     }
