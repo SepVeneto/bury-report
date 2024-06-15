@@ -3,7 +3,6 @@ use actix::prelude::*;
 use actix_web_actors::ws;
 use super::actor::{Connect, Disconnect, WsActor, WsMessage};
 use uuid::Uuid;
-use log::info;
 
 pub struct WebsocketConnect {
     pub id: String,

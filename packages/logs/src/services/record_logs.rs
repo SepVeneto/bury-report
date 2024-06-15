@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use log::info;
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;

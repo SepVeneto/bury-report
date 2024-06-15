@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context};
-use futures_util::future::join_all;
 use log::{info, error};
 use mongodb::{bson::{doc, DateTime}, Database, Client};
 
@@ -124,33 +123,6 @@ pub fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
     }
 }
 
-// pub async fn gc_all(db: &Database) -> ServiceResult<()> {
-//     let appids: Vec<String>  = get_all(db)
-//         .await?
-//         .iter()
-//         .map(|item| item._id.to_string())
-//         .collect();
-
-//     join_all(appids.iter().map(|appid| async {
-//         if let Err(err) = clear_logs(db, appid).await {
-//             return Err(err);
-//         }
-//         if let Err(err) = clear_errors(db, appid).await {
-//             return Err(err);
-//         }
-//         if let Err(err) = clear_networks(db, appid).await {
-//             return Err(err);
-//         }
-//         Ok(())
-//     })).await;
-//     // appids.map(|appid| async {
-//     //     let appid = appid.to_string();
-
-//     // });
-
-//     Ok(())
-// }
-
 pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
     let appids: Vec<String>  = get_all(client)
         .await?
@@ -171,21 +143,13 @@ pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
     Ok(())
 }
 pub async fn gc_log(client: &Client, appid: &str, limit: u32) -> ServiceResult<()> {
-    // let appids: Vec<String>  = get_all(client)
-    //     .await?
-    //     .iter()
-    //     .map(|item| item._id.to_string())
-    //     .collect();
-
     if let Err(err) = crate::services::apps::aggregate_device(&client, appid, limit).await {
         error!("{}", err.to_string());
     }
 
-    // join_all(appids.iter().map(|appid| async {
     let db = db::DbApp::get_by_appid(client, appid);
     clear_logs(&db, limit).await?;
     info!("gc {} logs successfully", appid);
-    // })).await;
 
     Ok(())
 }

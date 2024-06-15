@@ -1,6 +1,5 @@
 use std::str::FromStr;
 
-use log::info;
 use mongodb::{
     bson::{doc, oid::ObjectId},
     options::FindOptions,
