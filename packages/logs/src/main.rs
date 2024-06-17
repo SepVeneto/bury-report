@@ -54,7 +54,8 @@ async fn init_sched() -> JobScheduler {
     let sched = JobScheduler::new().await.unwrap();
     sched.add(
         // 每天分别清理最近3天的请求日志，30天的错误日志，7天的用户信息收集日志
-        Job::new_async("0 0 0 1/1 * *", |_uuid, _l|{
+        // 系统默认协调时间时，比北京晚8个小时
+        Job::new_async("0 0 16 1/1 * *", |_uuid, _l|{
         // Job::new_async("0 1/1 * * * *", |_uuid, _l|{
             info!("starting gc...");
             Box::pin(async move {
