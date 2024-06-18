@@ -3,8 +3,16 @@ use log::{info, error};
 use mongodb::{bson::{doc, DateTime}, Database, Client};
 
 use crate::{
-    apis::apps::CreatePayload, db, model::{
-        apps::Model, logs, logs_error, logs_network, BaseModel, DeleteModel, PaginationResult, QueryPayload
+    apis::apps::CreatePayload,
+    db,
+    model::{
+        apps::Model,
+        logs,
+        logs_error,
+        logs_network,
+        DeleteModel,
+        PaginationResult,
+        QueryPayload
     }
 };
 
@@ -65,6 +73,21 @@ async fn get_all(client: &Client) -> ServiceResult<Vec<Model>> {
     Ok(res)
 }
 
+pub async fn clear_info(db: &Database, limit: u32) -> ServiceResult<()> {
+    let (start_time, _) = get_recent_days(limit)?;
+    let filter = doc! {
+        "type": "__BR_COLLECT_INFO__",
+        "create_time": {
+            "$lte": start_time,
+        }
+    };
+    logs::Model::delete_many(
+        db,
+        filter.clone(),
+    ).await?;
+    Ok(())
+}
+
 async fn clear_logs(db: &Database, limit: u32) -> ServiceResult<()> {
     let (start_time, _) = get_recent_days(limit)?;
     let filter = doc! {
@@ -72,10 +95,6 @@ async fn clear_logs(db: &Database, limit: u32) -> ServiceResult<()> {
             "$lte": start_time,
         }
     };
-    info!("query db: {:?}", logs::Model::col(db).count_documents(None, None).await?);
-    info!("filter: {:?}", &filter);
-    let count = logs::Model::col(db).count_documents(filter.clone(), None).await?;
-    info!("count: {}", count);
     logs::Model::delete_many(
         db,
         filter.clone(),
@@ -84,7 +103,6 @@ async fn clear_logs(db: &Database, limit: u32) -> ServiceResult<()> {
 }
 async fn clear_networks(db: &Database, limit: u32) -> ServiceResult<()> {
     let (start_time, _) = get_recent_days(limit)?;
-    info!("from {}", start_time);
     logs_network::Model::delete_many(
         db,
         doc! {
@@ -123,7 +141,7 @@ pub fn get_recent_days(num: u32) -> ServiceResult<(DateTime, DateTime)>{
     }
 }
 
-pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
+pub async fn gc_info(client: &Client, limit: u32) -> ServiceResult<()> {
     let appids: Vec<String>  = get_all(client)
         .await?
         .iter()
@@ -133,6 +151,21 @@ pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
     if let Err(err) = crate::services::apps::aggregate_devices(&client, limit).await {
         error!("{}", err.to_string());
     }
+
+    for appid in appids {
+        let db = db::DbApp::get_by_appid(client, &appid);
+        clear_info(&db, limit).await?;
+        info!("gc {} collect info successfully", appid.clone());
+    }
+    Ok(())
+}
+
+pub async fn gc_logs(client: &Client, limit: u32) -> ServiceResult<()> {
+    let appids: Vec<String>  = get_all(client)
+        .await?
+        .iter()
+        .map(|item| item._id.to_string())
+        .collect();
 
     for appid in appids {
         let db = db::DbApp::get_by_appid(client, &appid);

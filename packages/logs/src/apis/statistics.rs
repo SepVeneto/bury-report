@@ -5,7 +5,7 @@ use serde_json::json;
 use crate::apis::{get_appid, ApiResult};
 
 use crate::db;
-use crate::services::apps::{gc_log, gc_logs};
+use crate::services::apps;
 use crate::{
     model::statistics::Rule,
     services::{
@@ -23,6 +23,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(del_statistic);
     config.service(debug_aggrate);
     config.service(debug_gc_logs);
+    config.service(aggregate_device_info);
 }
 
 // #[get("/{appid}/statistic/total")]
@@ -141,7 +142,7 @@ pub async fn debug_aggrate(
     path: web::Path<String>
 ) -> ApiResult {
     let appid = path.into_inner();
-    gc_log(&client, &appid, 7).await?;
+    apps::gc_log(&client, &appid, 7).await?;
 
     Response::ok("", None).to_json()
 }
@@ -150,7 +151,23 @@ pub async fn debug_aggrate(
 pub async fn debug_gc_logs(
     client: web::Data<Client>,
 ) -> ApiResult {
-    gc_logs(&client, 7).await?;
+    apps::gc_logs(&client, 7).await?;
 
     Response::ok("", None).to_json()
+}
+
+#[get("/statistics/collect_info")]
+pub async fn aggregate_device_info(
+    client: web::Data<Client>,
+    req: HttpRequest
+) -> ApiResult {
+    const LIMIT: u32 = 0;
+
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+
+    statistics::aggregate_devices(&db, LIMIT).await?;
+    apps::clear_info(&db, LIMIT).await?;
+
+    Response::ok("设备数据整理完成", None).to_json()
 }
