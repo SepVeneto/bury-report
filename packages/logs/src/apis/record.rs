@@ -85,7 +85,7 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
     match json {
         Ok(json) => Ok(json),
         Err(err) => {
-            error!("Invalid JSON: {:?}", err);
+            error!("Invalid JSON: {:?} with {:?}", err, res);
             Err(ApiError::ValidateError { err: err.to_string(), col: column!(), line: line!(), file: file!().to_string() })
         }
     }
