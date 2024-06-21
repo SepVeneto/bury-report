@@ -1,7 +1,6 @@
 import Router from '@koa/router'
 import db from '../db.js'
 import { ObjectId } from 'mongodb'
-import { Project } from '../model/index.js'
 import md5 from 'md5'
 import { SECRET, normalize } from '../utils/index.js'
 

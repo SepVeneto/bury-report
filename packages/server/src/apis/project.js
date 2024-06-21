@@ -2,7 +2,7 @@ import Router from '@koa/router'
 import db from '../db.js'
 import { ObjectId } from 'mongodb'
 import { normalize } from '../utils/index.js'
-import { Project } from '../model/index.js'
+import { Project } from '../model/project.js'
 
 const router = new Router()
 

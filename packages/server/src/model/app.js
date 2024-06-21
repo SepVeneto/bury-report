@@ -1,5 +1,4 @@
-export class App {
-  constructor(db) {
-    this.db = db
-  }
+import { Model } from "./index.js"
+export class App extends Model {
+  NAME = 'app'
 }
