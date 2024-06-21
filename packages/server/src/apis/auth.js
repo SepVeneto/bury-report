@@ -1,13 +1,14 @@
-const Router = require('@koa/router')
+import Router from '@koa/router'
+import db from '../db.js'
+import md5 from 'md5'
+import jwt from 'jsonwebtoken'
+import { SECRET } from '../utils/index.js'
+import canvas from 'canvas'
+import timezone from 'dayjs/plugin/timezone.js'
+import utc from 'dayjs/plugin/utc.js'
+import dayjs from 'dayjs'
+
 const router = new Router()
-const db = require('../db')
-const md5 = require('md5')
-const jwt = require('jsonwebtoken')
-const { SECRET } = require('../utils')
-const canvas = require('canvas')
-const timezone = require('dayjs/plugin/timezone')
-const utc = require('dayjs/plugin/utc')
-const dayjs = require('dayjs')
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -129,4 +130,4 @@ function drawSlot(ctx, x, y) {
   ctx.globalCompositeOperation = 'destination-over'
 }
 
-module.exports = router
+export default router

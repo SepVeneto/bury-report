@@ -217,11 +217,18 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
 
+  packages/sign/pkg-client: {}
+
+  packages/sign/pkg-server: {}
+
   packages/web:
     dependencies:
       '@element-plus/icons-vue':
         specifier: ^2.1.0
         version: 2.3.1(vue@3.4.25)
+      '@imengyu/vue3-context-menu':
+        specifier: ^1.4.1
+        version: 1.4.1
       '@rx-frontend/php-sign':
         specifier: ^0.3.2
         version: 0.3.2
@@ -4558,6 +4565,10 @@ packages:
     resolution: {integrity: sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA==}
     dev: true
 
+  /@imengyu/vue3-context-menu@1.4.1:
+    resolution: {integrity: sha512-34WInBVx0Mr0zSsRCQWG7ezHk0JzOuZqE4T8ywI82mbk/jfWBRtTkKHYSZbtmw2oYEfDFwCWdM/gur7QFAXYMA==}
+    dev: false
+
   /@intlify/core-base@9.1.9:
     resolution: {integrity: sha512-x5T0p/Ja0S8hs5xs+ImKyYckVkL4CzcEXykVYYV6rcbXxJTe2o58IquSqX9bdncVKbRZP7GlBU1EcRaQEEJ+vw==}
     engines: {node: '>= 10'}
@@ -7368,7 +7379,7 @@ packages:
     dependencies:
       '@vue/compiler-ssr': 3.4.25
       '@vue/shared': 3.4.25
-      vue: 3.4.25(typescript@4.9.5)
+      vue: 3.4.25(typescript@5.4.5)
 
   /@vue/shared@3.0.5:
     resolution: {integrity: sha512-gYsNoGkWejBxNO6SNRjOh/xKeZ0H0V+TFzaPzODfBjkAIb0aQgBuixC1brandC/CDJy1wYPwSoYrXpvul7m6yw==}
@@ -7407,7 +7418,7 @@ packages:
       '@types/web-bluetooth': 0.0.16
       '@vueuse/metadata': 9.13.0
       '@vueuse/shared': 9.13.0(vue@3.4.25)
-      vue-demi: 0.14.7(vue@3.4.25)
+      vue-demi: 0.14.8(vue@3.4.25)
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
@@ -7424,7 +7435,7 @@ packages:
   /@vueuse/shared@10.9.0(vue@3.4.25):
     resolution: {integrity: sha512-Uud2IWncmAfJvRaFYzv5OHDli+FbOzxiVEQdLCKQKLyhz94PIyFC3CHcH7EDMwIn8NPtD06+PNbC/PiO0LGLtw==}
     dependencies:
-      vue-demi: 0.14.7(vue@3.4.25)
+      vue-demi: 0.14.8(vue@3.4.25)
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
@@ -7433,7 +7444,7 @@ packages:
   /@vueuse/shared@9.13.0(vue@3.4.25):
     resolution: {integrity: sha512-UrnhU+Cnufu4S6JLCPZnkWh0WwZGUp72ktOF2DFptMlOs3TOdVv8xJN53zhHGARmVOsz5KqOls09+J1NR6sBKw==}
     dependencies:
-      vue-demi: 0.14.7(vue@3.4.25)
+      vue-demi: 0.14.8(vue@3.4.25)
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue

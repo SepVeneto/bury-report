@@ -55,3 +55,11 @@ async fn check_login(db: &Database, data: &LoginPayload) -> ServiceResult<bool> 
         Err(anyhow!("验证码已过期").into())
     }
 }
+
+const L: u32 = 42;
+const R: u32 = 9;
+// async fn gen_captcha() -> {
+//     use image::io::Reader as ImageReader;
+
+//     let img = ImageReader::open("../assets/976-310x155.jpg")?.decode()?;
+// }

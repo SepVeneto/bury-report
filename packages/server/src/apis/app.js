@@ -1,10 +1,11 @@
-const Router = require('@koa/router')
+import Router from '@koa/router'
+import db from '../db.js'
+import { ObjectId } from 'mongodb'
+import { Project } from '../model/index.js'
+import md5 from 'md5'
+import { SECRET, normalize } from '../utils/index.js'
+
 const router = new Router()
-const db = require('../db')
-const { ObjectId } = require('mongodb')
-const md5 = require('md5')
-const { SECRET } = require('../utils')
-const { normalize } = require('../utils')
 
 function randomColor() {
   const r = Math.floor(Math.random() * 256)
@@ -89,7 +90,7 @@ router.get('/app', async (ctx, next) => {
   }
 })
 router.post('/app', async (ctx, next) => {
-  const { name, icon } = ctx.request.body
+  const { pid, name, icon } = ctx.request.body
 
   if (!name) {
     await next()
@@ -97,6 +98,7 @@ router.post('/app', async (ctx, next) => {
     ctx.body.message = '应用名称不能为空'
     return
   }
+
 
   const app = await db.collection('apps').findOne({ name, is_delete: { $ne: true } })
   if (app) {
@@ -433,4 +435,4 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
 
 })
 
-module.exports = router
+export default router

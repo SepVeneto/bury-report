@@ -8,6 +8,7 @@
   <IconProject
     style=""
     :name="data.name"
+    :pid="data.id"
     :group="data.apps"
   />
 </template>

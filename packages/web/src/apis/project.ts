@@ -5,11 +5,9 @@ export type Project = {
   name: string
   apps: { id: string, name: string }[]
 }
-export function getProjectList(params: { page: number, size: number, name?: string }) {
+export function getProjectList() {
   return request<{ total: number, list: Project[] }>({
     url: '/project/list',
-    params,
-    raw: 'data',
   })
 }
 export function updateProject(data: { name: string, id?: string, apps: string[] }) {

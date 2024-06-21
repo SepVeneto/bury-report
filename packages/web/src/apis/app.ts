@@ -14,11 +14,14 @@ export function getAppList(params: { page: number, size: number, name?: string }
     raw: 'data',
   })
 }
-export function updateApp(data: { name: string, id?: string }) {
+export function updateApp(pid: string, data: { name: string, id?: string }) {
   return request({
     url: '/app',
     method: data.id ? 'patch' : 'post',
-    data,
+    data: {
+      pid,
+      ...data,
+    },
   }, true)
 }
 export function deleteApp(appId: string) {

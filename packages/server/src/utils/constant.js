@@ -1,5 +1,1 @@
-const SECRET = 'veneto'
-
-module.exports = {
-  SECRET,
-}
+export const SECRET = 'veneto'

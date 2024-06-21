@@ -1,7 +1,2 @@
-const constant = require('./constant')
-const tools = require('./tools')
-
-module.exports = {
-  ...constant,
-  ...tools,
-}
+export * from './constant.js'
+export * from './tools.js'

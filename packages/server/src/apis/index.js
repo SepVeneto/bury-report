@@ -1,12 +1,12 @@
-const db = require('../db')
-const Router = require('@koa/router')
-const jwt = require('jsonwebtoken')
-const { SECRET } = require('../utils')
+import db from '../db.js'
+import Router from '@koa/router'
+import jwt from 'jsonwebtoken'
+import { SECRET } from '../utils/index.js'
 
-const app = require('./app')
-const auth = require('./auth')
-const project = require('./project')
-const portal = require('./portal')
+import app from './app.js'
+import auth from './auth.js'
+import project from './project.js'
+import portal from './portal.js'
 
 const router = new Router()
 
@@ -55,4 +55,4 @@ router.use((ctx) => {
   }
 })
 
-module.exports = router
+export default router

@@ -42,8 +42,8 @@ import DialogProject from '../project/DialogProject.vue'
 const projects = ref<Project[]>([])
 getList()
 async function getList() {
-  const res = await getProjectList({ page: 1, size: Number.MAX_SAFE_INTEGER })
-  projects.value = res.data.list
+  const res = await getProjectList()
+  projects.value = res.list
 }
 function handleAdd() {
   const { open, close } = createDialog(DialogProject)

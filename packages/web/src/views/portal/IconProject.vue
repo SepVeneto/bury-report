@@ -92,7 +92,7 @@ function handleAdd() {
     { title: '新增应用', width: '550px' },
     async (res) => {
       const data = await res!.getFormData()
-      await updateApp(data)
+      await updateApp(props.pid, data)
       close()
     },
   )
@@ -100,8 +100,12 @@ function handleAdd() {
 function handleZoom() {
   zoomIn.value = true
 }
-defineProps({
+const props = defineProps({
   name: {
+    type: String,
+    required: true,
+  },
+  pid: {
     type: String,
     required: true,
   },

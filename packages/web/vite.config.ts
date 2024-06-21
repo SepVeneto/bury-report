@@ -12,25 +12,15 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api/source': {
-        target: 'http://localhost:8870',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/api/statistics': {
-        target: 'http://localhost:8870',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/api/record': {
-        target: 'http://localhost:8870',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/api': {
+      '/api/server': {
         target: 'http://localhost:8878',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/api\/server/, ''),
+      },
+      '/api/report': {
+        target: 'http://localhost:8870',
+        changeOrigin: true,
+        // rewrite: (path) => path.replace(/^\/api/, ''),
       },
       // '/api/record/ws': {
       //   // target: 'wss://scsj.jsrxjt.com',

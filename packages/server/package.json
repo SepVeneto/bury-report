@@ -3,9 +3,11 @@
   "version": "0.2.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "bootstrap": "wasm-pack build ../sign --target nodejs --out-dir ../sign/pkg-server --mode no-install --scope server",
     "dev": "cross-env REPORT_DB_URL=192.168.1.13:27017 node ./src/main.js",
+    "dev:local": "cross-env REPORT_DB_URL=localhost:27017 node ./src/main.js",
     "release": "bumpp --tag server@",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

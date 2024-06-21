@@ -1,10 +1,14 @@
-const Router = require('@koa/router')
+import Router from '@koa/router'
+
+import db from '../db.js'
+import { ObjectId } from 'mongodb'
+import { normalize } from '../utils/index.js'
+import { Project } from '../model/project.js'
+
 const router = new Router()
-const db = require('../db')
-const { ObjectId } = require('mongodb')
-const { normalize } = require('../utils')
 
 router.get('/portal', async (ctx, next) => {
+  const project = new Project(db)
   const apps = db.collection('apps')
   const projects = db.collection('projects')
 
@@ -47,4 +51,4 @@ function isAppInProject(app, projectList) {
   return exist
 }
 
-module.exports = router
+export default router
