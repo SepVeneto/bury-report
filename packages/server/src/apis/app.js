@@ -3,6 +3,8 @@ import db from '../db.js'
 import { ObjectId } from 'mongodb'
 import md5 from 'md5'
 import { SECRET, normalize } from '../utils/index.js'
+import { Project } from '../model/project.js'
+import { App } from '../model/app.js'
 
 const router = new Router()
 
@@ -98,21 +100,19 @@ router.post('/app', async (ctx, next) => {
     return
   }
 
+  const project = new Project()
+  const app = new App()
 
-  const app = await db.collection('apps').findOne({ name, is_delete: { $ne: true } })
-  if (app) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '应用已存在'
-  } else {
-    const res = await db.collection('apps').insertOne({
-      name,
-      icon: icon || randomColor(),
-    })
-    ctx.body = res.insertedId
-    await next()
-    ctx.body.message = '应用创建成功'
+  const newApp = {
+    name,
+    icon: icon || randomColor(),
   }
+  const aid = await app.insertOne(newApp)
+  await project.insertApp(pid, { id: aid.insertedId, ...newApp })
+  ctx.body = aid.insertedId
+
+  await next()
+  ctx.body.message = '应用创建成功'
 })
 router.patch('/app', async (ctx, next) => {
   const { id, name, icon } = ctx.request.body

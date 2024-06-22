@@ -1,40 +1,44 @@
 <template>
   <section>
-    <bc-search
-      v-model="params"
-      :search="handleSearch"
-      :config="searchConfig"
-    >
-      <BcButton @click="handleAdd">
-        新增
-      </BcButton>
-    </bc-search>
-    <bc-table
-      ref="tableRef"
-      v-model="params"
-      class="source-table"
-      :config="tableConfig"
-      row-key="id"
-      :api="getList"
-      pagination
-      @save="handleSave"
-    >
-      <template #operate="{ row }">
-        <BcButton
-          confirm
-          type="danger"
-          text
-          @click="handleDel(row.id)"
-        >
-          删除
+    <ElEmpty description="施工中" />
+
+    <template v-if="false">
+      <bc-search
+        v-model="params"
+        :search="handleSearch"
+        :config="searchConfig"
+      >
+        <BcButton @click="handleAdd">
+          新增
         </BcButton>
-        <BcButton
-          @click="handleAddDimension(row)"
-        >
-          添加统计维度
-        </BcButton>
-      </template>
-    </bc-table>
+      </bc-search>
+      <bc-table
+        ref="tableRef"
+        v-model="params"
+        class="source-table"
+        :config="tableConfig"
+        row-key="id"
+        :api="getList"
+        pagination
+        @save="handleSave"
+      >
+        <template #operate="{ row }">
+          <BcButton
+            confirm
+            type="danger"
+            text
+            @click="handleDel(row.id)"
+          >
+            删除
+          </BcButton>
+          <BcButton
+            @click="handleAddDimension(row)"
+          >
+            添加统计维度
+          </BcButton>
+        </template>
+      </bc-table>
+    </template>
   </section>
 </template>
 

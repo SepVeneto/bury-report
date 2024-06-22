@@ -24,7 +24,6 @@
 </template>
 
 <script lang="ts" setup>
-import { createDialog } from '@sepveneto/basic-comp'
 import { ElIcon } from 'element-plus'
 import { Plus as IconPlus } from '@element-plus/icons-vue'
 import EntryWrap from './EntryWrap.vue'
@@ -37,25 +36,30 @@ import {
 } from '@/apis'
 import type { Project } from '@/apis'
 import { ref } from 'vue'
-import DialogProject from '../project/DialogProject.vue'
 
 const projects = ref<Project[]>([])
 getList()
 async function getList() {
   const res = await getProjectList()
-  projects.value = res.list
+  projects.value = res
 }
-function handleAdd() {
-  const { open, close } = createDialog(DialogProject)
-  open(
-    { title: '新增项目', width: '550px' },
-    async (res) => {
-      const data = await res!.getFormData()
-      await updateProject(data)
-      close()
-      getList()
-    },
-  )
+async function handleAdd() {
+  const newProject = {
+    id: '',
+    name: `新项目-${Date.now()}`,
+  }
+  await updateProject(newProject)
+  getList()
+  // const { open, close } = createDialog(DialogProject)
+  // open(
+  //   { title: '新增项目', width: '550px' },
+  //   async (res) => {
+  //     const data = await res!.getFormData()
+  //     await updateProject(data)
+  //     close()
+  //     getList()
+  //   },
+  // )
   /**
    * TODO: 动态路由
    */

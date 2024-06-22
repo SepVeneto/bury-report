@@ -30,6 +30,13 @@ const mockMenus = [
     path: 'error',
     route: 'ErrorView',
   },
+  {
+    pid: 3,
+    id: 33,
+    name: '历史设备',
+    path: 'device',
+    route: 'DeviceView',
+  },
   // {
   //   pid: 2,
   //   id: 2,
@@ -65,20 +72,20 @@ export function getModList(): Promise<Route[]> {
     {
       id: 1,
       name: '首页',
-      path: '/:appid/',
-      route: 'DashboardView',
-    },
-    {
-      id: 2,
-      name: '数据统计',
-      path: '/:appid/statistics/:page*',
-      route: 'Statistics',
+      path: '/:appid/:page*',
+      route: 'Dashboard',
     },
     {
       id: 3,
       name: '应用管理',
       path: '/:appid/manage/:page*',
       route: 'Manage',
+    },
+    {
+      id: 2,
+      name: '数据统计',
+      path: '/:appid/statistics/:page*',
+      route: 'Statistics',
     },
   ])
 }

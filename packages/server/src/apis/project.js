@@ -8,7 +8,7 @@ const router = new Router()
 
 router.get('/project/list', async (ctx, next) => {
   const project = new Project(db)
-  const list = await project.getAll()
+  const list = await project.getAll({}, { name: 1, apps: 1 })
   ctx.body = list
 
   await next()
@@ -44,7 +44,7 @@ router.post('/project', async (ctx, next) => {
     ctx.body.code = 1
     ctx.body.message = '项目已存在'
   } else {
-    project.insertOne({ name })
+    const res = await project.insertOne({ name, apps: [] })
     ctx.body = res.insertedId
     await next()
     ctx.body.message = '项目创建成功'
@@ -64,11 +64,6 @@ router.patch('/project', async (ctx, next) => {
   await project.updateOne({ id, name })
   await next()
   ctx.body.message = '修改成功'
-  // } else {
-  //   await next()
-  //   ctx.body.code = 1
-  //   ctx.body.message = '找不到该项目'
-  // }
 })
 router.delete('/project', async (ctx, next) => {
   const { id } = ctx.query

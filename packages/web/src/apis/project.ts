@@ -6,11 +6,11 @@ export type Project = {
   apps: { id: string, name: string }[]
 }
 export function getProjectList() {
-  return request<{ total: number, list: Project[] }>({
+  return request<Project[]>({
     url: '/project/list',
   })
 }
-export function updateProject(data: { name: string, id?: string, apps: string[] }) {
+export function updateProject(data: { name: string, id?: string }) {
   return request({
     url: '/project',
     method: data.id ? 'patch' : 'post',

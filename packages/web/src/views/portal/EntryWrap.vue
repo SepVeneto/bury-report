@@ -10,19 +10,28 @@
     :name="data.name"
     :pid="data.id"
     :group="data.apps"
+    @update="onUpdate"
   />
 </template>
 
 <script lang="ts" setup>
 // import IconApp from './IconApp.vue'
 import IconProject from './IconProject.vue'
-import type { Project } from '@/apis'
+import { type Project, getProjectList, updateProject } from '@/apis'
 import type { PropType } from 'vue'
 
-defineProps({
+const props = defineProps({
   data: {
     type: Object as PropType<Project>,
     required: true,
   },
 })
+
+async function onUpdate(name: string) {
+  await updateProject({
+    ...props.data,
+    name,
+  })
+  getProjectList()
+}
 </script>

@@ -4,7 +4,6 @@ import db from '../db.js'
 import { ObjectId } from 'mongodb'
 import { normalize } from '../utils/index.js'
 import { Project } from '../model/project.js'
-import { App } from '../model/app.js'
 
 const router = new Router()
 

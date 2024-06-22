@@ -4,6 +4,15 @@
 			"path": "."
 		},
 		{
+			"path": "packages/core"
+		},
+		{
+			"path": "packages/server"
+		},
+		{
+			"path": "packages/web"
+		},
+		{
 			"path": "packages/logs"
 		}
 	],
