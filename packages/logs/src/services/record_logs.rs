@@ -165,8 +165,8 @@ pub fn create_ws(
     }
 }
 
-pub async fn get_error_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<Model>> {
-    let res = logs::Model::pagination(db, data).await?;
+pub async fn get_error_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<logs_error::Model>> {
+    let res = logs_error::Model::pagination(db, data).await?;
     Ok(res)
 }
 

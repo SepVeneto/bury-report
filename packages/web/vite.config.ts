@@ -20,7 +20,7 @@ export default defineConfig({
       '/api/report': {
         target: 'http://localhost:8870',
         changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, ''),
+        rewrite: (path) => path.replace(/^\/api\/report/, ''),
       },
       // '/api/record/ws': {
       //   // target: 'wss://scsj.jsrxjt.com',

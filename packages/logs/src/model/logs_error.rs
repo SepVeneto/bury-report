@@ -1,8 +1,9 @@
 use super::{
+    serialize_time,
     BaseModel,
     CreateModel,
     DeleteModel,
-    serialize_time,
+    PaginationModel
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -27,3 +28,4 @@ impl BaseModel for Model {
 }
 impl CreateModel for Model {}
 impl DeleteModel for Model {}
+impl PaginationModel for Model {}

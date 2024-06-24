@@ -16,8 +16,11 @@ interface Response<T = any> {
 sign.SIGN_KEY = import.meta.env.VITE_APP_SIGNKEY
 let isRedirect = false
 
-const inst = axios.create({
-  baseURL: import.meta.env.VITE_APP_BASEURL,
+const serverInst = axios.create({
+  baseURL: import.meta.env.VITE_APP_SERVER_BASEURL,
+})
+const reportInst = axios.create({
+  baseURL: import.meta.env.VITE_APP_REPORT_BASEURL,
 })
 
 export const requestInspector = (config: AxiosRequestConfig<any>) => {
@@ -76,8 +79,10 @@ export const responseError = (err: any) => {
   })
 }
 
-inst.interceptors.request.use(requestInspector)
-inst.interceptors.response.use(responseInspector, responseError)
+serverInst.interceptors.request.use(requestInspector)
+serverInst.interceptors.response.use(responseInspector, responseError)
+reportInst.interceptors.request.use(requestInspector)
+reportInst.interceptors.response.use(responseInspector, responseError)
 
 export function request<T>(
   config: AxiosRequestConfig & { raw?: false },
@@ -95,7 +100,9 @@ export async function request(
   config: AxiosRequestConfig,
   needTip?: boolean | string,
 ) {
-  const res = await inst(config)
+  const res = config.url?.startsWith('/server/')
+    ? await serverInst(config)
+    : await reportInst(config)
 
   if (res.data instanceof Blob) {
     const disposition = res.headers['content-disposition']
@@ -123,8 +130,6 @@ export async function request(
   }
   return config.raw ? res : res.data?.data
 }
-
-export const axiosInstance = inst
 
 function fileDownload(data: Blob, name: string) {
   const node = document.createElement('a')
