@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use log::info;
+use chrono::FixedOffset;
+use log::{error, info};
 use mongodb::{
     bson::{self, doc, oid::ObjectId, Document},
     options::FindOptions,
@@ -57,7 +58,7 @@ pub struct QueryPayload {
     pub size: u64,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct PaginationResult<T> {
     pub total: u64,
     pub list: Vec<T>,
@@ -83,7 +84,6 @@ pub trait PaginationModel: BaseModel {
         let total = col.count_documents(query.clone(), None).await?;
         let mut list = vec![];
         while let Some(record) = res.next().await {
-            info!("record: {:?}", record);
             list.push(record.unwrap())
         }
 
@@ -221,6 +221,7 @@ pub trait DeleteModel: BaseModel {
 //     }
 // }
 
+
 pub fn serialize_time<S>(time: &bson::DateTime, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer
@@ -228,7 +229,14 @@ where
     // JSON序列化
     if serializer.is_human_readable() {
         let chrono_time = time.to_chrono();
-        serializer.serialize_str(&chrono_time.format("%Y-%m-%d %H:%M:%S").to_string())
+        let beijing = FixedOffset::east_opt(8 * 3600);
+        if let Some(offset) = beijing {
+            let beijing_time = chrono_time.with_timezone(&offset);
+            serializer.serialize_str(&beijing_time.format("%Y-%m-%d %H:%M:%S").to_string())
+        } else {
+            error!("serialize failed: {:?}", chrono_time);
+            serializer.serialize_str("Invalid time")
+        }
     } else {
         time.serialize(serializer)
         // BSON序列化
