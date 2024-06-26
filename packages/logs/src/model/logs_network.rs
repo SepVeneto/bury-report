@@ -5,6 +5,7 @@ use super::{
     PaginationModel,
     serialize_time,
 };
+use bson::oid;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -12,6 +13,8 @@ pub const NAME: &'static str = "records_api";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
+  #[serde(rename(serialize = "id"), serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string")]
+  pub _id: oid::ObjectId,
   pub r#type: String,
   pub appid: String,
   pub data: Map<String, Value>,

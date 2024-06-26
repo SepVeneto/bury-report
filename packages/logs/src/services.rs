@@ -1,11 +1,14 @@
 use actix_web::HttpResponse;
+use bson::{doc, Document};
+use chrono::{FixedOffset, LocalResult, NaiveDateTime, TimeZone};
+use log::error;
 use serde::Serialize;
 use thiserror::Error;
 
 use crate::apis::ApiError;
 use crate::model::logs::RecordPayload;
 use crate::model::ModelError;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 
 pub mod ws;
 pub mod actor;
@@ -100,4 +103,37 @@ impl Response<()> {
   }
 }
 
+pub fn normalize_time(time_str: String) -> Result<bson::DateTime> {
+    match NaiveDateTime::parse_from_str(&time_str, "%Y-%m-%d %H:%M:%S") {
+        Ok(naive_datetime) => {
+            if let Some(fixed_offset) = FixedOffset::east_opt(8 * 3600) {
+                match fixed_offset.from_local_datetime(&naive_datetime) {
+                    LocalResult::Single(res) => {
+                        Ok(bson::DateTime::from_chrono(res))
+                    },
+                    _ => {
+                        error!("convert failed with time: {}", time_str);
+                        Err(anyhow!("时间转换失败"))
+                    }
+                }
+            } else {
+                error!("generate timezone failed with time: {}", time_str);
+                Err(anyhow!("时区生成失败"))
+            }
+        },
+        Err(err) => {
+            error!("parse to naive date time failed: {:?}", err);
+            Err(anyhow!("时间格式非法"))
+        }
+    }
+}
 
+pub fn gen_timerange_doc(start_time: String, end_time: String) -> Result<Document> {
+    let start_time = normalize_time(start_time)?;
+    let end_time = normalize_time(end_time)?;
+
+    Ok(doc! {
+        "$gte": start_time,
+        "$lte": end_time
+    })
+}

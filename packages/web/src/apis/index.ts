@@ -1,4 +1,4 @@
-import { request } from '@/util/request'
+import { serverRequest as request } from '@/util/request'
 import type { Route } from '@/store'
 import type { App } from './app'
 // import '@/mock'
@@ -7,6 +7,25 @@ export * from './app'
 export * from './project'
 export * as source from './source'
 export * as statistics from './statistics'
+
+export class Query {
+  private query: Record<string, any> = {}
+  constructor(filter: Record<string, any>) {
+    Object.entries(filter).forEach(([key, val]) => {
+      if (Array.isArray(val)) {
+        const [start, end] = val
+        this.query[`start_${key}`] = start
+        this.query[`end_${key}`] = end
+      } else {
+        this.query[key] = val
+      }
+    })
+  }
+
+  build() {
+    return this.query
+  }
+}
 
 const mockMenus = [
   {
@@ -29,6 +48,13 @@ const mockMenus = [
     name: '错误记录',
     path: 'error',
     route: 'ErrorView',
+  },
+  {
+    pid: 3,
+    id: 34,
+    name: '网络请求',
+    path: 'network',
+    route: 'NetworkView',
   },
   {
     pid: 3,

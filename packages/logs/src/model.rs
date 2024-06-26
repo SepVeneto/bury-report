@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
+use bson::Bson;
 use chrono::FixedOffset;
 use log::{error, info};
 use mongodb::{
@@ -9,10 +10,12 @@ use mongodb::{
     results::{InsertManyResult, InsertOneResult, UpdateResult},
     Collection,
 };
-use serde::{Deserialize, Serialize, Deserializer, Serializer};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use mongodb::Database;
 use futures_util::StreamExt;
+
+use crate::apis::Query;
 
 pub mod logs;
 pub mod captcha;
@@ -64,21 +67,52 @@ pub struct PaginationResult<T> {
     pub list: Vec<T>,
 }
 
+pub struct PaginationOptions {
+    query: Option<Document>,
+    projection: Option<Document>,
+}
+impl PaginationOptions {
+    pub fn new() -> Self {
+        Self {
+            query: doc! {}.into(),
+            projection: None,
+        }
+    }
+    pub fn query(mut self, query: Document) -> Self {
+        self.query = Some(query);
+        self
+    }
+    pub fn projection(mut self, projection: Document) -> Self {
+        self.projection = Some(projection);
+        self
+    }
+    pub fn build(self) -> Option<Self> {
+        Some(self)
+    }
+}
+impl Default for PaginationOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub trait PaginationModel: BaseModel {
     async fn pagination(
         db: &Database,
-        data: &QueryPayload
+        page: u64,
+        size: u64,
+        options: Option<PaginationOptions>,
     ) -> QueryResult<PaginationResult<Self::Model>> {
         let col = Self::col(db);
-        let start = data.page;
-        let size = data.size;
+        let start = page;
+        let PaginationOptions {query, projection} = options.unwrap_or_default();
 
         let options = FindOptions::builder()
             .sort(doc! {"_id": -1})
+            .projection(projection)
             .skip((start - 1) * size)
             .limit(size as i64)
             .build();
-        let query = doc! {};
         let mut res = col.find(query.clone(), options).await?;
 
         let total = col.count_documents(query.clone(), None).await?;
@@ -254,4 +288,61 @@ where
     let bson_datetime = mongodb::bson::DateTime::deserialize(deserializer)?;
     let res = bson_datetime.to_chrono().format("%Y-%m-%d %H:%M:%S").to_string();
     Ok(res)
+}
+
+struct StrVisitor;
+impl<'de> serde::de::Visitor<'de> for StrVisitor {
+    type Value = Option<String>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("str")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if v.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(v.to_string()))
+        }
+    }
+}
+
+struct I32Visitor;
+impl <'de> Visitor<'de> for I32Visitor {
+    type Value = Option<i32>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("i32")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: serde::de::Error, {
+        match v.parse::<i32>() {
+            Ok(res) => {
+                Ok(Some(res))
+            },
+            Err(err) => {
+                error!("cannot parse string to i32: {}", v);
+                Ok(None)
+            }
+        }
+    }
+}
+
+pub fn ignore_empty_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where 
+    D: Deserializer<'de>,
+{
+    deserializer.deserialize_str(StrVisitor)
+}
+
+pub fn convert_to_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    deserializer.deserialize_str(I32Visitor)
 }

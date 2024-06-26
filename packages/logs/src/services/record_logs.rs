@@ -1,19 +1,19 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
+use bson::{doc, Document};
+use log::{info, error};
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
+use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
+use chrono_tz::Asia::Shanghai;
 
-use crate::{db, model::{
-    apps,
-    logs::{self, Model, RecordItem, RecordPayload, RecordV1},
-    logs_error,
-    logs_network,
-    CreateModel, PaginationModel, PaginationResult, QueryPayload
-}};
+use crate::{apis::{record::{ErrorFilter, FilterNetwork}, Query}, db, model::{
+    apps, logs::{self, Model, RecordItem, RecordPayload, RecordV1}, logs_error, logs_network, CreateModel, PaginationModel, PaginationOptions, PaginationResult, QueryPayload
+}, services::{gen_timerange_doc, normalize_time}};
 
 use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceError, ServiceResult};
 
@@ -165,17 +165,75 @@ pub fn create_ws(
     }
 }
 
-pub async fn get_error_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<logs_error::Model>> {
-    let res = logs_error::Model::pagination(db, data).await?;
+pub async fn get_error_list(db: &Database, data: Query<ErrorFilter>) -> ServiceResult<PaginationResult<logs_error::Model>> {
+    let mut doc = doc! {};
+
+    let query = data.query;
+    if let Some(uuid) = query.uuid {
+        doc.insert("uuid", uuid);
+    }
+    if let (Some(start_time), Some(end_time)) = (query.start_time, query.end_time) {
+        let time_doc = gen_timerange_doc(start_time, end_time)?;
+        doc.insert("create_time", time_doc);
+    }
+
+    info!("query: {:?}", doc);
+    let res = logs_error::Model::pagination(
+        db,
+        data.page,
+        data.size,
+        PaginationOptions::new().query(doc).build(),
+    ).await?;
     Ok(res)
 }
 
-pub async fn get_network_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<logs_network::Model>> {
-    let res = logs_network::Model::pagination(db, data).await?;
-    Ok(res)
-}
+pub async fn get_network_list(db: &Database, data: Query<FilterNetwork>) -> ServiceResult<PaginationResult<logs_network::Model>> {
+    let mut doc = doc! {};
 
-pub async fn get_log_list(db: &Database, data: &QueryPayload) -> ServiceResult<PaginationResult<logs::Model>> {
-    let res = logs::Model::pagination(db, data).await?;
+    let query = data.query;
+    if let Some(uuid) = query.uuid {
+        doc.insert("uuid", uuid);
+    }
+    if let (Some(start_time), Some(end_time)) = (query.start_time, query.end_time) {
+        let time_doc = gen_timerange_doc(start_time, end_time)?;
+        doc.insert("create_time", time_doc);
+    }
+    if let Some(payload) = query.payload {
+        doc.insert("data.body",doc! {
+            "$regex": payload
+        });
+    }
+    if let Some(response) = query.response {
+        doc.insert("data.response", doc! {
+            "$regex": response,
+        });
+    }
+    if let Some(page) = query.send_page {
+        doc.insert("data.page", doc! {
+            "$regex": page,
+        });
+    }
+    if let Some(status) = query.status {
+        doc.insert("data.status", status);
+    }
+    if let Some(url) = query.url {
+        doc.insert("data.url", doc! {
+            "$regex": url
+        });
+    }
+
+    let res = logs_network::Model::pagination(
+        db,
+        data.page,
+        data.size,
+        PaginationOptions::new()
+            .query(doc)
+            .projection(doc! {
+                "data.body": 0,
+                "data.response": 0,
+                "data.responseHeaders": 0,
+            })
+            .build(),
+    ).await?;
     Ok(res)
 }

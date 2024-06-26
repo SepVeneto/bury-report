@@ -26,14 +26,6 @@
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
 
-const deviceOptions = [
-  { label: '苹果', value: 'ios' },
-  { label: '安卓', value: 'android' },
-]
-const platformOptions = [
-  { label: '微信小程序', value: 'mp-weixin' },
-  { label: 'Web', value: 'h5' },
-]
 const params = ref({
   page: 1,
   size: 20,
@@ -46,11 +38,8 @@ const tableConfig = shallowRef([
   { label: '错误概述', prop: 'error' },
 ])
 const searchConfig = shallowRef([
-  { catalog: 'select', name: '设备类型', options: deviceOptions, prop: 'deviceType' },
-  { catalog: 'input', name: '设备品牌', prop: 'deviceBrand' },
-  { catalog: 'input', name: '设备型号', prop: 'deviceModel' },
-  { catalog: 'select', name: '宿主平台', prop: 'hostPlatform', options: platformOptions },
-  { catalog: 'datepicker', prop: 'timerange', type: 'datetimerange' },
+  { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
+  { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
 
 function getList() {

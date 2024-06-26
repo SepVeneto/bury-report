@@ -1,6 +1,7 @@
-import { request } from '@/util/request'
+import { reportRequest as request } from '@/util/request'
 import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
+import { Query } from '.'
 
 export type App = {
   id: string
@@ -79,10 +80,20 @@ export function getAppLogs(appId: string, params: { page: number, size: number }
   })
 }
 
-export function getAppErrors(params: { page: number, size: number }) {
+export function getAppErrors(params: { page: number, size: number, timerange?: string[] }) {
+  const _params = new Query(params).build()
   return request<{ list: any[], total: number }>({
     url: '/record/errors',
-    params,
+    params: _params,
+    raw: 'data',
+  })
+}
+
+export function getAppNetworks(params: { page: number, size: number, timerange?: string[]}) {
+  const _params = new Query(params).build()
+  return request({
+    url: '/record/networks',
+    params: _params,
     raw: 'data',
   })
 }

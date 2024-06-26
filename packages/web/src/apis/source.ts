@@ -1,4 +1,4 @@
-import { Restful, request } from '@/util/request'
+import { Restful, reportRequest as request } from '@/util/request'
 
 class Source extends Restful {
   options() {

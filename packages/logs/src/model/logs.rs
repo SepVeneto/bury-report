@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use bson::oid;
 use log::error;
 
 use futures_util::StreamExt;
@@ -84,6 +85,7 @@ impl RecordV1 {
             })
         } else if self.r#type == TYPE_NETWORK {
             RecordItem::Network(logs_network::Model {
+                _id: oid::ObjectId::new(),
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 appid: self.appid.to_string(),

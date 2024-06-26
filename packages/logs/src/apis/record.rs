@@ -1,13 +1,14 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use log::error;
+use log::{error, info};
 use mongodb::{Client, Database};
+use serde::{Deserialize, Deserializer, Serialize};
 use crate::apis::get_appid;
 use crate::db;
 use crate::model::logs::RecordPayload;
+use crate::model::{ignore_empty_string, convert_to_i32};
 
-use super::{ApiError, ApiResult};
-use crate::model::QueryPayload;
+use super::{ApiError, ApiResult, Query};
 use crate::services::{device, record_logs};
 use crate::services::{Response, actor::WsActor};
 
@@ -16,7 +17,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_ws);
   config.service(record_error);
   config.service(record_network);
-  config.service(get_record_log);
+//   config.service(get_record_log);
 }
 
 #[get("/record/ws/{app_id}")]
@@ -56,15 +57,26 @@ async fn record_log(
     Response::ok("", None).to_json()
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorFilter {
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub uuid: Option<String>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+}
+
 #[get("/record/errors")]
 async fn record_error(
     client: web::Data<Client>,
     req: HttpRequest,
-    query: web::Query<QueryPayload>,
+    query: web::Query<Query<ErrorFilter>>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
-    let res = record_logs::get_error_list(&db, &query.0).await?;
+    let res = record_logs::get_error_list(
+        &db,
+        query.0,
+    ).await?;
 
     Response::ok(res, None).to_json()
 }
@@ -91,31 +103,54 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct FilterNetwork {
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub uuid: Option<String>,
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub url: Option<String>,
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub send_page: Option<String>,
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub payload: Option<String>,
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub response: Option<String>,
+    #[serde(deserialize_with="convert_to_i32", default)]
+    pub status: Option<i32>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+}
 #[get("/record/networks")]
 async fn record_network(
     client: web::Data<Client>,
     req: HttpRequest,
-    query: web::Query<QueryPayload>,
+    query: web::Query<Query<FilterNetwork>>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
-    let res = record_logs::get_network_list(&db, &query.0).await?;
+    let res = record_logs::get_network_list(&db, query.0).await?;
 
     Response::ok(res, None).to_json()
 }
+// #[get("/record/networks/{id}")]
+// async fn get_network_detail(
+//     client: web::Data<Client>,
+//     req: HttpRequest,,
+    
+// )
 
-#[get("/record/logs")]
-async fn get_record_log(
-    client: web::Data<Client>,
-    req: HttpRequest,
-    query: web::Query<QueryPayload>,
-) -> ApiResult {
-    let appid = get_appid(&req)?;
-    let db = db::DbApp::get_by_appid(&client, &appid);
-    let res = record_logs::get_log_list(&db, &query.0).await?;
+// #[get("/record/logs")]
+// async fn get_record_log(
+//     client: web::Data<Client>,
+//     req: HttpRequest,
+//     query: web::Query<QueryPayload>,
+// ) -> ApiResult {
+//     let appid = get_appid(&req)?;
+//     let db = db::DbApp::get_by_appid(&client, &appid);
+//     let res = record_logs::get_log_list(&db, &query.0).await?;
 
-    Response::ok(res, None).to_json()
-}
+//     Response::ok(res, None).to_json()
+// }
 
 #[get("/device/{id}")]
 async fn get_device(

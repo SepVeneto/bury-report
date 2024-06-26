@@ -1,4 +1,4 @@
-import { request } from '@/util/request'
+import { reportRequest as request } from '@/util/request'
 
 type RulePie = {
   type: 'Pie',

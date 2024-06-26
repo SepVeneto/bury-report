@@ -1,6 +1,5 @@
 import axios from 'axios'
 import * as NProgress from 'nprogress'
-import OSS from 'ali-oss'
 import { sign } from '@rx-frontend/php-sign'
 import 'nprogress/nprogress.css'
 import { ElMessage, ElNotification } from 'element-plus'
@@ -84,25 +83,68 @@ serverInst.interceptors.response.use(responseInspector, responseError)
 reportInst.interceptors.request.use(requestInspector)
 reportInst.interceptors.response.use(responseInspector, responseError)
 
-export function request<T>(
+export function reportRequest<T>(
   config: AxiosRequestConfig & { raw?: false },
   needTip?: boolean | string
 ): Promise<T>
-export function request<T>(
+export function reportRequest<T>(
   config: AxiosRequestConfig & { raw: true },
   needTip?: boolean | string
 ): Promise<AxiosResponse<Response<T>>>
-export function request<T>(
+export function reportRequest<T>(
   config: AxiosRequestConfig & { raw: 'data' },
   needTip?: boolean | string
 ): Promise<Response<T>>
-export async function request(
+export async function reportRequest(
   config: AxiosRequestConfig,
   needTip?: boolean | string,
 ) {
-  const res = config.url?.startsWith('/server/')
-    ? await serverInst(config)
-    : await reportInst(config)
+  const res = await reportInst(config)
+
+  if (res.data instanceof Blob) {
+    const disposition = res.headers['content-disposition']
+    const filename = decodeURIComponent(
+      escape(
+        disposition.substring(
+          disposition.indexOf('filename=') + 9,
+          disposition.length,
+        ),
+      ),
+    )
+    try {
+      fileDownload(res.data, config.filename || filename)
+    } catch (e) {
+      return Promise.reject(e)
+    }
+    return null as any
+  }
+
+  if (needTip) {
+    ElMessage.success(typeof needTip === 'string' ? needTip : res.data.message)
+  }
+  if (typeof config.raw === 'string') {
+    return res[config.raw]
+  }
+  return config.raw ? res : res.data?.data
+}
+
+export function serverRequest<T>(
+  config: AxiosRequestConfig & { raw?: false },
+  needTip?: boolean | string
+): Promise<T>
+export function serverRequest<T>(
+  config: AxiosRequestConfig & { raw: true },
+  needTip?: boolean | string
+): Promise<AxiosResponse<Response<T>>>
+export function serverRequest<T>(
+  config: AxiosRequestConfig & { raw: 'data' },
+  needTip?: boolean | string
+): Promise<Response<T>>
+export async function serverRequest(
+  config: AxiosRequestConfig,
+  needTip?: boolean | string,
+) {
+  const res = await serverInst(config)
 
   if (res.data instanceof Blob) {
     const disposition = res.headers['content-disposition']
@@ -141,35 +183,6 @@ function fileDownload(data: Blob, name: string) {
   document.body.removeChild(node)
 }
 
-export async function uploadFile(file: File, name?: string, onlyDownload = false) {
-  try {
-    const fileName = name || file.name
-    const { save_path, credentials_data } = (
-      await uploadOssData(name || file.name)
-    )
-    const client = new OSS({
-      region: credentials_data.region,
-      accessKeyId: credentials_data.access_key_id,
-      accessKeySecret: credentials_data.access_key_secret,
-      stsToken: credentials_data.sts_token,
-      bucket: credentials_data.bucket,
-    })
-    const res = await client.put(save_path, file, onlyDownload ? { headers: { 'Content-Disposition': '*' } } : undefined)
-    const fileUrl = (
-      await uploadOssSave({
-        name: fileName,
-        size: file.size,
-        mime: file.type,
-        url: res.url,
-        md5: (res.res.headers as any).etag,
-      })
-    )
-    return fileUrl
-  } catch (e: any) {
-    throw new Error(e)
-  }
-}
-
 export interface IOssData {
   save_path: string,
   credentials_data: {
@@ -181,37 +194,12 @@ export interface IOssData {
   }
 }
 
-/**
- * OSS上传-获取配置
- * @param {string} name 文件名称
- */
-export function uploadOssData(name: string) {
-  return request<IOssData>({
-    url: '/Admin/Common/Common/uploadOssData',
-    method: 'post',
-    data: {
-      name,
-    },
-  })
-}
-
 export interface IOssSave {
   size: number,
   mime: string,
   name: string,
   url: string,
   md5: string,
-}
-
-/**
- * OSS上传-保存信息
- */
-export function uploadOssSave(data: IOssSave) {
-  return request<{ url: string }>({
-    url: '/Admin/Common/Common/uploadOssSave',
-    method: 'post',
-    data,
-  })
 }
 
 export class Restful {
@@ -221,7 +209,7 @@ export class Restful {
   }
 
   list<Req, Res>(params: Req) {
-    return request<Res>({
+    return reportRequest<Res>({
       url: this.resource,
       method: 'get',
       params,
@@ -235,14 +223,14 @@ export class Restful {
   }
 
   detail<Res>(name: string | number) {
-    return request<Res>({
+    return reportRequest<Res>({
       url: this.normalizeUrl(this.resource, String(name)),
       method: 'get',
     })
   }
 
   create<Req>(data: Req) {
-    return request({
+    return reportRequest({
       url: this.resource,
       method: 'post',
       data,
@@ -250,7 +238,7 @@ export class Restful {
   }
 
   edit<Req>(name: string | number, data: Req) {
-    return request({
+    return reportRequest({
       url: this.normalizeUrl(this.resource, String(name)),
       method: 'put',
       data,
@@ -258,7 +246,7 @@ export class Restful {
   }
 
   delete(name: string | number) {
-    return request({
+    return reportRequest({
       url: this.normalizeUrl(this.resource, String(name)),
       method: 'delete',
     }, true)

@@ -6,6 +6,7 @@ import ChartsView from '@/views/charts/indexView.vue'
 import SourceView from '../views/app/SourceView.vue'
 import ErrorView from '../views/app/ErrorView.vue'
 import DeviceView from '@/views/app/DeviceView.vue'
+import NetworkView from '@/views/app/NetworkView.vue'
 
 export const content = {
   DashboardView,
@@ -16,4 +17,5 @@ export const content = {
   SourceView,
   ErrorView,
   DeviceView,
+  NetworkView,
 }

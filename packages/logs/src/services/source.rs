@@ -1,14 +1,7 @@
 use log::info;
 use mongodb::{bson::{doc, Bson}, results::UpdateResult, Database};
 use crate::model::{
-    source::*,
-    CreateModel,
-    PaginationModel,
-    PaginationResult,
-    EditModel,
-    QueryModel,
-    QueryPayload,
-    DeleteModel,
+    source::*, CreateModel, DeleteModel, EditModel, PaginationModel, PaginationOptions, PaginationResult, QueryModel, QueryPayload
 };
 use super::ServiceResult;
 use anyhow::anyhow;
@@ -19,7 +12,14 @@ pub async fn options(db: &Database) -> ServiceResult<Vec<Model>> {
 }
 
 pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult<Model>> {
-    let res = Model::pagination(db, &data).await?;
+    let doc = doc! {};
+    // TODO
+    let res = Model::pagination(
+        db,
+        1,
+        20,
+        PaginationOptions::new().query(doc).build()
+    ).await?;
     Ok(res)
 }
 pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {

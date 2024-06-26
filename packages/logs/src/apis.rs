@@ -6,6 +6,8 @@ pub mod apps;
 pub mod config;
 
 use actix_web::{http::header::ToStrError, HttpRequest, HttpResponse};
+use log::info;
+use serde::{de::{self, Visitor}, Deserialize, Deserializer, Serialize};
 use thiserror::Error;
 use anyhow::Result;
 
@@ -48,4 +50,12 @@ pub fn get_appid(req: &HttpRequest) -> anyhow::Result<String, AppidError> {
     } else {
         Err(AppidError::GetError)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Query<T> {
+    pub page: u64,
+    pub size: u64,
+    #[serde(flatten)]
+    pub query: T,
 }

@@ -28,7 +28,8 @@
     "pixi.js": "6.2.1",
     "sass": "^1.69.5",
     "vue": "^3.3.7",
-    "vue-router": "^4.2.5"
+    "vue-router": "^4.2.5",
+    "vue3-json-viewer": "^2.2.2"
   },
   "devDependencies": {
     "@micro-zoe/micro-app": "1.0.0-rc.2",

@@ -1,4 +1,4 @@
-import { request } from '@/util/request'
+import { serverRequest as request } from '@/util/request'
 
 export type Project = {
   id: string
