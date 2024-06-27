@@ -1,12 +1,17 @@
-use log::info;
-use mongodb::{bson::{doc, Bson}, results::UpdateResult, Database};
-use crate::model::{
-    source::*, CreateModel, DeleteModel, EditModel, PaginationModel, PaginationOptions, PaginationResult, QueryModel, QueryPayload
-};
 use super::ServiceResult;
+use crate::model::{
+    source::*, CreateModel, DeleteModel, EditModel, PaginationModel, PaginationOptions,
+    PaginationResult, QueryModel, QueryPayload, QueryBase
+};
 use anyhow::anyhow;
+use log::info;
+use mongodb::{
+    bson::{doc, Bson},
+    results::UpdateResult,
+    Database,
+};
 
-pub async fn options(db: &Database) -> ServiceResult<Vec<Model>> {
+pub async fn options(db: &Database) -> ServiceResult<Vec<QueryBase<Model>>> {
     let res = Model::find_all(db, None).await?;
     Ok(res)
 }
@@ -14,12 +19,7 @@ pub async fn options(db: &Database) -> ServiceResult<Vec<Model>> {
 pub async fn list(db: &Database, data: QueryPayload) -> ServiceResult<PaginationResult<Model>> {
     let doc = doc! {};
     // TODO
-    let res = Model::pagination(
-        db,
-        1,
-        20,
-        PaginationOptions::new().query(doc).build()
-    ).await?;
+    let res = Model::pagination(db, 1, 20, PaginationOptions::new().query(doc).build()).await?;
     Ok(res)
 }
 pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {
@@ -29,15 +29,13 @@ pub async fn add(db: &Database, data: BasePayload) -> ServiceResult<String> {
             // let _ = self::add_child(db, &pid, data.clone()).await?;
             Ok(pid)
         }
-        None => {
-            self::add_root(db, data).await
-        }
+        None => self::add_root(db, data).await,
     }
 }
 // TODO: source tree
 pub async fn _add_child(db: &Database, pid: &String, data: BasePayload) -> ServiceResult<()> {
     let appid = data.appid.to_string();
-    let res =Model::find_by_id(db, pid).await?;
+    let res = Model::find_by_id(db, pid).await?;
     if let None = res {
         return Err(anyhow!("找不到对应的数据源").into());
     } else {
@@ -73,7 +71,7 @@ pub async fn add_root(db: &Database, data: BasePayload) -> ServiceResult<String>
         Bson::ObjectId(oid) => oid.to_string(),
         _ => {
             return Err(anyhow!("Fail to get inserted id").into());
-        },
+        }
     };
     Ok(oid)
 }
@@ -100,7 +98,7 @@ pub async fn update(db: &Database, id: &String, data: BasePayload) -> ServiceRes
     Ok(res)
 }
 
-pub async fn detail(db: &Database, id: &String) -> ServiceResult<Option<Model>> {
+pub async fn detail(db: &Database, id: &String) -> ServiceResult<Option<QueryBase<Model>>> {
     let res = Model::find_by_id(db, id).await?;
     Ok(res)
 }

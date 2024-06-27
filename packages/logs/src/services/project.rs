@@ -4,10 +4,10 @@ use mongodb::Database;
 
 use super::ServiceResult;
 use crate::model::{
-    projects::Model, CreateModel, QueryModel
+    projects::Model, CreateModel, QueryModel, QueryBase,
 };
 
-pub async fn get_projects(db: &Database) -> ServiceResult<Vec<Model>> {
+pub async fn get_projects(db: &Database) -> ServiceResult<Vec<QueryBase<Model>>> {
     Ok(Model::find_all(db, None).await?)
 }
 

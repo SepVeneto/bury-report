@@ -85,7 +85,6 @@ impl RecordV1 {
             })
         } else if self.r#type == TYPE_NETWORK {
             RecordItem::Network(logs_network::Model {
-                _id: oid::ObjectId::new(),
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 appid: self.appid.to_string(),
@@ -161,7 +160,7 @@ impl Model {
     where
         T: DeserializeOwned
     {
-        let mut res = Self::col(db).aggregate(pipeline, None).await?;
+        let mut res = <Self as QueryModel>::col(db).aggregate(pipeline, None).await?;
         let mut collect_data = vec![];
 
         while let Some(record) = res.next().await {

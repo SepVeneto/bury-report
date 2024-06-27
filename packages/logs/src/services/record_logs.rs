@@ -165,7 +165,10 @@ pub fn create_ws(
     }
 }
 
-pub async fn get_error_list(db: &Database, data: Query<ErrorFilter>) -> ServiceResult<PaginationResult<logs_error::Model>> {
+pub async fn get_error_list(
+    db: &Database,
+    data: Query<ErrorFilter>
+) -> ServiceResult<PaginationResult<logs_error::Model>> {
     let mut doc = doc! {};
 
     let query = data.query;

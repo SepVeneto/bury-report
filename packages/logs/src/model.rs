@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::anyhow;
-use bson::Bson;
+use bson::{oid, Bson};
 use chrono::FixedOffset;
 use log::{error, info};
 use mongodb::{
@@ -47,10 +47,6 @@ pub enum ModelError {
 pub trait BaseModel {
     const NAME: &'static str;
     type Model: for<'a> Deserialize<'a> + Serialize + Unpin + Send + Sync + std::fmt::Debug;
-    fn col(db: &Database) -> Collection<Self::Model> {
-        let col_name = Self::NAME;
-        db.collection(col_name)
-    }
 }
 
 pub type QueryResult<T> = anyhow::Result<T, ModelError>;
@@ -62,9 +58,17 @@ pub struct QueryPayload {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
+pub struct QueryBase<T> {
+    #[serde(rename(serialize = "id"), serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string")]
+    pub _id: oid::ObjectId,
+    #[serde(flatten)]
+    pub model: T,
+}
+
+#[derive(Deserialize, Serialize, Debug)]
 pub struct PaginationResult<T> {
     pub total: u64,
-    pub list: Vec<T>,
+    pub list: Vec<QueryBase<T>>,
 }
 
 pub struct PaginationOptions {
@@ -97,6 +101,10 @@ impl Default for PaginationOptions {
 }
 
 pub trait PaginationModel: BaseModel {
+    fn col(db: &Database) -> Collection<QueryBase<Self::Model>> {
+        let col_name = Self::NAME;
+        db.collection(col_name)
+    }
     async fn pagination(
         db: &Database,
         page: u64,
@@ -129,10 +137,14 @@ pub trait PaginationModel: BaseModel {
 }
 
 pub trait QueryModel: BaseModel {
+    fn col(db: &Database) -> Collection<QueryBase<Self::Model>> {
+        let col_name = Self::NAME;
+        db.collection(col_name)
+    }
     async fn find_one(
         db: &Database,
         filter: Document,
-    ) -> QueryResult<Option<Self::Model>> {
+    ) -> QueryResult<Option<QueryBase<Self::Model>>> {
         let col = Self::col(db);
         let res = col.find_one(filter, None).await?;
         Ok(res)
@@ -141,7 +153,7 @@ pub trait QueryModel: BaseModel {
     async fn find_by_id(
         db: &Database,
         id: &str,
-    ) -> QueryResult<Option<Self::Model>> {
+    ) -> QueryResult<Option<QueryBase<Self::Model>>> {
         let oid = ObjectId::from_str(id)?;
         let res = Self::find_one(db, doc! { "_id": oid }).await?;
         Ok(res)
@@ -150,9 +162,9 @@ pub trait QueryModel: BaseModel {
     async fn find_all(
         db: &Database,
         filter: impl Into<Option<Document>>,
-    ) -> QueryResult<Vec<Self::Model>> {
+    ) -> QueryResult<Vec<QueryBase<Self::Model>>> {
         let col = Self::col(db);
-        let mut list: Vec<Self::Model> = vec![];
+        let mut list: Vec<QueryBase<Self::Model>> = vec![];
         let mut cursor = col.find(filter, None).await?;
         while let Some(res) = cursor.next().await {
             list.push(res?);
@@ -162,6 +174,10 @@ pub trait QueryModel: BaseModel {
     }
 }
 pub trait CreateModel: BaseModel {
+    fn col(db: &Database) -> Collection<Self::Model> {
+        let col_name = Self::NAME;
+        db.collection(col_name)
+    }
     async fn insert_one(
         db: &Database,
         data: Self::Model
@@ -208,6 +224,10 @@ pub trait EditModel: BaseModel + QueryModel {
 }
 
 pub trait DeleteModel: BaseModel {
+    fn col(db: &Database) -> Collection<Self::Model> {
+        let col_name = Self::NAME;
+        db.collection(col_name)
+    }
     async fn delete_one(
         db: &Database,
         id: &str,

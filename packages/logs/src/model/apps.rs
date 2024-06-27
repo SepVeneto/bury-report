@@ -13,7 +13,7 @@ use crate::config::serialize_from_oid;
 
 use crate::apis::apps::CreatePayload;
 
-use super::{QueryResult, QueryPayload, PaginationResult};
+use super::{QueryResult, QueryPayload, PaginationResult, QueryBase};
 
 pub const NAME:&str = "apps";
 
@@ -30,6 +30,9 @@ pub struct Model {
 
 impl Model {
     pub fn col(db: &Database) -> Collection<Self> {
+        db.collection(NAME)
+    }
+    pub fn col_with_id(db: &Database) -> Collection<QueryBase<Self>> {
         db.collection(NAME)
     }
     pub async fn unique_check(db: &Database, key: String) -> QueryResult<bool> {
@@ -80,7 +83,7 @@ impl Model {
         db: &Database,
         data: &QueryPayload
     ) -> QueryResult<PaginationResult<Self>> {
-        let col = Self::col(db);
+        let col = Self::col_with_id(db);
         let start = data.page;
         let size = data.size;
 

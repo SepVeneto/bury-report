@@ -3,7 +3,7 @@ use log::{error, info};
 use mongodb::{bson::{bson, doc, Bson, DateTime}, options::UpdateOptions, Database};
 use anyhow::anyhow;
 
-use crate::model::{device, logs, statistics::{self, DataType, Model, Rule}, BaseModel};
+use crate::model::{device, logs, statistics::{self, DataType, Model, Rule}, BaseModel, CreateModel};
 
 use super::ServiceResult;
 
