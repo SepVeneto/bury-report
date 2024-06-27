@@ -12,55 +12,38 @@
       pagination
       :api="getList"
     >
+      <template #uuid="{ row }">
+        <ElLink
+          type="primary"
+          @click="$router.push({ name: 'DeviceView', query: { id: row.uuid } })"
+        >
+          {{ row.uuid }}
+        </ElLink>
+      </template>
+      <template #url="{ row }">
+        <UrlBlock :url="row.data.url" />
+      </template>
+      <template #page="{ row }">
+        <UrlBlock :url="row.data.page" />
+      </template>
       <template #responseStatus="{ row }">
         <StatusIcon :code="row.data.status" />
       </template>
       <template #expand="{ row }">
-        <div style="padding: 20px;">
-          <ElCollapse>
-            <ElCollapseItem title="常规">
-              <ElDescriptions :column="1">
-                <ElDescriptionsItem label="请求URL">
-                  {{ row.data.url }}
-                </ElDescriptionsItem>
-                <ElDescriptionsItem label="请求方法">
-                  {{ row.data.method }}
-                </ElDescriptionsItem>
-                <ElDescriptionsItem label="状态代码">
-                  <StatusIcon :code="row.data.status" />
-                </ElDescriptionsItem>
-                <ElDescriptionsItem label="发起地址">
-                  {{ row.data.page }}
-                </ElDescriptionsItem>
-              </ElDescriptions>
-            </ElCollapseItem>
-
-            <ElCollapseItem title="请求参数">
-              <JsonViewer :value="JSON.parse(row.data.body)" />
-            </ElCollapseItem>
-
-            <ElCollapseItem title="响应标头">
-              <pre>{{ row.data.responseHeaders }}</pre>
-            </ElCollapseItem>
-
-            <ElCollapseItem title="响应">
-              <JsonViewer :value="JSON.parse(row.data.response)" />
-            </ElCollapseItem>
-          </ElCollapse>
-        </div>
+        <NetworkDetail
+          :network-id="row.id"
+        />
       </template>
     </bc-table>
   </section>
 </template>
 
 <script setup lang="ts">
+import UrlBlock from './components/UrlBlock.vue'
+import NetworkDetail from './components/NetworkDetail.vue'
 import { ref, shallowRef } from 'vue'
 import { getAppNetworks } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { JsonViewer } from 'vue3-json-viewer'
-import 'vue3-json-viewer/dist/index.css'
 
 const params = ref({
   page: 1,
@@ -69,13 +52,18 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '发生时间', prop: 'device_time', width: 200 },
+  { label: '上报时间', prop: 'create_time', width: 200 },
   { label: '设备ID', prop: 'uuid', width: 200 },
-  { label: '请求', prop: 'data.url' },
-  { label: '方法', prop: 'data.method' },
-  { label: '发起地址', prop: 'data.page' },
-  { label: '时间', prop: 'data.duration' },
-  { label: '响应状态', prop: 'responseStatus' },
+  { label: '请求', prop: 'url' },
+  { label: '方法', prop: 'data.method', width: 80 },
+  { label: '发起地址', prop: 'page' },
+  {
+    label: '时间',
+    prop: 'data.duration',
+    filter: (ms: number) => (ms / 1000).toFixed(2) + '秒',
+    width: 140,
+  },
+  { label: '响应状态', prop: 'responseStatus', width: 140 },
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },

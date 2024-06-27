@@ -1,9 +1,5 @@
 use super::{
-    BaseModel,
-    CreateModel,
-    DeleteModel,
-    PaginationModel,
-    serialize_time,
+    serialize_time, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryModel
 };
 use bson::oid;
 use serde::{Deserialize, Serialize};
@@ -26,6 +22,7 @@ impl BaseModel for Model {
     const NAME: &'static str = NAME;
     type Model = Model;
 }
+impl QueryModel for Model {}
 impl CreateModel for Model {}
 impl DeleteModel for Model {}
 impl PaginationModel for Model {}

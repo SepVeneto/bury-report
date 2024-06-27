@@ -98,6 +98,13 @@ export function getAppNetworks(params: { page: number, size: number, timerange?:
   })
 }
 
+export function getAppNetworkDetail(id: string) {
+  console.log(id)
+  return request({
+    url: `/record/networks/${id}`,
+  })
+}
+
 export type AppStatistics = {
   total: number
   yesterdayTotal: number

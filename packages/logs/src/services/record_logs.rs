@@ -12,7 +12,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
 use chrono_tz::Asia::Shanghai;
 
 use crate::{apis::{record::{ErrorFilter, FilterNetwork}, Query}, db, model::{
-    apps, logs::{self, Model, RecordItem, RecordPayload, RecordV1}, logs_error, logs_network, CreateModel, PaginationModel, PaginationOptions, PaginationResult, QueryPayload
+    apps, logs::{self, Model, RecordItem, RecordPayload, RecordV1}, logs_error, logs_network, CreateModel, PaginationModel, PaginationOptions, PaginationResult, QueryBase, QueryModel, QueryPayload
 }, services::{gen_timerange_doc, normalize_time}};
 
 use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceError, ServiceResult};
@@ -238,5 +238,13 @@ pub async fn get_network_list(db: &Database, data: Query<FilterNetwork>) -> Serv
             })
             .build(),
     ).await?;
+    Ok(res)
+}
+
+pub async fn get_network_detail(
+    db: &Database,
+    id: String
+) -> ServiceResult<Option<QueryBase<logs_network::Model>>> {
+    let res = logs_network::Model::find_by_id(db, &id).await?;
     Ok(res)
 }

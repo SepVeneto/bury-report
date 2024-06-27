@@ -17,6 +17,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_ws);
   config.service(record_error);
   config.service(record_network);
+  config.service(get_network_detail);
 //   config.service(get_record_log);
 }
 
@@ -132,12 +133,19 @@ async fn record_network(
 
     Response::ok(res, None).to_json()
 }
-// #[get("/record/networks/{id}")]
-// async fn get_network_detail(
-//     client: web::Data<Client>,
-//     req: HttpRequest,,
-    
-// )
+#[get("/record/networks/{id}")]
+async fn get_network_detail(
+    client: web::Data<Client>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let network_id = path.into_inner();
+    let res = record_logs::get_network_detail(&db, network_id).await?;
+
+    Response::ok(res, None).to_json()
+}
 
 // #[get("/record/logs")]
 // async fn get_record_log(

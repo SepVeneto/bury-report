@@ -22,7 +22,7 @@ pub enum ApiError {
     },
     #[error("校验错误: {err}, in {file}:{line}:{col}")]
     ValidateError { err: String, col: u32, line: u32, file: String  },
-    #[error("请求错误")]
+    #[error("Appid错误")]
     AppidError(#[from] AppidError),
     #[error(transparent)]
     CommonError(#[from] anyhow::Error),
