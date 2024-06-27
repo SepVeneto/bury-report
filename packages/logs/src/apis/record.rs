@@ -18,6 +18,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_error);
   config.service(record_network);
   config.service(get_network_detail);
+  config.service(get_device);
 //   config.service(get_record_log);
 }
 
@@ -169,7 +170,7 @@ async fn get_device(
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
     let device_id = path.into_inner();
-    let res = device::get_device_by_id(&db, &device_id).await?;
+    let res = device::get_device_by_uuid(&db, &device_id).await?;
 
     if let Some(device) = res{
         Response::ok(device, None).to_json()

@@ -122,3 +122,9 @@ export function getAppChart(appid: string, chartType: string) {
     url: `/app/${appid}/chart/${chartType}`,
   })
 }
+
+export function getAppDevice(deviceId: string) {
+  return request({
+    url: `/device/${deviceId}`,
+  })
+}
