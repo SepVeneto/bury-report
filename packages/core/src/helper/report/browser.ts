@@ -21,7 +21,21 @@ export function __BR_REPORT_INIT__(
 
     const sendRequest = () => {
       const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-      window.navigator.sendBeacon(url, JSON.stringify({ appid, data: list }))
+      const body = JSON.stringify({ appid, data: list })
+      const isSend = window.navigator.sendBeacon(url, body)
+      if (!isSend) {
+        window.fetch(url, {
+          method: 'post',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+          },
+          credentials: 'omit',
+          priority: 'low',
+          keepalive: true,
+          body,
+        })
+      }
       setLocalStorage(REPORT_QUEUE, JSON.stringify([]))
       clearInterval(timer)
       timer = undefined
