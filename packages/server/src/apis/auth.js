@@ -72,6 +72,10 @@ router.post('/register', async (ctx, next) => {
 
 const L = 42
 const R = 9
+function getRandomPos(w) {
+  const x = Math.random() * (w - L * 2) + L
+  return [Number(x.toFixed(0)), 50]
+}
 router.get('/captcha', async (ctx, next) => {
   const width = 310
   const height = 155
@@ -81,8 +85,7 @@ router.get('/captcha', async (ctx, next) => {
   const blockCtx = block.getContext('2d')
 
   const image = await canvas.loadImage('./976-310x155.jpg')
-  const x = 150
-  const y = 50
+  const [x, y] = getRandomPos(width)
 
   drawSlot(backgroundCtx, x, y)
   backgroundCtx.fill()
@@ -103,7 +106,7 @@ router.get('/captcha', async (ctx, next) => {
     key: captchaMd5,
   }
   const captcha = db.collection('captcha')
-  await captcha.insertOne({ key: captchaMd5, offset: 150, create_time: new Date() })
+  await captcha.insertOne({ key: captchaMd5, offset: x, create_time: new Date() })
   await next()
 })
 function verifyCaptcha(target, answer) {
