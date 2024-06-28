@@ -1,5 +1,5 @@
 # *************************************
-FROM rust:1.75.0 as log-server
+FROM rust:1.79.0 as log-server
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ COPY --from=log-server /app/target/release/bury-report-logs ./
 CMD ["/app/bury-report-logs"]
 
 # *************************************
-FROM node:16.14.2 as server
+FROM node:20.9.0 as server
 
 WORKDIR /app
 
@@ -42,7 +42,7 @@ EXPOSE 8878
 
 CMD ["node", "./src/main.js"]
 
-FROM node:16.14.2 as build
+FROM node:20.9.0 as build
 
 WORKDIR /app
 
