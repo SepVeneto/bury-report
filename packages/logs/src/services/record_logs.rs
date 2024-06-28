@@ -180,7 +180,6 @@ pub async fn get_error_list(
         doc.insert("create_time", time_doc);
     }
 
-    info!("query: {:?}", doc);
     let res = logs_error::Model::pagination(
         db,
         data.page,
