@@ -19,6 +19,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_network);
   config.service(get_network_detail);
   config.service(get_device);
+  config.service(get_device_list);
 //   config.service(get_record_log);
 }
 
@@ -177,4 +178,24 @@ async fn get_device(
     } else {
         Response::err(404, "设备不存在".to_string()).to_json()
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DeviceFilter {
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub uuid: Option<String>,
+    pub start_time: Option<String>,
+    pub end_time: Option<String>,
+}
+#[get("/device")]
+async fn get_device_list(
+    client: web::Data<Client>,
+    req: HttpRequest,
+    query: web::Query<Query<DeviceFilter>>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let res = device::get_device_pagination(&db, query.0).await?;
+
+    Response::ok(res, None).to_json()
 }

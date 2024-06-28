@@ -12,6 +12,14 @@
       pagination
       :api="getList"
     >
+      <template #uuid="{ row }">
+        <ElLink
+          type="primary"
+          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
+        >
+          {{ row.uuid }}
+        </ElLink>
+      </template>
       <template #expand="{ row }">
         <pre style="padding-left: 100px; color: var(--el-color-danger);">{{ row.data.stack }}</pre>
       </template>

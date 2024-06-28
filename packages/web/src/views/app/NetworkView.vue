@@ -15,7 +15,7 @@
       <template #uuid="{ row }">
         <ElLink
           type="primary"
-          @click="$router.push({ name: 'DeviceView', query: { id: row.uuid } })"
+          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
         >
           {{ row.uuid }}
         </ElLink>

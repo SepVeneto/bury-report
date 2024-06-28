@@ -38,12 +38,6 @@ impl QueryPayload {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-pub struct PaginationResult {
-    pub total: u64,
-    pub list: Vec<Model>,
-}
-
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Model {
     pub name: String,

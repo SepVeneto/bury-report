@@ -62,6 +62,14 @@ const mockMenus = [
     name: '历史设备',
     path: 'device',
     route: 'DeviceView',
+    children: [{
+      pid: 33,
+      id: 331,
+      name: '设备详情',
+      route: 'DeviceDetail',
+      path: 'detail/:id',
+      hidden: true,
+    }],
   },
   // {
   //   pid: 2,

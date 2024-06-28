@@ -1,9 +1,12 @@
 use bson::doc;
 use mongodb::Database;
 
-use crate::model::{device::{DeviceInfo, Model}, logs, QueryModel};
+use crate::{
+    apis::{record::DeviceFilter, Query},
+    model::{device::{self, DeviceInfo, Model}, logs, PaginationModel, PaginationOptions, PaginationResult, QueryModel}
+};
 
-use super::ServiceResult;
+use super::{gen_timerange_doc, ServiceResult};
 
 pub async fn get_device_by_uuid(db: &Database, device_id: &str) -> ServiceResult<Option<DeviceInfo>> {
     let mut device_info = None;
@@ -19,4 +22,28 @@ pub async fn get_device_by_uuid(db: &Database, device_id: &str) -> ServiceResult
     }
 
     Ok(device_info)
+}
+
+pub async fn get_device_pagination(
+    db: &Database,
+    query: Query<DeviceFilter>
+) -> ServiceResult<PaginationResult<device::Model>> {
+    let Query { page, size, query } = query;
+    let mut doc = doc! {};
+
+    if let Some(uuid) = query.uuid {
+        doc.insert("uuid", uuid);
+    }
+    if let (Some(start_time), Some(end_time)) = (query.start_time, query.end_time) {
+        let time_doc = gen_timerange_doc(start_time, end_time)?;
+        doc.insert("last_open", time_doc);
+    }
+
+    let res = device::Model::pagination(
+        db,
+        page,
+        size,
+        PaginationOptions::new().query(doc).build(),
+    ).await?;
+    Ok(res)
 }

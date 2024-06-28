@@ -1,9 +1,9 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::SystemTime};
 
 use anyhow::anyhow;
 use bson::{oid, Bson};
 use chrono::FixedOffset;
-use log::{error, info};
+use log::{debug, error, info};
 use mongodb::{
     bson::{self, doc, oid::ObjectId, Document},
     options::FindOptions,
@@ -115,6 +115,11 @@ pub trait PaginationModel: BaseModel {
         let start = page;
         let PaginationOptions {query, projection} = options.unwrap_or_default();
 
+        let start_count = SystemTime::now();
+        let total = col.count_documents(query.clone(), None).await?;
+        debug!("count total used: {:?}", SystemTime::now().duration_since(start_count));
+
+        let start_list= SystemTime::now();
         let options = FindOptions::builder()
             .sort(doc! {"_id": -1})
             .projection(projection)
@@ -123,11 +128,11 @@ pub trait PaginationModel: BaseModel {
             .build();
         let mut res = col.find(query.clone(), options).await?;
 
-        let total = col.count_documents(query.clone(), None).await?;
         let mut list = vec![];
         while let Some(record) = res.next().await {
             list.push(record.unwrap())
         }
+        debug!("count list used: {:?}", SystemTime::now().duration_since(start_list));
 
         Ok(PaginationResult {
             total,

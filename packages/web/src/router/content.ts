@@ -6,6 +6,7 @@ import ChartsView from '@/views/charts/indexView.vue'
 import SourceView from '../views/app/SourceView.vue'
 import ErrorView from '../views/app/ErrorView.vue'
 import DeviceView from '@/views/app/DeviceView.vue'
+import DeviceDetail from '@/views/app/DeviceDetail.vue'
 import NetworkView from '@/views/app/NetworkView.vue'
 
 export const content = {
@@ -18,4 +19,5 @@ export const content = {
   ErrorView,
   DeviceView,
   NetworkView,
+  DeviceDetail,
 }

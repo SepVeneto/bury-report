@@ -128,3 +128,12 @@ export function getAppDevice(deviceId: string) {
     url: `/device/${deviceId}`,
   })
 }
+
+export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {
+  const _params = new Query(params).build()
+  return request({
+    url: '/device',
+    params: _params,
+    raw: 'data',
+  })
+}
