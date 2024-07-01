@@ -15,7 +15,7 @@
       <template #uuid="{ row }">
         <ElLink
           type="primary"
-          @click="handleLink(row.id)"
+          @click="handleLink(row.uuid)"
         >
           {{ row.uuid }}
         </ElLink>
