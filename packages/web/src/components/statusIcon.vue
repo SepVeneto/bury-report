@@ -4,7 +4,9 @@
       class="status-icon"
       :style="iconStyle"
     />
-    <span style="margin-left: 10px;">{{ code }}</span>
+    <span style="margin-left: 10px;">
+      <slot>{{ code }}</slot>
+    </span>
   </div>
 </template>
 
@@ -13,12 +15,16 @@ import { computed } from 'vue'
 
 const props = defineProps({
   code: {
-    type: Number,
+    type: [String, Number],
     required: true,
   },
 })
 
 const type = computed(() => {
+  if (typeof props.code === 'string') {
+    return props.code
+  }
+
   switch (props.code) {
     case 200:
       return 'success'
@@ -35,6 +41,8 @@ const type = computed(() => {
 
 const color = computed(() => {
   switch (type.value) {
+    case 'info':
+      return '--el-color-info'
     case 'success':
       return '--el-color-success'
     case 'error':

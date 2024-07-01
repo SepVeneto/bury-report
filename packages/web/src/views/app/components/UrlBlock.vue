@@ -14,13 +14,21 @@ import { computed } from 'vue'
 
 const props = defineProps({
   url: {
-    type: String,
+    type: [Array, String],
     required: true,
   },
 })
+const normalizeUrl = computed(() => {
+  // 兼容微信老数据
+  if (Array.isArray(props.url)) {
+    return props.url.join(',')
+  } else {
+    return props.url
+  }
+})
 const urlReg = /(?<suffix>https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+\.?)(?<api>.*)/
 const blockApi = computed(() => {
-  const { groups } = props.url.match(urlReg) || { groups: null }
+  const { groups } = normalizeUrl.value.match(urlReg) || { groups: null }
   if (!groups) {
     return ['', props.url]
   } else {

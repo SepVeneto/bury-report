@@ -27,7 +27,16 @@
         <UrlBlock :url="row.data.page" />
       </template>
       <template #responseStatus="{ row }">
-        <StatusIcon :code="row.data.status" />
+        <StatusIcon
+          v-if="row.data.status"
+          :code="row.data.status"
+        />
+        <StatusIcon
+          v-else
+          :code="filterType(row.data.type)"
+        >
+          {{ row.data.type }}
+        </StatusIcon>
       </template>
       <template #expand="{ row }">
         <NetworkDetail
@@ -83,6 +92,19 @@ const searchConfig = shallowRef([
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
 
+function filterType(type: string) {
+  switch (type) {
+    case 'abort':
+      return 'info'
+    case 'error':
+      return 'error'
+    case 'timeout':
+      return 'error'
+    case 'fail':
+    default:
+      return 'warning'
+  }
+}
 function getList() {
   return getAppNetworks(params.value)
 }
