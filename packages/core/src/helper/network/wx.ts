@@ -25,7 +25,7 @@ export function __BR_API_INIT__(
             duration,
             status: res.statusCode,
             responseHeaders: res.header,
-            response: typeof res.data === 'string' ? res.data : null,
+            response: res.data,
           })
           recordUrl !== info.url && report(COLLECT_API, info)
         }
@@ -55,7 +55,7 @@ export function __BR_API_INIT__(
   ) {
     return {
       type,
-      page: getCurrentPages().map(page => page.route),
+      page: getCurrentPages().map(page => page.route).slice(-1)[0],
       url: options.url,
       method: options.method,
       body: options.data,
