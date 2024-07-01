@@ -4,7 +4,7 @@ import type { Options } from '../type'
 import MagicString from 'magic-string'
 import { getPackageInfoSync } from 'local-pkg'
 import debug from 'debug'
-import { IS_UNIAPP } from './env'
+// import { IS_UNIAPP } from './env'
 
 const vue = getPackageInfoSync('vue')
 const [, vueVersion] = vue?.packageJson.version?.match(/(\d+)\.(?:\d+)\.(?:.+)/) ?? []
@@ -16,7 +16,8 @@ export function combineCode(code: string, reportContent: string) {
   return s.toString()
 }
 export function isEntry(id: string, entryFile: string) {
-  if (IS_UNIAPP()) {
+  // 不能使用env内的环境变量，会导致值被提前确定
+  if (process.env.UNI_PLATFORM) {
     // 抹平webpack和vite对于windows平台路径分隔符的差异
     return path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
   } else {

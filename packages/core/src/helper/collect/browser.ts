@@ -9,7 +9,7 @@ export function __BR_COLLECT_INIT__() {
 }
 
 function getSystemInfo() {
-  if (IS_UNIAPP()) {
+  if (IS_UNIAPP) {
     const system = uni.getSystemInfoSync()
     return {
       // mp, web

@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8878',
+        target: 'http://127.0.0.1:7777',
         rewrite: (str) => str.replace(/^\/api/, ''),
       },
     },
@@ -15,7 +15,7 @@ export default defineConfig({
   plugins: [
     Inspect(),
     Unplugin({
-      url: 'http://localhost:8870/record',
+      url: 'http://127.0.0.1:7777/record',
       appid: '665fc9a76cc4322eb853df36',
       entry: 'main.ts',
       collect: true,
