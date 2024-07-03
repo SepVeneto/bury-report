@@ -39,8 +39,8 @@ export class Model{
   }
   async findById(id, projection = {}) {
     const _id = ObjectId.createFromHexString(id)
-    const _filter = new Filter({ _id })
-    const _projection = new Projection(projection)
+    const _filter = new Filter({ _id }).build()
+    const _projection = new Projection(projection).build()
     return await this.col.findOne(_filter, { projection: _projection })
   }
   async getAll(filter = {}, projection = {}) {

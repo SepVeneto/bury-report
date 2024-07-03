@@ -4,32 +4,12 @@
     class="project-icon"
     @click="handleZoom"
   >
-    <div
-      ref="wrapRef"
-      :class="wrapClass"
-      :style="wrapStyle"
-    >
-      <AppIcon
-        v-for="item in group"
-        :key="item.id"
-        :name="item.name"
-        :app-id="item.id"
-        :color="item.icon"
-        :zoom-in="zoomIn"
-      />
-      <div
-        v-if="zoomIn"
-        class="icon-add"
-        @click="handleAdd"
-      >
-        <ElIcon
-          :size="60"
-          color="#999"
-        >
-          <IconPlus />
-        </ElIcon>
-      </div>
-    </div>
+    <ProjectWrap
+      :all-group="group"
+      :zoom-in="zoomIn"
+      @contextmenu="handleContextmenu"
+      @add="handleAdd"
+    />
     <div
       ref="titleRef"
       :class="titleClass"
@@ -61,14 +41,15 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, ref } from 'vue'
-import { Plus as IconPlus } from '@element-plus/icons-vue'
+import { computed, inject, ref } from 'vue'
 import type { PropType } from 'vue'
-import { type App, getProjectList, updateApp } from '@/apis'
-import AppIcon from './IconApp.vue'
+import { type App, deleteApp, moveAppTo, updateApp } from '@/apis'
 import DialogApp from '../app/DialogApp.vue'
 import { createDialog } from '@sepveneto/basic-comp'
+import { PortalKey } from './token'
+import ProjectWrap from './IconProject.wrap.vue'
 
+const context = inject(PortalKey)
 const props = defineProps({
   name: {
     type: String,
@@ -92,21 +73,11 @@ const vFocus = {
 }
 
 const projectRef = ref<HTMLElement>()
-const wrapRef = ref<HTMLElement>()
 const titleRef = ref<HTMLElement>()
 const showEdit = ref(false)
 const zoomIn = ref(false)
 const title = ref(props.name)
-const wrapClass = computed(() => ['project-wrap', zoomIn.value && 'zoom-in'])
-const wrapStyle = computed(() => {
-  if (!wrapRef.value || !zoomIn.value) return {}
-  const w = wrapRef.value.offsetLeft
-  const h = wrapRef.value.offsetTop
 
-  return {
-    transform: `translate(calc(50vw - 50% - ${w}px), calc(50vh - 50% - ${h}px)) scale(2.5)`,
-  }
-})
 const titleClass = computed(() => ['project-title', zoomIn.value && 'zoom-in'])
 const titleStyle = computed(() => {
   if (!titleRef.value || !zoomIn.value) return {}
@@ -118,9 +89,47 @@ const titleStyle = computed(() => {
     transform: `translate(calc(50vw - 50% - ${w}px), calc(-${h}px)) scale(2)`,
   }
 })
+function handleContextmenu(evt: MouseEvent, app: App) {
+  context?.handleContextmenu?.(evt, [
+    {
+      label: '编辑',
+      onClick: () => handleUpdate(app),
+    },
+    {
+      label: '删除',
+      onClick: async () => {
+        await deleteApp(app.id)
+        context.getList()
+      },
+    },
+    {
+      label: '移动至',
+      children: context.projects.map((project) => ({
+        label: project.name,
+        disabled: project.id === props.pid,
+        onClick: async () => {
+          await moveAppTo(app.id, project.id)
+          context.getList()
+        },
+      })),
+    },
+  ])
+}
 function handleBlur() {
   showEdit.value = false
   emit('update', title.value)
+}
+function handleUpdate(app: App) {
+  const { open, close } = createDialog(DialogApp, { recordId: app.id })
+  open(
+    { title: '编辑应用', width: '550px' },
+    async (res) => {
+      const data = await res!.getFormData()
+      await updateApp(props.pid, data)
+      close()
+      context?.getList?.()
+    },
+  )
 }
 function handleAdd() {
   const { open, close } = createDialog(DialogApp)
@@ -130,7 +139,7 @@ function handleAdd() {
       const data = await res!.getFormData()
       await updateApp(props.pid, data)
       close()
-      getProjectList()
+      context?.getList?.()
     },
   )
 }
@@ -143,34 +152,6 @@ function handleZoom() {
 .zoom-in {
   position: relative;
   z-index: 1;
-}
-.project-wrap {
-  display: grid;
-  grid-template-columns: repeat(3, 60px);
-  grid-template-rows: repeat(3, 60px);
-  background: #edededcb;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 10px;
-  box-sizing: border-box;
-  transition: transform 0.2s;
-  position: relative;
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-  }
-  &.zoom-in {
-    transform-origin: center center;
-    z-index: 1;
-    grid-template-rows: repeat(3, 80px);
-    &::after {
-      display: none;
-    }
-  }
 }
 .project-title {
   transition: all 0.2s;
@@ -197,27 +178,6 @@ function handleZoom() {
 }
 :global(.fade-enter-active, .fade-leave-active) {
   transition: opacity 2s;
-}
-.icon-add {
-  width: 60px;
-  height: 60px;
-  border: 1px solid #edededcb;
-  border-radius: 10px;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-
-  &:hover {
-    animation: pulse 1s;
-    box-shadow: 0 0 0 1em transparent;
-  }
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 #ededed;
-    }
-  }
 }
 </style>
 

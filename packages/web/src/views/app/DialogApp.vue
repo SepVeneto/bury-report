@@ -3,6 +3,7 @@
     ref="formRef"
     :model="formData"
     label-width="100px"
+    @submit.prevent
   >
     <ElFormItem
       label="名称"

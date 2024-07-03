@@ -28,16 +28,31 @@ import { ElIcon } from 'element-plus'
 import { Plus as IconPlus } from '@element-plus/icons-vue'
 import EntryWrap from './EntryWrap.vue'
 import {
-  // deleteProject,
-  // getPortal,
   getProjectList,
   updateProject,
-  // updateProject
 } from '@/apis'
 import type { Project } from '@/apis'
-import { ref } from 'vue'
+import { provide, reactive, ref } from 'vue'
+import '@imengyu/vue3-context-menu/lib/vue3-context-menu.css'
+import type { MenuItem } from '@imengyu/vue3-context-menu'
+import ContextMenu from '@imengyu/vue3-context-menu'
+import { PortalKey } from './token'
+
+function handleContextmenu(evt: MouseEvent, items: MenuItem[]) {
+  evt.preventDefault()
+  ContextMenu.showContextMenu({
+    x: evt.x,
+    y: evt.y,
+    items,
+  })
+}
 
 const projects = ref<Project[]>([])
+provide(PortalKey, reactive({
+  handleContextmenu,
+  getList,
+  projects,
+}))
 getList()
 async function getList() {
   const res = await getProjectList()

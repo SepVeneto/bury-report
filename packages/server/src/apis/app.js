@@ -431,7 +431,30 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
       }
       break
   }
+})
 
+router.patch('/app/:appId/move_to', async (ctx, next) => {
+  const { appId } = ctx.params
+  const { projectId } = ctx.request.body
+
+
+  const project = new Project()
+  const app = new App()
+  const oappId = ObjectId.createFromHexString(appId)
+  await project.col.updateOne(
+    { 'apps.id': oappId },
+    { $pull: { apps: { id: oappId } }},
+  )
+  const moveApp = await app.findById(appId, { name: 1, icon: 1 })
+  await project.col.updateOne({
+    _id: ObjectId.createFromHexString(projectId),
+  }, {
+    $push: { apps: moveApp }
+  })
+
+  await next()
+
+  ctx.body.message = '移动成功'
 })
 
 export default router

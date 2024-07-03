@@ -1,6 +1,7 @@
-import { reportRequest as request } from '@/util/request'
+import { serverRequest as request } from '@/util/request'
 import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
+import type { Project } from '.'
 import { Query } from '.'
 
 export type App = {
@@ -258,4 +259,14 @@ export function getDeviceList(params: { page: number, size: number, timerange?: 
     params: _params,
     raw: 'data',
   })
+}
+
+export function moveAppTo(appId: App['id'], projectId: Project['id']) {
+  return request({
+    url: `/app/${appId}/move_to`,
+    method: 'patch',
+    data: {
+      projectId,
+    },
+  }, true)
 }

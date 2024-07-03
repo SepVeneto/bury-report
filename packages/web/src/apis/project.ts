@@ -1,9 +1,10 @@
 import { serverRequest as request } from '@/util/request'
 
+export type App = { id: string, name: string }
 export type Project = {
   id: string
   name: string
-  apps: { id: string, name: string }[]
+  apps: App[]
 }
 export function getProjectList() {
   return request<Project[]>({
