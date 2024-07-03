@@ -1,5 +1,8 @@
 <template>
-  <div class="logo">
+  <div
+    class="logo"
+    @click="$router.push({ name: 'Portal' })"
+  >
     <el-image
       style="width: 32px; height: 32px; margin-right: 20px;"
       src="/favicon.png"
@@ -19,6 +22,7 @@ defineProps({
 
 <style scoped>
 .logo {
+  cursor: pointer;
   display: flex;
   justify-content: center;
   align-items: center;

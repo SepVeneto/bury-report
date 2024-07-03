@@ -81,6 +81,7 @@ async function handleAdd() {
     // grid-template-columns: repeat(6, 1fr);
     column-gap: 20px;
     row-gap: 20px;
+    flex-wrap: wrap;
   }
 }
 .icon-add {

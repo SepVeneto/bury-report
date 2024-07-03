@@ -9,7 +9,8 @@
     </div>
     <div
       v-if="zoomIn"
-      style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%;"
+      style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; text-align: center; flex: 1;"
+      :title="name"
     >
       {{ name }}
     </div>

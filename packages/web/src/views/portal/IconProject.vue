@@ -36,7 +36,10 @@
       :style="titleStyle"
       @click="showEdit = true"
     >
-      <span v-if="!showEdit">{{ title }}</span>
+      <span
+        v-if="!showEdit"
+        :title="title"
+      >{{ title }}</span>
       <ElInput
         v-else
         v-model="title"
@@ -175,6 +178,10 @@ function handleZoom() {
   text-align: center;
   margin-top: 10px;
   font-size: 22px;
+  width: 220px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .mask {
   position: absolute;
