@@ -32,7 +32,7 @@
           class="skeleton-request"
         >
           <template #default>
-            <JsonViewer :value="JSON.parse(detail.data.body)" />
+            <JsonView :value="detail.data.body" />
           </template>
         </ElSkeleton>
       </ElTabPane>
@@ -54,7 +54,7 @@
           class="skeleton-response"
         >
           <template #default>
-            <JsonViewer :value="JSON.parse(detail.data.response)" />
+            <JsonView :value="detail.data.response" />
           </template>
         </ElSkeleton>
       </ElTabPane>
@@ -63,10 +63,7 @@
 </template>
 
 <script lang="ts" setup>
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { JsonViewer } from 'vue3-json-viewer'
-import 'vue3-json-viewer/dist/index.css'
+import JsonView from './JsonView.vue'
 import { ref } from 'vue'
 import { getAppNetworkDetail } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'

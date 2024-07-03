@@ -26,7 +26,9 @@
                 name="page"
                 mode="out-in"
               >
-                <component :is="Component" />
+                <KeepAlive :include="cachedPage">
+                  <component :is="Component" />
+                </KeepAlive>
               </transition>
             </RouterView>
           </PageLayout>
@@ -56,6 +58,7 @@ const props = defineProps({
 })
 
 const store = useApp()
+const cachedPage = computed(() => store.breadcrumb.map(item => item.meta.componentName as string))
 const [activeMenu, activeSubMenu] = useMenu(toRef(props, 'modId'))
 
 const menuList = computed(() => store.menuList)

@@ -1,3 +1,16 @@
+import { copyText } from '@sepveneto/basic-comp'
+import { ElMessage } from 'element-plus'
+
+export async function copyContent(text: string) {
+  try {
+    await copyText(text)
+    ElMessage.success('复制成功')
+  } catch (e) {
+    console.error(e)
+    ElMessage.error('复制失败')
+  }
+}
+
 // 获取随机字符串
 export const getUuid = () => {
   const s = []
@@ -23,7 +36,7 @@ export function walkRoute<T extends Array<any>>(
   routeList: T,
   fn: (route: T[number], depth: number, parent?: T[number]) => boolean | void | T,
   parent?: T[number],
-  depth = 0
+  depth = 0,
 ) {
   for (const item of routeList) {
     const res = fn(item, depth, parent)

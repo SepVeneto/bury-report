@@ -38,7 +38,7 @@
 <script lang="ts" setup>
 import { computed, ref, watchEffect } from 'vue'
 import SidebarItem from './sidebarItem.vue'
-import type { Route } from '@/store'
+import { type Route, useApp } from '@/store'
 import type { PropType } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -66,6 +66,7 @@ const props = defineProps({
   },
 })
 const router = useRouter()
+const app = useApp()
 
 const subMenus = ref<Route>()
 
@@ -83,6 +84,7 @@ const mainActiveMenu = computed(() => {
 })
 function handleJump(index: string) {
   subMenus.value = props.menus.find(menu => menu.route === index)
+  app.breadcrumb = []
   router.push({ name: index })
 }
 </script>

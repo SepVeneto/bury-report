@@ -123,8 +123,130 @@ export function getAppChart(appid: string, chartType: string) {
   })
 }
 
+type DeviceCommon = {
+  /**
+   * 设备类型
+   */
+  dt: 'phone' | 'pad' | 'pc'
+  /**
+   * 设备品牌
+   */
+  db?: string
+  /**
+   * 设备型号
+   */
+  dm: string
+  /**
+   * 设备像素比
+   */
+  dp: string
+  /**
+   * 设备方向
+   */
+  do: 'portrait' | 'landscape'
+  /**
+   * 系统名称
+   */
+  on: 'ios' | 'android' | 'windows' | 'mac' | 'linux'
+  /**
+   * 系统版本
+   */
+  ov: string
+  /**
+   * 浏览器名称
+   */
+  bn: string
+  /**
+   * 浏览器版本
+   */
+  bv: string
+  /**
+   * 用户标识
+   */
+  ua: string
+}
+type DeviceScreen = {
+  /**
+   * 可用窗口底部位置
+   */
+  wb: number
+  /**
+   * 可用窗口顶部位置
+   */
+  wt: number
+  /**
+   * 可用窗口宽度
+   */
+  ww: number
+  /**
+   * 可用窗口高度
+   */
+  wh: number
+  /**
+   * 屏幕宽度
+   */
+  sw: number
+  /**
+   * 屏幕高度
+   */
+  sh: number
+  /**
+   * 状态栏高度
+   */
+  sbh: number
+  /**
+   * 在竖屏正方向下的安全区域插入位置
+   */
+  sa: {
+      /**
+        * 安全区域左侧插入位置
+        */
+      left: number;
+      /**
+        * 安全区域右侧插入位置
+        */
+      right: number;
+      /**
+        * 安全区顶部插入位置
+        */
+      top: number;
+      /**
+        * 安全区域底部插入位置
+        */
+      bottom: number;
+  }
+}
+type UniInfo = {
+  /**
+   * uni 运行时版本
+   */
+  ur: string
+  /**
+   * uni 编译器版本号
+   */
+  uc: string
+  /**
+   * uni-app 运行平台
+   */
+  up: string
+}
+type HostInfo = {
+  /**
+   * App、小程序宿主版本
+   */
+  hv: string
+  /**
+   * 用户字体大小设置
+   */
+  hfs: string
+  /**
+   * 客户端基础库版本
+   */
+  hsdk: string
+}
+export type DeviceInfo = DeviceCommon & DeviceScreen & UniInfo & HostInfo
 export function getAppDevice(deviceId: string) {
-  return request({
+  return request<DeviceInfo>({
     url: `/device/${deviceId}`,
   })
 }

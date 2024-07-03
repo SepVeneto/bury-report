@@ -12,13 +12,17 @@
       pagination
       :api="getList"
     >
+      <template #device_time-header>
+        <div style="display: flex; align-items: center;">
+          <span style="margin-right: 10px;">请求时间</span>
+          <IconTips content="该时间为设备的系统时间，仅供参考" />
+        </div>
+      </template>
       <template #uuid="{ row }">
-        <ElLink
-          type="primary"
+        <DeviceLink
+          :uuid="row.uuid"
           @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
-        >
-          {{ row.uuid }}
-        </ElLink>
+        />
       </template>
       <template #url="{ row }">
         <UrlBlock :url="row.data.url" />
@@ -48,11 +52,15 @@
 </template>
 
 <script setup lang="ts">
+import IconTips from '@/components/IconTips.vue'
+import DeviceLink from './components/DeviceLink.vue'
 import UrlBlock from './components/UrlBlock.vue'
 import NetworkDetail from './components/NetworkDetail.vue'
 import { ref, shallowRef } from 'vue'
 import { getAppNetworks } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'
+
+defineOptions({ name: 'NetworkView' })
 
 const params = ref({
   page: 1,
@@ -61,8 +69,9 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '上报时间', prop: 'create_time', width: 200 },
-  { label: '设备ID', prop: 'uuid', width: 200 },
+  { label: '上报时间', prop: 'create_time', width: 180 },
+  { label: '发起时间', prop: 'device_time', width: 160 },
+  { label: '设备ID', prop: 'uuid', width: 220 },
   { label: '请求', prop: 'url' },
   { label: '方法', prop: 'data.method', width: 80 },
   { label: '发起地址', prop: 'page' },

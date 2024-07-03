@@ -28,6 +28,11 @@
 import { getDeviceList } from '@/apis'
 import { ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
+
+defineOptions({
+  name: 'HistoryDevice',
+})
+
 const params = ref({
   page: 1,
   size: 20,
