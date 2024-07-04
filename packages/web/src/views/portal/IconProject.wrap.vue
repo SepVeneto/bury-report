@@ -5,19 +5,38 @@
     :style="wrapStyle"
   >
     <template v-if="!zoomIn || displayGroups.length === 1">
-      <AppIcon
-        v-for="item in displayGroups[0]"
-        :key="item.id"
-        :name="item.name"
-        :app-id="item.id"
-        :color="item.icon"
-        :zoom-in="zoomIn"
-        @contextmenu.stop="$emit('contextmenu', $event, item)"
-      />
+      <div
+        class="wrap-item"
+        :class="zoomIn && 'zoom-in'"
+      >
+        <AppIcon
+          v-for="item in displayGroups[0]"
+          :key="item.id"
+          :name="item.name"
+          :app-id="item.id"
+          :color="item.icon"
+          :zoom-in="zoomIn"
+          @contextmenu.stop="$emit('contextmenu', $event, item)"
+        />
+        <div
+          v-if="zoomIn"
+          class="icon-add"
+          @click="$emit('add')"
+        >
+          <ElIcon
+            :size="60"
+            color="#999"
+          >
+            <IconPlus />
+          </ElIcon>
+        </div>
+      </div>
     </template>
     <ElCarousel
       v-else-if="zoomIn && displayGroups.length > 1"
       :autoplay="false"
+      arrow="never"
+      height="260px"
     >
       <ElCarouselItem
         v-for="(group, index) in displayGroups"
@@ -25,6 +44,7 @@
       >
         <div
           class="wrap-item"
+          :class="zoomIn && 'zoom-in'"
         >
           <AppIcon
             v-for="item in group"
@@ -123,6 +143,9 @@ const wrapStyle = computed(() => {
   box-sizing: border-box;
   transition: transform 0.2s;
   position: relative;
+  &:deep(.el-carousel__indicators) {
+    bottom: -16px;
+  }
   &::after {
     content: '';
     position: absolute;
@@ -143,9 +166,12 @@ const wrapStyle = computed(() => {
 }
 .wrap-item {
   display: grid;
-  grid-template-rows: repeat(3, 80px);
+  grid-template-rows: repeat(3, 60px);
   grid-template-columns: repeat(3, 60px);
   gap: 10px;
+  &.zoom-in {
+    grid-template-rows: repeat(3, 80px);
+  }
 }
 .icon-add {
   width: 60px;
@@ -157,15 +183,5 @@ const wrapStyle = computed(() => {
   justify-content: center;
   align-items: center;
   cursor: pointer;
-
-  &:hover {
-    animation: pulse 1s;
-    box-shadow: 0 0 0 1em transparent;
-  }
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 #ededed;
-    }
-  }
 }
 </style>
