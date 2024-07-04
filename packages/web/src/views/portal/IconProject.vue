@@ -4,6 +4,7 @@
     class="project-icon"
     @click="handleZoom"
   >
+    <!-- TODO: project 放大后在原地保留一个原尺寸的作为占位 -->
     <ProjectWrap
       :all-group="group"
       :zoom-in="zoomIn"
