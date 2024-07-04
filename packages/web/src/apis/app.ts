@@ -1,7 +1,6 @@
-import { serverRequest as request } from '@/util/request'
+import { reportRequest as request } from '@/util/request'
 import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
-import type { Project } from '.'
 import { Query } from '.'
 
 export type App = {
@@ -14,29 +13,6 @@ export function getAppList(params: { page: number, size: number, name?: string }
     url: '/app/list',
     params,
     raw: 'data',
-  })
-}
-export function updateApp(pid: string, data: { name: string, id?: string }) {
-  return request({
-    url: '/app',
-    method: data.id ? 'patch' : 'post',
-    data: {
-      pid,
-      ...data,
-    },
-  }, true)
-}
-export function deleteApp(appId: string) {
-  return request({
-    url: '/app',
-    method: 'delete',
-    params: { id: appId },
-  }, true)
-}
-export function getApp(appId: string) {
-  return request<App>({
-    url: '/app',
-    params: { id: appId },
   })
 }
 
@@ -259,14 +235,4 @@ export function getDeviceList(params: { page: number, size: number, timerange?: 
     params: _params,
     raw: 'data',
   })
-}
-
-export function moveAppTo(appId: App['id'], projectId: Project['id']) {
-  return request({
-    url: `/app/${appId}/move_to`,
-    method: 'patch',
-    data: {
-      projectId,
-    },
-  }, true)
 }

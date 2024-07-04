@@ -112,9 +112,9 @@ const displayGroups = computed(() => {
         temp = []
       }
     }
-    if (temp.length || (list.length > 0 && list.slice(-1)[0].length === 9)) {
-      list.push(temp)
-    }
+    // if (temp.length || (list.length > 0 && list.slice(-1)[0].length === 9)) {
+    list.push(temp)
+    // }
     return list
   }
 })
