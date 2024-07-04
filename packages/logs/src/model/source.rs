@@ -1,28 +1,20 @@
-use mongodb::bson::{doc, oid};
-use serde::{Deserialize, Serialize};
-use crate::config::serialize_oid;
+use futures_util::StreamExt;
+use bson::{oid::ObjectId, Document};
+use log::info;
+use mongodb::{bson::{doc, oid}, Database};
+use serde::{Deserialize, Serialize, Serializer};
+use crate::{config::serialize_oid, utils::{array_to_tree, LikeNode, TreeList}};
 
-use super::{BaseModel, CreateModel, DeleteModel, EditModel, PaginationModel, QueryModel};
+use super::{BaseModel, CreateModel, DeleteModel, EditModel, PaginationModel, QueryBase, QueryModel, QueryResult};
 
 pub const NAME: &str = "source";
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct BasePayload {
-    pub pid: Option<String>,
-    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
-    pub id: Option<oid::ObjectId>,
-    #[serde(skip_deserializing)]
-    pub appid: String,
-    pub level: u32,
-    pub name: String,
-    pub value: String,
-}
-
-impl BasePayload {
-    pub fn set_appid(&mut self, appid: &str) -> () {
-        self.appid = appid.to_string();
-    }
-}
+// #[derive(Deserialize, Serialize, Clone, Debug)]
+// pub struct BasePayload {
+//     pub pid: Option<String>,
+//     pub name: String,
+//     pub value: String,
+// }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct QueryPayload {
@@ -38,19 +30,28 @@ impl QueryPayload {
     }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Model {
     pub name: String,
     pub value: String,
-    pub appid: String,
-    pub level: u32,
-    pub children: Vec<Model>,
-    #[serde(
-        serialize_with = "serialize_oid",
-        rename(serialize = "id"),
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub _id: Option<oid::ObjectId>,
+    #[serde(serialize_with = "serialize_id_to_hex")]
+    pub pid: Option<ObjectId>,
+    // pub appid: String,
+    // pub level: u32,
+    // pub children: Vec<Model>,
+}
+pub type BasePayload = Model;
+
+fn serialize_id_to_hex<S: Serializer>(
+    val: &Option<ObjectId>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    if let Some(val) = val {
+        let res = val.to_hex();
+        serializer.serialize_str(&res)
+    } else {
+        serializer.serialize_none()
+    }
 }
 
 impl BaseModel for Model {
@@ -62,6 +63,42 @@ impl CreateModel for Model {}
 impl EditModel for Model {}
 impl PaginationModel for Model {}
 impl DeleteModel for Model {}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TreeModel {
+    #[serde(flatten)]
+    base: QueryBase<Model>,
+    children: Vec<Model>,
+}
+
+type Node = QueryBase<Model>;
+
+impl LikeNode for Node {
+    fn id(&self) -> ObjectId {
+        self._id
+    }
+    fn pid(&self) -> Option<ObjectId> {
+        self.model.pid
+    }
+}
+
+impl Model {
+    pub async fn find_all_as_tree(
+        db: &Database,
+        filter: impl Into<Option<Document>>
+    ) -> QueryResult<TreeList<QueryBase<Self>>> {
+        let col = db.collection::<QueryBase<Self>>(Self::NAME);
+        let mut list = vec![];
+        let mut cursor = col.find(filter, None).await?;
+
+        while let Some(res) = cursor.next().await {
+            list.push(res?)
+        }
+
+        let tree = array_to_tree(list);
+        Ok(tree)
+    }
+}
 
 // impl Model {
 //     pub fn col (db: &Database) -> Collection<Self> {

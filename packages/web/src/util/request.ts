@@ -213,7 +213,6 @@ export class Restful {
       url: this.resource,
       method: 'get',
       params,
-      raw: 'data',
     })
   }
 

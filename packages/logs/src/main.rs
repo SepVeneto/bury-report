@@ -5,6 +5,7 @@ mod apis;
 mod model;
 mod services;
 mod middleware;
+mod utils;
 
 use crate::services::actor;
 

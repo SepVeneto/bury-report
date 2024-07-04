@@ -1,44 +1,40 @@
 <template>
   <section>
-    <ElEmpty description="施工中" />
-
-    <template v-if="false">
-      <bc-search
-        v-model="params"
-        :search="handleSearch"
-        :config="searchConfig"
-      >
-        <BcButton @click="handleAdd">
-          新增
+    <bc-search
+      v-model="params"
+      :search="handleSearch"
+      :config="searchConfig"
+    >
+      <BcButton @click="handleAdd">
+        新增
+      </BcButton>
+    </bc-search>
+    <bc-table
+      ref="tableRef"
+      v-model="params"
+      class="source-table"
+      :config="tableConfig"
+      :data="tableData"
+      row-key="id"
+      @save="handleSave"
+    >
+      <template #operate="{ row }">
+        <BcButton
+          confirm
+          type="danger"
+          text
+          @click="handleDel(row.id)"
+        >
+          删除
         </BcButton>
-      </bc-search>
-      <bc-table
-        ref="tableRef"
-        v-model="params"
-        class="source-table"
-        :config="tableConfig"
-        row-key="id"
-        :api="getList"
-        pagination
-        @save="handleSave"
-      >
-        <template #operate="{ row }">
-          <BcButton
-            confirm
-            type="danger"
-            text
-            @click="handleDel(row.id)"
-          >
-            删除
-          </BcButton>
-          <BcButton
-            @click="handleAddDimension(row)"
-          >
-            添加统计维度
-          </BcButton>
-        </template>
-      </bc-table>
-    </template>
+        <BcButton
+          v-if="!row.pid"
+          @click="handleAddDimension(row)"
+        >
+          添加统计维度
+        </BcButton>
+      </template>
+    </bc-table>
   </section>
 </template>
 
@@ -65,16 +61,18 @@ async function handleAddDimension(record: any) {
     name: `自定义维度 ${new Date().toLocaleString()}`,
     value: 'custom' + Date.now(),
   })
+  handleSearch()
 }
-function getList() {
-  return source.getList(params.value)
+const tableData = shallowRef<SourceRecord[]>([])
+getList()
+async function getList() {
+  tableData.value = await source.getList()
 }
 function handleSearch() {
-  tableRef.value.getList()
+  getList()
 }
 async function handleDel(id: string) {
   await source.del(id)
-  params.value.page = 1
   handleSearch()
 }
 async function handleAdd() {

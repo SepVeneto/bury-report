@@ -6,6 +6,7 @@ use log::{error, info};
 use mongodb::Database;
 use serde_json::Value;
 use crate::db;
+use crate::db::DbApp;
 use crate::services::Response;
 use crate::services::source;
 use crate::model::{
@@ -39,11 +40,10 @@ async fn get_options(
 async fn get_list(
     req: HttpRequest,
     client: web::Data<Client>,
-    query: web::Query<QueryPayload>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
-    match source::list(&db, query.0).await {
+    match source::list(&db).await {
         Ok(res) => Response::ok(res, None).to_json(),
         Err(err) => {
             Response::err(500, err.to_string()).to_json()
@@ -69,19 +69,15 @@ async fn get_source(
 
 #[post("/source")]
 async fn set_source(
-    db: web::Data<Database>,
-    mut json: web::Json<BasePayload>,
+    client: web::Data<Client>,
+    json: web::Json<BasePayload>,
     req: HttpRequest,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
-    json.set_appid(&appid);
-    match source::add(&db, json.0).await {
-        Ok(res) => Response::ok(res, "添加成功").to_json(),
-        Err(err) => {
-            error!("{:?}", err);
-            Response::err(500, err.to_string()).to_json()
-        }
-    }
+    let db = DbApp::get_by_appid(&client, &appid);
+    let res = source::add(&db, json.0).await?;
+
+    Response::ok(res, "添加成功").to_json()
 }
 
 #[put("/source/{source_id}")]

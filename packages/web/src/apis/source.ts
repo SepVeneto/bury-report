@@ -11,17 +11,19 @@ class Source extends Restful {
 }
 const source = new Source('/source')
 
-export function getList(params: { page: number, size: number }) {
-  return source.list(params)
-}
-
 export type SourceRecord = {
   pid?: string,
   id?: string
   name: string
   value: string
+  children: SourceRecord[],
 }
-export function update(data: SourceRecord) {
+
+export function getList() {
+  return source.list<unknown, SourceRecord[]>({})
+}
+
+export function update(data: Omit<SourceRecord, 'children'>) {
   if (data.id) {
     return source.edit(data.id, data)
   } else {

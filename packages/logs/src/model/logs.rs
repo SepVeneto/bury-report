@@ -152,7 +152,7 @@ impl CreateModel for Model {}
 impl DeleteModel for Model {}
 impl EditModel for Model {}
 
-impl Model {
+impl Model { 
     pub async fn find_from_aggregrate<T>(
         db: &Database,
         pipeline: Vec<Document>

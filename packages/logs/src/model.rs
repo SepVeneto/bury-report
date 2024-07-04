@@ -57,7 +57,7 @@ pub struct QueryPayload {
     pub size: u64,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct QueryBase<T> {
     #[serde(rename(serialize = "id"), serialize_with = "bson::serde_helpers::serialize_object_id_as_hex_string")]
     pub _id: oid::ObjectId,
@@ -203,12 +203,16 @@ pub trait CreateModel: BaseModel {
 }
 
 pub trait EditModel: BaseModel + QueryModel {
+    fn col(db: &Database) -> Collection<Self::Model> {
+        let col_name = Self::NAME;
+        db.collection(col_name)
+    }
     async fn update_one(
         db: &Database,
         id: &str,
         data: &Self::Model,
     ) -> QueryResult<UpdateResult> {
-        let col = Self::col(db);
+        let col = <Self as EditModel>::col(db);
         let oid = ObjectId::from_str(id)?;
         let res = Self::find_by_id(db, id).await?;
         if let Some(_) = res {
