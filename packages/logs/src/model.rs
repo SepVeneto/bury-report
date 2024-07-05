@@ -1,7 +1,7 @@
 use std::{str::FromStr, time::SystemTime};
 
 use anyhow::anyhow;
-use bson::{oid, Bson};
+use bson::oid;
 use chrono::FixedOffset;
 use log::{debug, error, info};
 use mongodb::{
@@ -14,8 +14,6 @@ use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use mongodb::Database;
 use futures_util::StreamExt;
-
-use crate::apis::Query;
 
 pub mod logs;
 pub mod captcha;

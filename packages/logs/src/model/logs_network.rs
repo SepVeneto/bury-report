@@ -1,7 +1,6 @@
 use super::{
     serialize_time, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryModel
 };
-use bson::oid;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 

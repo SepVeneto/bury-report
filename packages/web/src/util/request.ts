@@ -216,9 +216,9 @@ export class Restful {
     })
   }
 
-  protected normalizeUrl(prefix: string, resource: string) {
+  protected normalizeUrl(prefix: string, ...resources: (string | undefined)[]) {
     const _res = prefix.endsWith('/') ? prefix : prefix + '/'
-    return _res + resource
+    return _res + resources.filter(item => !!item).join('/')
   }
 
   detail<Res>(name: string | number) {

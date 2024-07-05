@@ -45,6 +45,7 @@
           v-model="formData.source"
           custom-label="name"
           :api="getSourceOptions"
+          @change="handleSelectSource"
         />
       </ElFormItem>
 
@@ -52,7 +53,11 @@
         label="统计维度"
         prop="dimension"
       >
-        <BcInput v-model="formData.dimension" />
+        <BcSelect
+          v-model="formData.dimension"
+          custom-label="name"
+          :options="dimensionOptions"
+        />
       </ElFormItem>
 
       <ElFormItem
@@ -105,9 +110,10 @@
 
 <script lang="ts" setup>
 import ChartIcon from './components/ChartIcon.vue'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useChart, useSteps } from './hooks'
 import { source, statistics } from '@/apis'
+import type { SourceInfo } from '@/apis/source'
 import type { FormInstance } from 'element-plus'
 import type { ChartRule } from '@/apis/statistics'
 
@@ -125,7 +131,6 @@ const props = defineProps({
 const isEdit = computed(() => {
   return !!props.data.id
 })
-
 const chartRef = ref<HTMLElement>()
 const chart = useChart(chartRef, {})
 const {
@@ -154,7 +159,13 @@ watch(() => props.data, (val) => {
   formData.value = { ...val.data }
 }, { immediate: true })
 const formRef = ref<FormInstance>()
+const dimensionOptions = shallowRef<SourceInfo[]>([])
 
+async function handleSelectSource(_: string, item: SourceInfo) {
+  const list = await source.options(item.id)
+  console.log(list)
+  dimensionOptions.value = list
+}
 function handleSelectChart(chart: typeof type[number]) {
   formData.value.type = chart.type
 }

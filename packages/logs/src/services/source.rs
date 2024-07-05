@@ -1,19 +1,31 @@
-use std::str::FromStr;
-
 use super::ServiceResult;
-use crate::{model::{
-    source::*, CreateModel, DeleteModel, EditModel, PaginationModel, PaginationOptions, PaginationResult, QueryBase, QueryModel, QueryPayload
-}, utils::TreeList};
+use crate::{
+    model::{
+        source::*,
+        CreateModel,
+        DeleteModel,
+        EditModel,
+        QueryBase,
+        QueryModel
+    },
+    utils::TreeList
+};
 use anyhow::anyhow;
-use log::info;
 use mongodb::{
     bson::{doc, Bson},
     results::UpdateResult,
     Database,
 };
 
-pub async fn options(db: &Database) -> ServiceResult<Vec<QueryBase<Model>>> {
-    let res = Model::find_all(db, None).await?;
+pub async fn options(db: &Database, pid: Option<String>) -> ServiceResult<Vec<QueryBase<Model>>> {
+    let mut filter = doc! {};
+    if let Some(id) = pid {
+        filter.insert("pid", id);
+    } else {
+        // 没有指定pid则查询第一级
+        filter.insert("pid", Bson::Null);
+    }
+    let res = Model::find_all(db, filter).await?;
     Ok(res)
 }
 

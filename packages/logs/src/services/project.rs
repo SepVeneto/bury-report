@@ -7,11 +7,11 @@ use crate::model::{
     projects::Model, CreateModel, QueryModel, QueryBase,
 };
 
-pub async fn get_projects(db: &Database) -> ServiceResult<Vec<QueryBase<Model>>> {
+pub async fn _get_projects(db: &Database) -> ServiceResult<Vec<QueryBase<Model>>> {
     Ok(Model::find_all(db, None).await?)
 }
 
-pub async fn create_project(db: &Database, data: Model) -> ServiceResult<String> {
+pub async fn _create_project(db: &Database, data: Model) -> ServiceResult<String> {
     let res = Model::find_one(db, doc! {
         "name": data.name.clone(),
     }).await?;

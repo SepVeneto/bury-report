@@ -1,9 +1,8 @@
 use futures_util::StreamExt;
 use bson::{oid::ObjectId, Document};
-use log::info;
-use mongodb::{bson::{doc, oid}, Database};
+use mongodb::{bson::doc, Database};
 use serde::{Deserialize, Serialize, Serializer};
-use crate::{config::serialize_oid, utils::{array_to_tree, LikeNode, TreeList}};
+use crate::utils::{array_to_tree, LikeNode, TreeList};
 
 use super::{BaseModel, CreateModel, DeleteModel, EditModel, PaginationModel, QueryBase, QueryModel, QueryResult};
 
@@ -22,12 +21,6 @@ pub struct QueryPayload {
     pub size: u64,
     #[serde(skip_deserializing)]
     pub appid: String,
-}
-
-impl QueryPayload {
-    pub fn set_appid(&mut self, appid: &str) -> () {
-        self.appid = appid.to_string();
-    }
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]

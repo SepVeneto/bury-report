@@ -2,8 +2,6 @@ use actix_web::{delete, get, post, put, web, HttpRequest};
 use anyhow::anyhow;
 use mongodb::Client;
 use super::ApiResult;
-use log::{error, info};
-use mongodb::Database;
 use serde_json::Value;
 use crate::db;
 use crate::db::DbApp;
@@ -11,7 +9,6 @@ use crate::services::Response;
 use crate::services::source;
 use crate::model::{
     source::BasePayload,
-    QueryPayload,
 };
 use crate::apis::get_appid;
 
@@ -23,6 +20,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(set_source);
     config.service(update_source);
     config.service(delete_source);
+    config.service(get_source_children);
 }
 
 #[get("/source/options")]
@@ -32,7 +30,7 @@ async fn get_options(
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
-    let res = source::options(&db).await?;
+    let res = source::options(&db, None).await?;
     Response::ok(res, None).to_json()
 }
 
@@ -67,6 +65,20 @@ async fn get_source(
     }
 }
 
+#[get("/source/{source_id}/children")]
+async fn get_source_children(
+    req: HttpRequest,
+    path: web::Path<String>,
+    client: web::Data<Client>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let source_id = path.into_inner();
+    let res = source::options(&db, Some(source_id)).await?;
+
+    Response::ok(res, None).to_json()
+}
+
 #[post("/source")]
 async fn set_source(
     client: web::Data<Client>,
@@ -90,7 +102,6 @@ async fn update_source(
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
     let source_id = path.into_inner();
-    info!("{:?}", json.0);
     let res = source::update(&db, &source_id, json.0).await?;
     Response::ok(res, "编辑成功").to_json()
 }

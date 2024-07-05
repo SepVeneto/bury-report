@@ -1,6 +1,6 @@
 use bson::doc;
 use mongodb::Database;
-use crate::model::{config::Model, QueryModel};
+use crate::model::config::Model;
 
 use super::ServiceResult;
 

@@ -23,6 +23,8 @@ pub mod project;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
+    #[error("生成oid失败")]
+    OidGenError(#[from] bson::oid::Error),
     #[error(transparent)]
     InternalError(#[from] ModelError),
     #[error("transform to string error {result:?} with {origin:?}")]

@@ -56,8 +56,8 @@ async fn check_login(db: &Database, data: &LoginPayload) -> ServiceResult<bool> 
     }
 }
 
-const L: u32 = 42;
-const R: u32 = 9;
+// const L: u32 = 42;
+// const R: u32 = 9;
 // async fn gen_captcha() -> {
 //     use image::io::Reader as ImageReader;
 

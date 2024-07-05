@@ -1,8 +1,8 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use log::{error, info};
+use log::error;
 use mongodb::{Client, Database};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use crate::apis::get_appid;
 use crate::db;
 use crate::model::logs::RecordPayload;

@@ -1,19 +1,30 @@
-use std::{collections::HashMap, str::FromStr};
+use std::collections::HashMap;
 
 use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use bson::{doc, Document};
-use log::{info, error};
+use bson::doc;
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
-use chrono::{DateTime, FixedOffset, NaiveDateTime, TimeZone, Utc};
-use chrono_tz::Asia::Shanghai;
 
-use crate::{apis::{record::{ErrorFilter, FilterNetwork}, Query}, db, model::{
-    apps, logs::{self, Model, RecordItem, RecordPayload, RecordV1}, logs_error, logs_network, CreateModel, PaginationModel, PaginationOptions, PaginationResult, QueryBase, QueryModel, QueryPayload
-}, services::{gen_timerange_doc, normalize_time}};
+use crate::{
+    apis::{record::{ErrorFilter, FilterNetwork}, Query},
+    db,
+    model::{
+        apps,
+        logs,
+        logs_error,
+        logs_network,
+        CreateModel,
+        PaginationModel,
+        PaginationOptions,
+        PaginationResult,
+        QueryBase,
+        QueryModel,
+    },
+    services::gen_timerange_doc
+};
 
 use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceError, ServiceResult};
 
@@ -33,7 +44,7 @@ enum RecordList {
     ErrorList(Vec<logs_error::Model>),
     CustomList(Vec<logs::Model>),
 }
-pub async fn record(client: &Client, db: &Database, data: &RecordPayload) -> ServiceResult<()> {
+pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) -> ServiceResult<()> {
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {
@@ -41,24 +52,24 @@ pub async fn record(client: &Client, db: &Database, data: &RecordPayload) -> Ser
     }
 
     match data {
-        RecordPayload::V1(v1) => {
+        logs::RecordPayload::V1(v1) => {
             let db = &db::DbApp::get_by_appid(client, &appid);
             match v1.normalize_from() {
-                RecordItem::Log(log) => {
+                logs::RecordItem::Log(log) => {
                     logs::Model::insert_one(db, log).await?;
                 },
-                RecordItem::Network(net) => {
+                logs::RecordItem::Network(net) => {
                     logs_network::Model::insert_one(db, net).await?;
                 },
-                RecordItem::Error(err) => {
+                logs::RecordItem::Error(err) => {
                     logs_error::Model::insert_one(db, err).await?;
                 },
-                RecordItem::Custom(data) => {
+                logs::RecordItem::Custom(data) => {
                     logs::Model::insert_one(db, data).await?;
                 }
             }
         },
-        RecordPayload::V2(v2) => {
+        logs::RecordPayload::V2(v2) => {
             let group  = group_records(&v2.data);
             let appid = v2.appid.to_string();
 
@@ -102,23 +113,23 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
     }
     Ok(())
 }
-fn group_records<'a>(list: &'a Vec<RecordV1>) -> HashMap<&str, RecordList> {
+fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&str, RecordList> {
     let mut list_collect = vec![];
     let mut list_network = vec![];
     let mut list_error = vec![];
 
     list.iter().for_each(|item| {
         match item.normalize_from() {
-            RecordItem::Log(log) => {
+            logs::RecordItem::Log(log) => {
                 list_collect.push(log);
             },
-            RecordItem::Network(net) => {
+            logs::RecordItem::Network(net) => {
                 list_network.push(net);
             },
-            RecordItem::Error(err) => {
+            logs::RecordItem::Error(err) => {
                 list_error.push(err);
             },
-            RecordItem::Custom(log) => {
+            logs::RecordItem::Custom(log) => {
                 list_collect.push(log);
             }
         }
@@ -132,7 +143,7 @@ fn group_records<'a>(list: &'a Vec<RecordV1>) -> HashMap<&str, RecordList> {
     }
 }
 
-pub fn send_to_ws(svr: &Addr<WsActor>, data: &RecordPayload) -> ServiceResult<()> {
+pub fn send_to_ws(svr: &Addr<WsActor>, data: &logs::RecordPayload) -> ServiceResult<()> {
     let text = match data.to_string() {
         Ok(res) => res,
         Err(err) => {
