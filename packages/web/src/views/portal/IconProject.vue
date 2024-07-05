@@ -49,6 +49,7 @@ import DialogApp from '../app/DialogApp.vue'
 import { createDialog } from '@sepveneto/basic-comp'
 import { PortalKey } from './token'
 import ProjectWrap from './IconProject.wrap.vue'
+import { ElMessageBox } from 'element-plus'
 
 const context = inject(PortalKey)
 const props = defineProps({
@@ -99,8 +100,26 @@ function handleContextmenu(evt: MouseEvent, app: App) {
     {
       label: '删除',
       onClick: async () => {
-        await deleteApp(app.id)
-        context.getList()
+        ElMessageBox.alert('删除应用并不会清除数据', '提示', {
+          type: 'info',
+        }).then(async () => {
+          try {
+            await ElMessageBox.prompt('请输入该应用的名称以确认删除操作', '注意', {
+              confirmButtonText: '确认删除',
+              confirmButtonClass: 'el-button--danger',
+              cancelButtonText: '取消',
+              inputPattern: new RegExp(`^${app.name}$`),
+              inputErrorMessage: '应用名称不匹配',
+            })
+            await deleteApp(app.id)
+            context.getList()
+          } catch (err) {
+            if (err === 'cancel') return
+            console.error(err)
+          }
+        }).catch(() => {
+          // pass
+        })
       },
     },
     {

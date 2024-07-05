@@ -21,6 +21,7 @@ import IconProject from './IconProject.vue'
 import { type Project, deleteProject, getProjectList, updateProject } from '@/apis'
 import { type PropType, inject } from 'vue'
 import { PortalKey } from './token'
+import { ElMessageBox } from 'element-plus'
 
 const context = inject(PortalKey)
 
@@ -36,6 +37,16 @@ function handleContextmenu(evt: MouseEvent, projectId: Project['id']) {
     {
       label: '删除',
       onClick: async () => {
+        if (props.data.apps.length) {
+          await ElMessageBox.alert(
+            '该项不为空，请先删除所有关联的应用',
+            '警告',
+            {
+              type: 'error',
+            },
+          )
+          return
+        }
         await deleteProject(projectId)
         context.getList()
       },
