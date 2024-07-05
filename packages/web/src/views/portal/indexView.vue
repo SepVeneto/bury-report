@@ -20,6 +20,15 @@
         </div>
       </div>
     </div>
+
+    <div class="input-wrap">
+      <ElInput
+        v-model="search"
+        placeholder="搜索appid或名称"
+        clearable
+        @input="throttleSearch"
+      />
+    </div>
   </section>
 </template>
 
@@ -32,11 +41,12 @@ import {
   updateProject,
 } from '@/apis'
 import type { Project } from '@/apis'
-import { provide, reactive, ref } from 'vue'
+import { computed, provide, reactive, ref, shallowRef } from 'vue'
 import '@imengyu/vue3-context-menu/lib/vue3-context-menu.css'
 import type { MenuItem } from '@imengyu/vue3-context-menu'
 import ContextMenu from '@imengyu/vue3-context-menu'
 import { PortalKey } from './token'
+import { useThrottleFn } from '@vueuse/core'
 
 function handleContextmenu(evt: MouseEvent, items: MenuItem[]) {
   evt.preventDefault()
@@ -47,7 +57,32 @@ function handleContextmenu(evt: MouseEvent, items: MenuItem[]) {
   })
 }
 
+const cacheProjects = shallowRef<Project[]>([])
 const projects = ref<Project[]>([])
+const search = ref('')
+const apps = computed(() => {
+  const map = new Map<Project['id'], Project>()
+  cacheProjects.value.forEach(project => {
+    map.set(project.id, project)
+  })
+  return map
+})
+const throttleSearch = useThrottleFn(() => {
+  if (!search.value) {
+    projects.value = [...cacheProjects.value]
+    return
+  }
+
+  const hitMap = new Map()
+  apps.value.forEach((project, pid) => {
+    const hitApps = project.apps.filter(app => app.name.includes(search.value) || app.id.includes(search.value))
+    if (hitApps.length) {
+      hitMap.set(pid, { ...project, apps: hitApps })
+    }
+  })
+  projects.value = Array.from(hitMap.values())
+}, 300)
+
 provide(PortalKey, reactive({
   handleContextmenu,
   getList,
@@ -57,6 +92,7 @@ getList()
 async function getList() {
   const res = await getProjectList()
   projects.value = res
+  cacheProjects.value = [...res]
 }
 async function handleAdd() {
   const newProject = {
@@ -84,6 +120,7 @@ async function handleAdd() {
 
 <style lang="scss" scoped>
 .portal-container {
+  overflow: auto;
   width: 100vw;
   height: 100vh;
   background: linear-gradient(#e66465, #9198e5);
@@ -119,5 +156,15 @@ async function handleAdd() {
       box-shadow: 0 0 0 0 #ededed;
     }
   }
+}
+.input-wrap {
+  background: #fff;
+  width: 80%;
+  padding: 20px;
+  border-radius: 20px;
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 20px;
 }
 </style>
