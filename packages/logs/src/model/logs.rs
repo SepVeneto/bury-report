@@ -154,12 +154,13 @@ impl EditModel for Model {}
 impl Model { 
     pub async fn find_from_aggregrate<T>(
         db: &Database,
+        coll_name: &str,
         pipeline: Vec<Document>
     ) -> QueryResult<Vec<T>>
     where
         T: DeserializeOwned
     {
-        let mut res = <Self as QueryModel>::col(db).aggregate(pipeline, None).await?;
+        let mut res = db.collection::<T>(coll_name).aggregate(pipeline, None).await?;
         let mut collect_data = vec![];
 
         while let Some(record) = res.next().await {

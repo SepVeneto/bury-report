@@ -158,7 +158,7 @@ async function handleAdd() {
   }
 }
 .input-wrap {
-  background: #fff;
+  background: rgba(255,255,255,0.5);
   width: 80%;
   padding: 20px;
   border-radius: 20px;

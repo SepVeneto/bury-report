@@ -1,6 +1,6 @@
 use chrono::{Datelike, LocalResult, TimeZone};
 use log::{error, info};
-use mongodb::{bson::{bson, doc, Bson, DateTime}, options::UpdateOptions, Database};
+use mongodb::{bson::{bson, doc, Bson, DateTime}, options::UpdateOptions, Client, Database};
 use anyhow::anyhow;
 
 use crate::model::{device, logs, statistics::{self, DataType, Model, Rule}, BaseModel, CreateModel};
@@ -28,15 +28,15 @@ pub async fn create_chart(db: &Database, chart_type: &str, data: statistics::Rul
 // 饼图
 pub async fn query_pie(
     db: &Database,
-    log_type: &str,
+    source: &str,
     dimension: &str,
     sort: &str,
 ) -> ServiceResult<Vec<DataType>> {
-    let pipeline_match= doc! {
-        "$match": {
-            "type": log_type.to_string(),
-        }
-    };
+    // let pipeline_match= doc! {
+    //     "$match": {
+    //         "type": log_type.to_string(),
+    //     }
+    // };
     let pipeline_distinct = doc! {
         "$group": {
             "_id": { "uuid": "$uuid", "dimension": format!("$data.{}", dimension) }
@@ -61,13 +61,18 @@ pub async fn query_pie(
     };
 
     let combine_pipeline = vec![
-        pipeline_match,
+        // pipeline_match,
         pipeline_distinct,
         pipeline_count,
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_from_aggregrate::<DataType>(db, combine_pipeline).await?;
+    info!("pipeline: {:?}", combine_pipeline);
+    let res = logs::Model::find_from_aggregrate::<DataType>(
+        db,
+        source,
+        combine_pipeline
+    ).await?;
 
     Ok(res)
 
@@ -75,7 +80,7 @@ pub async fn query_pie(
 
 pub async fn query_with_date(
     db: &Database,
-    log_type: &str,
+    source: &str,
     dimension: &str,
     value: &Vec<String>,
     range: &Vec<String>,
@@ -86,7 +91,7 @@ pub async fn query_with_date(
     }).collect::<Vec<Bson>>();
     let pipeline_match = doc! {
         "$match": {
-            "type": log_type.to_string(),
+            // "type": log_type.to_string(),
             "create_time": {
                 "$gte": start,
                 "$lte": end,
@@ -151,7 +156,11 @@ pub async fn query_with_date(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_from_aggregrate(db, combine_pipeline).await?;
+    let res = logs::Model::find_from_aggregrate(
+        db,
+        source,
+        combine_pipeline,
+    ).await?;
 
     Ok(res)
 }
