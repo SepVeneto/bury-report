@@ -119,7 +119,7 @@ pub async fn preview_statistics(
     let sort = payload.get_sort();
     let res = match payload.0 {
         Rule::Pie(_) => statistics::query_pie(
-            &client,
+            &db,
             &source,
             &dimension,
             &sort,

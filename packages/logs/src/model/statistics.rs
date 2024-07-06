@@ -1,12 +1,14 @@
 use std::str::FromStr;
 use crate::config::serialize_oid;
+use log::error;
 
+use bson::{from_document, Document};
 use futures_util::StreamExt;
 use mongodb::{
     bson::{doc, oid, to_bson},
     results::InsertOneResult, Collection, Database
 };
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use super::QueryResult;
 
@@ -114,6 +116,29 @@ impl Model {
         Self::col(db).delete_one(query, None).await?;
         Ok(())
     }
+    pub async fn find_from_aggregrate<T>(
+        db: &Database,
+        name: &str,
+        pipeline: Vec<Document>
+    ) -> QueryResult<Vec<T>>
+    where
+        T: DeserializeOwned
+    {
+        let mut res = db.collection::<T>(name).aggregate(pipeline, None).await?;
+        let mut collect_data = vec![];
+
+        while let Some(record) = res.next().await {
+            let record = record?;
+            // match
+            if let Ok(record) = from_document(record.clone()) {
+                collect_data.push(record);
+            } else {
+                error!("from document failed: {:?}", record.clone());
+            }
+        }
+        Ok(collect_data)
+    }
+
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

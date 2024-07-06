@@ -68,7 +68,7 @@ pub async fn query_pie(
         pipeline_sort,
     ];
     info!("pipeline: {:?}", combine_pipeline);
-    let res = logs::Model::find_from_aggregrate::<DataType>(
+    let res = statistics::Model::find_from_aggregrate::<DataType>(
         db,
         source,
         combine_pipeline
@@ -156,7 +156,7 @@ pub async fn query_with_date(
         pipeline_output,
         pipeline_sort,
     ];
-    let res = logs::Model::find_from_aggregrate(
+    let res = statistics::Model::find_from_aggregrate(
         db,
         source,
         combine_pipeline,
@@ -231,65 +231,65 @@ pub async fn _count_total(
 /**
  * 昨日累计打开次数(设备)
  */
-pub async fn _count_yesterday(
-    db: &Database,
-    log_type: &str,
-    unique: bool,
-) -> ServiceResult<usize> {
-    let (start, end) = get_sub_date()?;
-    let mut pipeline = vec![
-        doc! {
-            "$match": {
-                "type": log_type.to_string(),
-                "create_time": {
-                    "$gte": start,
-                    "$lte": end,
-                }
-            },
-        },
-    ];
+// pub async fn _count_yesterday(
+//     db: &Database,
+//     log_type: &str,
+//     unique: bool,
+// ) -> ServiceResult<usize> {
+//     let (start, end) = get_sub_date()?;
+//     let mut pipeline = vec![
+//         doc! {
+//             "$match": {
+//                 "type": log_type.to_string(),
+//                 "create_time": {
+//                     "$gte": start,
+//                     "$lte": end,
+//                 }
+//             },
+//         },
+//     ];
 
-    if unique {
-        pipeline.extend(vec![
-            doc! {
-                "$group": {
-                    "_id": { "uuid": "$uuid", "type": "$type" }
-                }
-            },
-            doc! {
-                "$group": {
-                    "_id": "$_id.type",
-                    "count": { "$sum": 1 },
-                }
-            }
-        ]);
-    } else {
-        pipeline.extend(vec![
-            doc! {
-                "$group": {
-                    "_id": "$type",
-                    "count": { "$sum": 1 },
-                }
-            },
-        ]);
-    }
-    pipeline.push(doc! {
-        "$project": {
-            "log_type": "$_id",
-            "count": 1,
-        }
-    });
-    let res = logs::Model::find_from_aggregrate::<DataType>(db, pipeline).await?;
-    if let Some(_res) = res.get(0) {
-        if let DataType::Total(res) = _res {
-            Ok(res.count)
-        } else {
-            Ok(0)
-        }
-    } else {
-        Ok(0)
-    }
-}
+//     if unique {
+//         pipeline.extend(vec![
+//             doc! {
+//                 "$group": {
+//                     "_id": { "uuid": "$uuid", "type": "$type" }
+//                 }
+//             },
+//             doc! {
+//                 "$group": {
+//                     "_id": "$_id.type",
+//                     "count": { "$sum": 1 },
+//                 }
+//             }
+//         ]);
+//     } else {
+//         pipeline.extend(vec![
+//             doc! {
+//                 "$group": {
+//                     "_id": "$type",
+//                     "count": { "$sum": 1 },
+//                 }
+//             },
+//         ]);
+//     }
+//     pipeline.push(doc! {
+//         "$project": {
+//             "log_type": "$_id",
+//             "count": 1,
+//         }
+//     });
+//     let res = logs::Model::find_from_aggregrate::<DataType>(db, pipeline).await?;
+//     if let Some(_res) = res.get(0) {
+//         if let DataType::Total(res) = _res {
+//             Ok(res.count)
+//         } else {
+//             Ok(0)
+//         }
+//     } else {
+//         Ok(0)
+//     }
+// }
 
 fn get_sub_date() -> ServiceResult<(DateTime, DateTime)>{
     let now = chrono::Utc::now();

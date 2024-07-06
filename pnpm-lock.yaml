@@ -217,10 +217,6 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
 
-  packages/sign/pkg-client: {}
-
-  packages/sign/pkg-server: {}
-
   packages/web:
     dependencies:
       '@element-plus/icons-vue':
@@ -7382,7 +7378,7 @@ packages:
     dependencies:
       '@vue/compiler-ssr': 3.4.25
       '@vue/shared': 3.4.25
-      vue: 3.4.25(typescript@5.4.5)
+      vue: 3.4.25(typescript@4.9.5)
 
   /@vue/shared@3.0.5:
     resolution: {integrity: sha512-gYsNoGkWejBxNO6SNRjOh/xKeZ0H0V+TFzaPzODfBjkAIb0aQgBuixC1brandC/CDJy1wYPwSoYrXpvul7m6yw==}
