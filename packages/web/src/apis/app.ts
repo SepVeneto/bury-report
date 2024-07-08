@@ -236,3 +236,12 @@ export function getDeviceList(params: { page: number, size: number, timerange?: 
     raw: 'data',
   })
 }
+
+export function getLogList(params: { page: number, size: number, timerange?: string[] }) {
+  const _params = new Query(params).build()
+  return request({
+    url: '/record/logs',
+    params: _params,
+    raw: 'data',
+  })
+}

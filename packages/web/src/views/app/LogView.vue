@@ -1,69 +1,54 @@
 <template>
-  <PageLayout :header="title">
-    <ElScrollbar
-      ref="scrollbarRef"
-      height="calc(100vh - 106px - var(--layout-outer-padding) - var(--layout-inner-padding) - 56px)"
-      noresize
-      style="background: black; color: #fff;"
-      view-style="padding: 10px; position: relative;"
+  <section>
+    <bc-search
+      v-model="params"
+      :search="handleSearch"
+      :config="searchConfig"
+    />
+    <bc-table
+      ref="tableRef"
+      v-model="params"
+      :config="tableConfig"
+      pagination
+      :api="getList"
     >
-      <ElIcon
-        style="position: absolute; right: 20px; top: 20px; cursor: pointer;"
-        @click="handleFullScreen"
-      >
-        <IconFullScreen />
-      </ElIcon>
-      <div
-        v-for="(record, index) in records"
-        :key="index"
-        style="margin-bottom: 10px;"
-      >
-        {{ record }}
-      </div>
-    </ElScrollbar>
-  </PageLayout>
+      <template #uuid="{ row }">
+        <DeviceLink
+          :uuid="row.uuid"
+          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
+        />
+      </template>
+      <template #data="{ row }">
+        <span>{{ row.data }}</span>
+      </template>
+    </bc-table>
+  </section>
 </template>
 
-<script lang="ts" setup>
-import { nextTick, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { getApp, readLogs } from '@/apis'
-import type { ScrollbarInstance } from 'element-plus'
-import { ElMessage } from 'element-plus'
-import { FullScreen as IconFullScreen } from '@element-plus/icons-vue'
+<script setup lang="ts">
+import { ref, shallowRef } from 'vue'
+import { getLogList } from '@/apis'
+import DeviceLink from './components/DeviceLink.vue'
 
-const route = useRoute()
-const records = ref<string[]>([])
-const scrollbarRef = ref<ScrollbarInstance>()
-const title = ref('')
-
-getApp(route.params.id as string).then((res) => {
-  title.value = res.name
+const params = ref({
+  page: 1,
+  size: 20,
 })
-const sse = readLogs(route.params.id as string, async (evt) => {
-  const { create_time, ...params } = JSON.parse(evt.data)
-  records.value.push(`${new Date(create_time).toLocaleString()}  ${JSON.stringify(params)}`)
-  await nextTick()
-  scrollbarRef.value?.setScrollTop(Number.MAX_SAFE_INTEGER)
-})
-
-sse.onopen = () => {
-  console.log('建立连接成功')
+const tableRef = ref()
+const tableConfig = shallowRef([
+  { label: '日志类型', prop: 'type' },
+  { label: '设备ID', prop: 'uuid' },
+  { label: '上报数据', prop: 'data' },
+])
+const searchConfig = shallowRef([
+  { catalog: 'input', prop: 'type', name: '日志类型' },
+  { catalog: 'input', prop: 'uuid', name: '设备ID', style: 'width: 320px' },
+  { catalog: 'input', prop: 'data', name: '上报数据', style: 'width: 320px' },
+])
+function getList() {
+  return getLogList(params.value)
 }
-sse.onerror = () => {
-  ElMessage.error('日志连接建立失败, 请稍候重试...')
-}
-
-onUnmounted(() => {
-  sse.close()
-})
-
-function handleFullScreen() {
-  const isFull = !!document.fullscreenElement
-  if (isFull) {
-    document.exitFullscreen()
-  } else {
-    scrollbarRef.value?.$el.requestFullscreen()
-  }
+function handleSearch() {
+  tableRef.value.getList()
 }
 </script>

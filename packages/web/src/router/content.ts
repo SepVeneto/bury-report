@@ -8,6 +8,7 @@ import ErrorView from '../views/app/ErrorView.vue'
 import DeviceView from '@/views/app/DeviceView.vue'
 import DeviceDetail from '@/views/app/DeviceDetail.vue'
 import NetworkView from '@/views/app/NetworkView.vue'
+import LogView from '@/views/app/LogView.vue'
 
 export const content = {
   DashboardView,
@@ -20,4 +21,5 @@ export const content = {
   DeviceView,
   NetworkView,
   DeviceDetail,
+  LogView,
 }

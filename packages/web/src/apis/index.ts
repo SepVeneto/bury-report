@@ -44,6 +44,13 @@ const mockMenus = [
   },
   {
     pid: 3,
+    id: 35,
+    name: '上报日志',
+    path: 'log',
+    route: 'LogView',
+  },
+  {
+    pid: 3,
     id: 32,
     name: '错误记录',
     path: 'error',

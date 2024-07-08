@@ -9,7 +9,7 @@ use mongodb::{Database, Client};
 use anyhow::anyhow;
 
 use crate::{
-    apis::{record::{ErrorFilter, FilterNetwork}, Query},
+    apis::{record::{ErrorFilter, FilterNetwork, LogFilter}, Query},
     db,
     model::{
         apps,
@@ -174,6 +174,44 @@ pub fn create_ws(
         Ok(res) => Ok(res),
         Err(err) => Err(anyhow!(err.to_string()).into())
     }
+}
+
+pub async fn get_log_list(
+    db: &Database,
+    data: Query<LogFilter>
+) -> ServiceResult<PaginationResult<logs::Model>> {
+    let mut doc = doc! {
+        "$and": [
+            {
+                "type": { "$ne": "__BR_COLLECT_INFO__" }
+            }
+        ]
+    };
+    let query = data.query;
+
+    if let Some(uuid) = query.uuid {
+        doc.insert("uuid", uuid);
+    }
+    if let Some(data) = query.data {
+        doc.insert("data", doc! { "$regex": data });
+    }
+    if let Some(r#type) = query.r#type {
+        // doc.insert("type", doc! { "$regex": r#type });
+        let mut and = doc.get_array("$and").unwrap().clone();
+        and.push(doc! {
+            "type": { "$regex": r#type },
+        }.into());
+        doc.remove("$and");
+        doc.insert("$and", and);
+    }
+
+    let res = logs::Model::pagination(
+        db,
+        data.page,
+        data.size,
+        PaginationOptions::new().query(doc).build(),
+    ).await?;
+    Ok(res)
 }
 
 pub async fn get_error_list(
