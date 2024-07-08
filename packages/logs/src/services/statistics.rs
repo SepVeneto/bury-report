@@ -42,8 +42,63 @@ pub async fn query_chart(db: &Database, rule: Rule) -> ServiceResult<Vec<DataTyp
                 &value,
                 &range
             ).await;
+        },
+        Rule::Table(_) => {
+            return query_table(db, &source, &dimension, &sort).await;
         }
     }
+}
+
+// table
+pub async fn query_table(
+    db: &Database,
+    source: &str,
+    dimension: &str,
+    sort: &str,
+) -> ServiceResult<Vec<DataType>> {
+    let pipeline_distinct = doc! {
+        "$group": {
+            "_id": { "uuid": "$uuid", "dimension": format!("$data.{}", dimension) }
+        }
+    };
+    let pipeline_count = doc! {
+        "$group": {
+            "_id": "$_id.dimension",
+            "count": { "$sum": 1 },
+        }
+    };
+    let pipeline_output = doc! {
+        "$project": {
+            "name": "$_id",
+            "value": "$count"
+        }
+    };
+    let pipeline_sort = doc! {
+        "$sort": {
+            format!("{sort}", ): 1,
+        }
+    };
+
+    let combine_pipeline = vec![
+        // pipeline_match,
+        pipeline_distinct,
+        pipeline_count,
+        pipeline_output,
+        pipeline_sort,
+    ];
+    info!("pipeline: {:?}", combine_pipeline);
+    let res = statistics::Model::find_from_aggregrate::<DataType>(
+        db,
+        source,
+        combine_pipeline
+    ).await?;
+
+    if res.len() > 100 {
+        return Err(ServiceError::Common(anyhow!("所选维度统计条目过多，请重新选择")));
+    }
+
+    Ok(res)
+
 }
 
 // 饼图
@@ -53,14 +108,12 @@ pub async fn query_pie(
     dimension: &str,
     sort: &str,
 ) -> ServiceResult<Vec<DataType>> {
-    // let pipeline_match= doc! {
-    //     "$match": {
-    //         "type": log_type.to_string(),
-    //     }
-    // };
     let pipeline_distinct = doc! {
         "$group": {
-            "_id": { "uuid": "$uuid", "dimension": format!("$data.{}", dimension) }
+            "_id": {
+                "uuid": "$uuid",
+                "dimension": { "$toString": format!("$data.{}", dimension) },
+            }
         }
     };
     let pipeline_count = doc! {
@@ -120,10 +173,11 @@ pub async fn query_with_date(
             "create_time": {
                 "$gte": start,
                 "$lte": end,
-            },
-            "$or": or
+            }
+            // "$or": or
         }
     };
+    info!("match: {:?}", pipeline_match);
     let pipeline_distinct = doc! {
         "$group": {
             "_id": {
@@ -162,7 +216,7 @@ pub async fn query_with_date(
         "$project": {
             "_id": 0,
             "date": "$_id.date",
-            "output": "$_id.dimension",
+            "output": { "$toString": "$_id.dimension"},
             "sum": "$count",
         },
     };

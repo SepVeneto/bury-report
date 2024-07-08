@@ -36,6 +36,7 @@ pub enum DataType {
     Line(StatisticLine),
     Total(StatisticTotal),
     Pie(StatisticPie),
+    Table(StatisticPie),
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -166,10 +167,19 @@ pub struct RuleLine {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RuleTable {
+    name: String,
+    source: String,
+    dimension: String,
+    sort: String,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type")]
 pub enum Rule {
     Pie(RulePie),
     Line(RuleLine),
+    Table(RuleTable),
 }
 
 impl Rule {
@@ -177,25 +187,29 @@ impl Rule {
     pub fn get_source(&self) -> String {
         match self {
             Rule::Pie(pie) => pie.source.to_owned(),
-            Rule::Line(line) => line.source.to_owned()
+            Rule::Line(line) => line.source.to_owned(),
+            Rule::Table(table) => table.source.to_owned(),
         }
     }
     pub fn get_dimension(&self) -> String {
         match self {
             Rule::Pie(pie) => pie.dimension.to_owned(),
             Rule::Line(line) => line.dimension.to_owned(),
+            Rule::Table(table) => table.dimension.to_owned(),
         }
     }
     pub fn get_range(&self) -> Vec<String> {
         match self {
             Rule::Pie(_) => vec![],
             Rule::Line(line) => line.range.to_owned().unwrap_or(vec![]),
+            Rule::Table(_table) => vec![],
         }
     }
     pub fn get_value(&self) -> Vec<String> {
         match self {
             Rule::Pie(_) => vec![],
-            Rule::Line(line) => line.value.to_owned().unwrap_or(vec![])
+            Rule::Line(line) => line.value.to_owned().unwrap_or(vec![]),
+            Rule::Table(_table) => vec![],
         }
     }
 
@@ -203,6 +217,7 @@ impl Rule {
         match self {
             Rule::Pie(pie) => pie.sort.to_owned(),
             Rule::Line(_line) => String::from(""),
+            Rule::Table(table) => table.sort.to_owned(),
         }
     }
 }

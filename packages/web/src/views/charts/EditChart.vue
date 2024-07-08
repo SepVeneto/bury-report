@@ -153,9 +153,9 @@ const {
 } = useSteps()
 const type = [
   { label: '饼图', type: 'Pie' },
-  { label: '折线图', type: 'Line' },
-  { label: '柱状图', type: 'Bar' },
-  { label: '二维表', type: 'Table' },
+  // { label: '折线图', type: 'Line' },
+  // { label: '柱状图', type: 'Bar' },
+  // { label: '二维表', type: 'Table' },
 ] as const
 const rules = {
   name: { required: true, message: '请设置图表名称' },

@@ -6,6 +6,7 @@ use crate::apis::{get_appid, ApiResult};
 
 use crate::db::{self, DbApp};
 use crate::services::apps;
+use crate::services::statistics::query_chart;
 use crate::{
     model::statistics::Rule,
     services::{
@@ -59,6 +60,7 @@ pub async fn create_statistics(
     let res = match payload.0 {
         Rule::Pie(_) => statistics::create_chart(&db, "Pie", payload.0).await?,
         Rule::Line(_) => statistics::create_chart(&db, "Line", payload.0).await?,
+        Rule::Table(_) => statistics::create_chart(&db, "Table", payload.0).await?,
     };
 
     Response::ok(res, None).to_json()
@@ -119,26 +121,7 @@ pub async fn preview_statistics(
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
-    let source= payload.get_source();
-    let dimension = payload.get_dimension();
-    let range = payload.get_range();
-    let value = payload.get_value();
-    let sort = payload.get_sort();
-    let res = match payload.0 {
-        Rule::Pie(_) => statistics::query_pie(
-            &db,
-            &source,
-            &dimension,
-            &sort,
-        ).await?,
-        Rule::Line(_) => statistics::query_with_date(
-            &db,
-            &source,
-            &dimension,
-            &value,
-            &range
-        ).await?,
-    };
+    let res = query_chart(&db, payload.0).await?;
 
     Response::ok(res, None).to_json()
 }
