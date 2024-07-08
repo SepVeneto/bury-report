@@ -42,7 +42,7 @@
 
     <div
       ref="chartRef"
-      style="flex: 1;"
+      style="flex: 1; height: calc(100vh - var(--topbar-height) - var(--breadcrumb-height) - 106px)"
     />
 
     <BcDialog
