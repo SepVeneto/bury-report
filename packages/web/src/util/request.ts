@@ -9,7 +9,7 @@ import { useApp } from '@/store'
 interface Response<T = any> {
   code: number;
   message: string;
-  data: T;
+  data: T | null;
 }
 
 sign.SIGN_KEY = import.meta.env.VITE_APP_SIGNKEY

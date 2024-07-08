@@ -10,7 +10,7 @@ use mongodb::{
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use super::QueryResult;
+use super::{BaseModel, QueryModel, QueryResult};
 
 pub const NAME: &str = "statistics";
 
@@ -40,17 +40,28 @@ pub enum DataType {
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct Model {
-    #[serde(
-        serialize_with = "serialize_oid",
-        rename(serialize = "id"),
-        skip_serializing_if = "Option::is_none"
-    )]
-    _id: Option<oid::ObjectId>,
     r#type: String,
     pub data: Rule,
-    #[serde(skip_serializing)]
     pub cache: Vec<DataType>
 }
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct ListModel {
+    r#type: String,
+    pub data: Rule,
+}
+
+impl BaseModel for ListModel {
+    const NAME: &'static str = "statistics";
+    type Model = ListModel;
+}
+impl QueryModel for ListModel {}
+
+impl BaseModel for Model {
+    const NAME: &'static str = "statistics";
+    type Model = Model;
+}
+impl QueryModel for Model {}
 
 impl Model {
     pub fn col (db: &Database) -> Collection<Self> {
@@ -63,18 +74,15 @@ impl Model {
         cache: Vec<DataType>,
     ) -> QueryResult<InsertOneResult> {
         let new_doc = Model {
-            _id: None,
             r#type: chart_type.to_string(),
             data,
             cache,
         };
         Ok(Self::col(db).insert_one(new_doc, None).await?)
     }
-    pub async fn find_many(db: &Database, appid: &str) -> QueryResult<Vec<Model>> {
+    pub async fn find_many(db: &Database) -> QueryResult<Vec<Model>> {
         let mut list = vec![];
-        let mut res = Self::col(db).find(doc! {
-            "appid": appid,
-        }, None).await?;
+        let mut res = Self::col(db).find(doc! {}, None).await?;
         while let Some(record) = res.next().await {
             list.push(record?)
         }

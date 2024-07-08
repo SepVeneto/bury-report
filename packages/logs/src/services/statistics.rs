@@ -1,9 +1,9 @@
 use chrono::{Datelike, LocalResult, TimeZone};
 use log::{error, info};
-use mongodb::{bson::{bson, doc, Bson, DateTime}, options::UpdateOptions, Client, Database};
+use mongodb::{bson::{bson, doc, Bson, DateTime}, options::{FindOptions, UpdateOptions}, Database};
 use anyhow::anyhow;
 
-use crate::model::{device, logs, statistics::{self, DataType, Model, Rule}, BaseModel, CreateModel};
+use crate::{model::{device, logs, statistics::{self, DataType, ListModel, Model, Rule}, QueryBase, QueryModel}, services::ServiceError};
 
 use super::ServiceResult;
 
@@ -12,10 +12,8 @@ use super::ServiceResult;
 // }
 
 pub async fn create_chart(db: &Database, chart_type: &str, data: statistics::Rule) -> ServiceResult<()> {
-    let source = data.get_source();
-    let dimension = &data.get_dimension();
-    let sort = &data.get_sort();
-    let cache = query_pie(db, &source, dimension, sort).await?;
+    let cache = query_chart(db, data.clone()).await?;
+    info!("res: {:?}", cache);
     let _ = Model::insert_pie(
         db,
         chart_type,
@@ -23,6 +21,29 @@ pub async fn create_chart(db: &Database, chart_type: &str, data: statistics::Rul
         cache,
     ).await;
     Ok(())
+}
+
+pub async fn query_chart(db: &Database, rule: Rule) -> ServiceResult<Vec<DataType>>{
+    let source= rule.get_source();
+    let dimension = rule.get_dimension();
+    let range = rule.get_range();
+    let value = rule.get_value();
+    let sort = rule.get_sort();
+
+    match rule {
+        Rule::Pie(_pie) => {
+            return query_pie(db, &source, &dimension, &sort).await;
+        },
+        Rule::Line(_line) => {
+            return query_with_date(
+                db,
+                &source,
+                &dimension,
+                &value,
+                &range
+            ).await;
+        }
+    }
 }
 
 // 饼图
@@ -73,6 +94,10 @@ pub async fn query_pie(
         source,
         combine_pipeline
     ).await?;
+
+    if res.len() > 100 {
+        return Err(ServiceError::Common(anyhow!("所选维度统计条目过多，请重新选择")));
+    }
 
     Ok(res)
 
@@ -345,8 +370,8 @@ fn get_recent_30day() -> ServiceResult<(DateTime, DateTime)>{
 
 }
 
-pub async fn find_all(db: &Database, appid: &str) -> ServiceResult<Vec<Model>> {
-    let res = Model::find_many(db, appid).await?;
+pub async fn find_all(db: &Database) -> ServiceResult<Vec<QueryBase<ListModel>>> {
+    let res = ListModel::find_all(db, None).await?;
     Ok(res)
 }
 
@@ -411,7 +436,7 @@ pub async fn aggregate_devices(db: &Database, limit: u32) -> ServiceResult<()> {
             }
         },
     ];
-    let col = device::Model::col(db);
+    let col = <device::Model as QueryModel>::col(db);
     let options = UpdateOptions::builder().upsert(true).build();
 
     let res = logs::Model::find_from_aggregrate::<device::Model>(db, pipeline).await?;

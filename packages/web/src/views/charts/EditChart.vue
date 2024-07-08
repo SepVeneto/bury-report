@@ -34,7 +34,10 @@
         label="名称"
         prop="name"
       >
-        <ElInput v-model="formData.name" />
+        <ElInput
+          v-model="formData.name"
+          placeholder="图表名称"
+        />
       </ElFormItem>
 
       <ElFormItem
@@ -79,7 +82,11 @@
       v-else-if="active === 2"
       ref="chartRef"
       style="width: 100%; height: 300px;"
-    />
+    >
+      <div style="color: var(--el-color-danger); font-size: 20px; height: 100px; line-height: 100px; text-align: center;">
+        {{ error }}
+      </div>
+    </div>
 
     <footer style="text-align: right;">
       <ElButton @click="$emit('close')">
@@ -100,6 +107,8 @@
       </ElButton>
       <ElButton
         v-if="isEnd"
+        :disabled="!!error"
+        :loading="loading"
         @click="handleSubmit"
       >
         确认
@@ -149,14 +158,22 @@ const type = [
   { label: '二维表', type: 'Table' },
 ] as const
 const rules = {
+  name: { required: true, message: '请设置图表名称' },
   source: { required: true, message: '请选择数据源' },
+  dimension: { required: true, message: '请选择统计维度' },
 }
-const formData = ref({
+const DEFAULT_FORM = {
   sort: 'value',
-} as ChartRule)
+}
+const formData = ref(DEFAULT_FORM as ChartRule)
+const error = ref('')
+const loading = ref(false)
 watch(() => props.data, (val) => {
   if (!val) return
-  formData.value = { ...val.data }
+  formData.value = {
+    ...DEFAULT_FORM,
+    ...val.data,
+  }
 }, { immediate: true })
 const formRef = ref<FormInstance>()
 const dimensionOptions = shallowRef<SourceInfo[]>([])
@@ -175,9 +192,18 @@ async function handleNext() {
   }
   next()
   if (isEnd.value) {
-    chart.init()
-    const res = await statistics.preview(formData.value)
-    chart.setData(res)
+    loading.value = true
+    error.value = ''
+    try {
+      const res = await statistics.preview(formData.value)
+      await chart.init()
+      chart.setData(res)
+    } catch (e) {
+      console.error(e)
+      error.value = '图表预览失败，请检查配置重新生成'
+    } finally {
+      loading.value = false
+    }
   }
 }
 function getSourceOptions() {

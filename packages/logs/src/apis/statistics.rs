@@ -4,7 +4,7 @@ use mongodb::{Client, Database};
 use serde_json::json;
 use crate::apis::{get_appid, ApiResult};
 
-use crate::db;
+use crate::db::{self, DbApp};
 use crate::services::apps;
 use crate::{
     model::statistics::Rule,
@@ -66,10 +66,13 @@ pub async fn create_statistics(
 
 #[put("/statistics/update/{statisticId}")]
 pub async fn update_statistics(
-    db: web::Data<Database>,
+    req: HttpRequest,
+    client: web::Data<Client>,
     path: web::Path<String>,
     json: web::Json<Rule>,
 ) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = DbApp::get_by_appid(&client, &appid);
     let statistic_id = path.into_inner();
     statistics::update(&db, &statistic_id, json.0).await?;
     Response::ok(json!({}), "修改成功").to_json()
@@ -77,10 +80,13 @@ pub async fn update_statistics(
 
 #[get("/statistics/chart/{chart_id}")]
 pub async fn get_statistic(
-    db: web::Data<Database>,
+    req: HttpRequest,
+    client: web::Data<Client>,
     path: web::Path<String>
 ) -> ApiResult {
     let chart_id = path.into_inner();
+    let appid = get_appid(&req)?;
+    let db = DbApp::get_by_appid(&client, &appid);
     let res = statistics::find_cache(&db, &chart_id).await?;
     Response::ok(res, None).to_json()
 }
@@ -97,10 +103,11 @@ pub async fn del_statistic(
 #[get("/statistics/list")]
 pub async fn get_list(
     req: HttpRequest,
-    db: web::Data<Database>,
+    client: web::Data<Client>
 ) -> ApiResult {
     let appid = get_appid(&req)?;
-    let res = statistics::find_all(&db, &appid).await?;
+    let db = DbApp::get_by_appid(&client, &appid);
+    let res = statistics::find_all(&db).await?;
     Response::ok(res, None).to_json()
 }
 

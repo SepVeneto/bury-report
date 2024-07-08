@@ -23,6 +23,8 @@ pub mod project;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {
+    #[error("序列化失败")]
+    SerializeError(#[from] serde_json::Error),
     #[error("生成oid失败")]
     OidGenError(#[from] bson::oid::Error),
     #[error(transparent)]
