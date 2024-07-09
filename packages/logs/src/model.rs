@@ -115,11 +115,15 @@ pub trait PaginationModel: BaseModel {
 
         let start_count = SystemTime::now();
 
-        let mut total = 0;
-        if query.iter().len() == 0 {
-            total = col.estimated_document_count(None).await?;
+        let total;
+        if let Some(ref query) = query {
+            if query.len() > 0 {
+                total = col.count_documents(query.clone(), None).await?;
+            } else {
+                total = col.estimated_document_count(None).await?;
+            }
         } else {
-            total = col.count_documents(query.clone(), None).await?;
+            total = col.estimated_document_count(None).await?;
         }
         debug!("count total used: {:?}", SystemTime::now().duration_since(start_count));
 
