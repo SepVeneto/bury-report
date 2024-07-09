@@ -4,7 +4,6 @@ import type { Options } from '../type'
 import MagicString from 'magic-string'
 import { getPackageInfoSync } from 'local-pkg'
 import debug from 'debug'
-// import { IS_UNIAPP } from './env'
 
 const vue = getPackageInfoSync('vue')
 const [, vueVersion] = vue?.packageJson.version?.match(/(\d+)\.(?:\d+)\.(?:.+)/) ?? []

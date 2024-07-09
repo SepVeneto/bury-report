@@ -30,11 +30,14 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
     },
     transform(code) {
       if (config.report) {
+        const options = {
+          uniPlatform: process.env.UNI_PLATFORM,
+        }
         const insertCode = [
-          initReport(config),
-          initCollect(config),
-          initNetwork(config),
-          initError(config),
+          initReport(config, options),
+          initCollect(config, options),
+          initNetwork(config, options),
+          initError(config, options),
         ].join('\n')
         code = combineCode(code, insertCode)
       }

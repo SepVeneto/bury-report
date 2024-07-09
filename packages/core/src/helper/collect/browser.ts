@@ -1,7 +1,6 @@
 import { getBrowserInfo } from '@/utils/system'
 import { COLLECT_INFO } from '@/utils/constant'
 import { report } from '@/index'
-import { IS_UNIAPP } from '@/utils/env'
 
 export function __BR_COLLECT_INIT__() {
   const stat = getSystemInfo()
@@ -9,6 +8,11 @@ export function __BR_COLLECT_INIT__() {
 }
 
 function getSystemInfo() {
+  let IS_UNIAPP = false
+  try {
+    IS_UNIAPP = !!uni
+  } catch { }
+
   if (IS_UNIAPP) {
     const system = uni.getSystemInfoSync()
     return {

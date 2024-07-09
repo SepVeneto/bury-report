@@ -1,10 +1,9 @@
-import type { Options } from '@/type'
-import { IS_UNI_WEIXIN } from '@/utils/env'
+import type { Options, RuntimeOptions } from '@/type'
 
-export function initCollect(config: Required<Options>) {
+export function initCollect(config: Required<Options>, options: RuntimeOptions) {
   if (!config.collect) return ''
 
-  if (IS_UNI_WEIXIN) {
+  if (options.uniPlatform === 'mp-weixin') {
     return [
       'import { __BR_COLLECT_INIT__ } from "@sepveneto/report-core/helper/collect/wx"',
       '__BR_COLLECT_INIT__()',

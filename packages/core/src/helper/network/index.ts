@@ -1,11 +1,10 @@
-import type { Options } from '@/type'
-import { IS_UNI_WEIXIN } from '@/utils/env'
+import type { Options, RuntimeOptions } from '@/type'
 
-export function initNetwork(config: Required<Options>) {
+export function initNetwork(config: Required<Options>, options: RuntimeOptions) {
   if (!config.network.enable) return ''
 
   const { success, fail } = config.network
-  if (IS_UNI_WEIXIN) {
+  if (options.uniPlatform === 'mp-weixin') {
     return [
       'import { __BR_API_INIT__ } from "@sepveneto/report-core/helper/network/wx"',
       `__BR_API_INIT__("${config.url}", ${success}, ${fail})`,

@@ -46,3 +46,7 @@ export interface Options {
     fail?: boolean
   }
 }
+
+export interface RuntimeOptions {
+  uniPlatform?: string
+}
