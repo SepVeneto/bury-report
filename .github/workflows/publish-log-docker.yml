@@ -77,4 +77,4 @@ jobs:
       - name: Use Skopeo Tools Sync Image to Docker Hub
         run: |
           skopeo copy docker://docker.io/sepveneto/br-log:latest docker://registry.cn-hangzhou.aliyuncs.com/sepveneto/br-log:latest
-          skopeo copy docker://docker.io/sepveneto/br-log:${{ env.TAG_VERSION }}} docker://registry.cn-hangzhou.aliyuncs.com/sepveneto/br-log:${{ env.TAG_VERSION }}
+          skopeo copy docker://docker.io/sepveneto/br-log:${{ env.TAG_VERSION }} docker://registry.cn-hangzhou.aliyuncs.com/sepveneto/br-log:${{ env.TAG_VERSION }}
