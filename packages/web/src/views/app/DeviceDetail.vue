@@ -157,7 +157,7 @@ function filterDtIcon(dt: DeviceInfo['dt']) {
     pc: IconPc,
     phone: IconPhone,
     pad: IconPad,
-  }[dt] || IconUnknown
+  }[dt.toLowerCase()] || IconUnknown
 }
 function filterOnIcon(on: DeviceInfo['on']) {
   return {
@@ -166,7 +166,7 @@ function filterOnIcon(on: DeviceInfo['on']) {
     mac: IconIos,
     windows: IconWindows,
     linux: IconLinux,
-  }[on] || IconUnknown
+  }[on.toLowerCase()] || IconUnknown
 }
 function filterUpIcon(up: DeviceInfo['up']) {
   return {
