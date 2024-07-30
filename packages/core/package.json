@@ -52,9 +52,11 @@
   "devDependencies": {
     "@dcloudio/types": "^3.4.3",
     "@sepveneto/eslint-config": "^0.9.1",
+    "@swc/core": "^1.7.3",
     "@types/debug": "^4.1.12",
     "@types/node": "^20.10.5",
     "chalk": "^5.3.0",
+    "core-js": "3",
     "debug": "^4.3.4",
     "eslint": "^8.56.0",
     "esno": "^4.0.0",
