@@ -4,7 +4,7 @@ import { getLocalStorage, setLocalStorage } from './utils/storage'
 export const report = (type: string, data: any, immediate = false) => {
   const sendEvent = globalThis[REPORT_REQUEST]
   const uuid = getUuid()
-  sendEvent(uuid, type, data, immediate)
+  sendEvent?.(uuid, type, data, immediate)
 }
 
 function getUuid() {
