@@ -17,6 +17,9 @@ importers:
       '@babel/parser':
         specifier: ^7.23.6
         version: 7.24.4
+      core-js:
+        specifier: ^3.8.3
+        version: 3.37.0
       local-pkg:
         specifier: ^0.5.0
         version: 0.5.0
@@ -45,9 +48,6 @@ importers:
       chalk:
         specifier: ^5.3.0
         version: 5.3.0
-      core-js:
-        specifier: '3'
-        version: 3.37.0
       debug:
         specifier: ^4.3.4
         version: 4.3.4(supports-color@5.5.0)
@@ -12991,7 +12991,7 @@ snapshots:
       '@types/web-bluetooth': 0.0.16
       '@vueuse/metadata': 9.13.0
       '@vueuse/shared': 9.13.0(vue@3.4.25(typescript@5.4.5))
-      vue-demi: 0.14.8(vue@3.4.25(typescript@5.4.5))
+      vue-demi: 0.14.10(vue@3.4.25(typescript@5.4.5))
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
@@ -13009,7 +13009,7 @@ snapshots:
 
   '@vueuse/shared@9.13.0(vue@3.4.25(typescript@5.4.5))':
     dependencies:
-      vue-demi: 0.14.8(vue@3.4.25(typescript@5.4.5))
+      vue-demi: 0.14.10(vue@3.4.25(typescript@5.4.5))
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
