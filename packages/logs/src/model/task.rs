@@ -8,7 +8,6 @@ pub struct Model {
     pub name: String,
     pub webhook: String,
     pub corn: String,
-    pub create_time: DateTime,
 }
 
 impl BaseModel for Model {

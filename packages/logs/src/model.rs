@@ -1,7 +1,7 @@
-use std::{str::FromStr, time::SystemTime};
+use std::{borrow::Borrow, str::FromStr, time::SystemTime};
 
 use anyhow::anyhow;
-use bson::oid;
+use bson::{bson, oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error, info};
 use mongodb::{
@@ -188,7 +188,8 @@ pub trait QueryModel: BaseModel {
         Ok(list)
     }
 }
-pub trait CreateModel: BaseModel {
+pub trait CreateModel: BaseModel
+{
     fn col(db: &Database) -> Collection<Self::Model> {
         let col_name = Self::NAME;
         db.collection(col_name)
@@ -198,8 +199,22 @@ pub trait CreateModel: BaseModel {
         data: Self::Model
     ) -> QueryResult<InsertOneResult> {
         let col = Self::col(db);
-        let res = col.insert_one(data, None).await?;
-        Ok(res)
+        let new_doc = bson::to_document(&data);
+        let a = doc! {
+            "a": 1,
+        };
+        match new_doc {
+            Ok(doc) => {
+                let now = DateTime::now();
+                doc.insert("create_time", now);
+                doc.insert("update_time", now);
+                let res = col.insert_one(doc, None).await?;
+                Ok(res)
+            },
+            Err(err) => {
+                Err(anyhow!(err).into())
+            }
+        }
     }
 
     async fn insert_many(

@@ -26,7 +26,6 @@ pub async fn create(
         name: data.name,
         webhook: trigger.unwrap().model.webhook,
         corn: "TODO".to_string(),
-        create_time: DateTime::now(),
     };
     let res = Model::insert_one(db, new_doc).await?;
     let oid = match res.inserted_id {
@@ -37,6 +36,24 @@ pub async fn create(
     };
 
     Ok(oid)
+}
+
+pub async fn update(
+    db: &Database,
+    id: String,
+    data: TaskPayload,
+) -> ServiceResult<> {
+    let trigger = trigger::Model::find_by_id(db, &data.webhook_id).await?;
+    if let None = trigger {
+        return Err(anyhow!("触发器非法").into());
+    }
+
+    let new_doc = Model {
+        name: data.name,
+        webhook: trigger.unwrap().model.webhook,
+        corn: "TODO".to_string(),
+    }
+
 }
 
 pub async fn list(
@@ -55,7 +72,7 @@ pub async fn list(
 
 pub async fn execute(
     db: &Database,
-    id: String,
+    id: &String,
 ) -> ServiceResult<()> {
     let task = Model::find_by_id(db, &id).await?;
 

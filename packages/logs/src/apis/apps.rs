@@ -158,12 +158,17 @@ pub async fn get_task_list(
     Response::ok(res, None).to_json()
 }
 
-// pub async fn execute_task(
-//     req: HttpRequest,
-//     client: web::Data<Client>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
+#[post("/task/execute/{task_id}")]
+pub async fn execute_task(
+    req: HttpRequest,
+    client: web::Data<Client>,
+    path: web::Path<String>
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let task_id = path.into_inner();
 
-//     services::task::execute(&db, id)
-// }
+    let res = services::task::execute(&db, &task_id).await?;
+
+    Response::ok(res, "任务下发成功").to_json()
+}
