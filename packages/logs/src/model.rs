@@ -1,7 +1,7 @@
-use std::{borrow::Borrow, str::FromStr, time::SystemTime};
+use std::{str::FromStr, time::SystemTime};
 
 use anyhow::anyhow;
-use bson::{bson, oid, DateTime};
+use bson::{oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error, info};
 use mongodb::{
@@ -190,7 +190,7 @@ pub trait QueryModel: BaseModel {
 }
 pub trait CreateModel: BaseModel
 {
-    fn col(db: &Database) -> Collection<Self::Model> {
+    fn col(db: &Database) -> Collection<Document> {
         let col_name = Self::NAME;
         db.collection(col_name)
     }
@@ -200,11 +200,8 @@ pub trait CreateModel: BaseModel
     ) -> QueryResult<InsertOneResult> {
         let col = Self::col(db);
         let new_doc = bson::to_document(&data);
-        let a = doc! {
-            "a": 1,
-        };
         match new_doc {
-            Ok(doc) => {
+            Ok(mut doc) => {
                 let now = DateTime::now();
                 doc.insert("create_time", now);
                 doc.insert("update_time", now);
@@ -222,13 +219,28 @@ pub trait CreateModel: BaseModel
         data: &Vec<Self::Model>
     ) -> QueryResult<InsertManyResult> {
         let col = Self::col(db);
-        let res = col.insert_many(data, None).await.unwrap();
+        let mut list = vec![];
+        for item in data.iter() {
+            let new_doc = bson::to_document(item);
+            match new_doc {
+                Ok(mut doc) => {
+                    let now = DateTime::now();
+                    doc.insert("create_time", now);
+                    doc.insert("update_time", now);
+                    list.push(doc);
+                },
+                Err(err) => {
+                    return Err(anyhow!(err).into());
+                }
+            }           
+        }
+        let res = col.insert_many(list, None).await.unwrap();
         Ok(res)
     }
 }
 
 pub trait EditModel: BaseModel + QueryModel {
-    fn col(db: &Database) -> Collection<Self::Model> {
+    fn col(db: &Database) -> Collection<Document> {
         let col_name = Self::NAME;
         db.collection(col_name)
     }
@@ -241,7 +253,8 @@ pub trait EditModel: BaseModel + QueryModel {
         let oid = ObjectId::from_str(id)?;
         let res = Self::find_by_id(db, id).await?;
         if let Some(_) = res {
-            let res = bson::to_bson(data)?;
+            let mut res = bson::to_document(data)?;
+            res.insert("update_time", DateTime::now());
             let new_doc = doc! {
                 "$set": res,
             };
@@ -379,7 +392,7 @@ impl <'de> Visitor<'de> for I32Visitor {
             Ok(res) => {
                 Ok(Some(res))
             },
-            Err(err) => {
+            Err(_) => {
                 error!("cannot parse string to i32: {}", v);
                 Ok(None)
             }

@@ -1,7 +1,11 @@
+use std::time::SystemTime;
+
 use actix_web::{put, delete, get, post, web, HttpRequest};
 use bson::doc;
+use log::debug;
 use mongodb::{Client, Database};
 use serde::{Deserialize, Serialize};
+use tokio_cron_scheduler::JobScheduler;
 
 use crate::{db, model::QueryPayload, services::{self, apps, task::TaskPayload, trigger::TriggerFilter, Response}};
 
@@ -18,6 +22,13 @@ pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(delete_trigger);
     config.service(get_trigger_list);
     config.service(get_trigger_options);
+
+    config.service(create_task);
+    config.service(update_task);
+    config.service(stop_task);
+    config.service(trigger_task);
+    config.service(get_task_list);
+    config.service(get_task_logs);
 }
 
 #[get("/app/list")]
@@ -144,6 +155,59 @@ pub async fn create_task(
     Response::ok(res, "创建成功").to_json()
 }
 
+#[put("/task/{id}")]
+pub async fn update_task(
+    req: HttpRequest,
+    client: web::Data<Client>,
+    data: web::Json<TaskPayload>,
+    schelder: web::Data<JobScheduler>,
+    path: web::Path<String>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let task_id = path.into_inner();
+
+    let _ = services::task::update(&db, &task_id, &schelder, data.0).await?;
+
+    Response::ok((), "修改成功").to_json()
+}
+#[post("/task/{id}/stop")]
+pub async fn stop_task(
+    req: HttpRequest,
+    client: web::Data<Client>,
+    scheduler: web::Data<JobScheduler>,
+    path: web::Path<String>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let task_id = path.into_inner();
+
+    services::task::stop(&db, &scheduler, &task_id).await?;
+    Response::ok((), "任务已停止").to_json()
+}
+#[post("/task/{id}/trigger")]
+pub async fn trigger_task(
+    req: HttpRequest,
+    client: web::Data<Client>,
+    path: web::Path<String>,
+    scheduler: web::Data<JobScheduler>,
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let task_id = path.into_inner();
+
+    // TODO: 优化两次查询
+
+    let mut start_count = SystemTime::now();
+    services::task::stop(&db, &scheduler, &task_id).await?;
+    debug!("stop task: {:?}", SystemTime::now().duration_since(start_count));
+    start_count = SystemTime::now();
+    services::task::issue(&db, &task_id).await?;
+    debug!("issue task: {:?}", SystemTime::now().duration_since(start_count));
+
+    Response::ok((), "任务已下发").to_json()
+}
+
 #[get("/task/list")]
 pub async fn get_task_list(
     req: HttpRequest,
@@ -158,17 +222,17 @@ pub async fn get_task_list(
     Response::ok(res, None).to_json()
 }
 
-#[post("/task/execute/{task_id}")]
-pub async fn execute_task(
+#[get("/task/{id}/logs")]
+pub async fn get_task_logs(
     req: HttpRequest,
     client: web::Data<Client>,
-    path: web::Path<String>
+    path: web::Path<String>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
     let task_id = path.into_inner();
 
-    let res = services::task::execute(&db, &task_id).await?;
+    let list = services::task::logs(&db, &task_id).await?;
 
-    Response::ok(res, "任务下发成功").to_json()
+    Response::ok(list, None).to_json()
 }
