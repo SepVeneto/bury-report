@@ -1,6 +1,5 @@
-use std::{str::FromStr, sync::Arc, time::Duration};
+use std::time::Duration;
 
-use actix_web::web;
 use anyhow::{anyhow, Context};
 use bson::{doc, Bson, DateTime};
 use chrono::{FixedOffset, NaiveDateTime};
@@ -9,9 +8,8 @@ use mongodb::{results::UpdateResult, Database};
 use serde::{Deserialize, Serialize};
 use tokio_cron_scheduler::{JobScheduler, Job};
 use reqwest;
-use uuid::Uuid;
 
-use crate::{apis::{ApiResult, Query}, model::{task::{Model, TaskLog, TaskStatus}, trigger, CreateModel, EditModel, PaginationModel, PaginationResult, QueryModel}};
+use crate::{apis::Query, model::{serialize_time, task::{Model, TaskLog, TaskStatus}, trigger, CreateModel, EditModel, PaginationModel, PaginationResult, QueryModel}};
 
 use super::ServiceResult;
 
@@ -19,21 +17,18 @@ use super::ServiceResult;
 pub struct TaskPayload {
     pub name: String,
     pub trigger_id: String,
-    pub datetime: Option<String>,
+    pub execute_time: Option<String>,
     pub immediate: Option<bool>
 }
 pub async fn create(
     db: &Database,
     data: TaskPayload,
 ) -> ServiceResult<String> {
-    let trigger = trigger::Model::find_by_id(db, &data.trigger_id).await?;
-    if let None = trigger {
-        return Err(anyhow!("触发器非法").into());
-    }
+    info!("execute-time: {:?}", &data.execute_time);
     let new_doc = Model {
         name: data.name,
-        webhook: trigger.unwrap().model.webhook,
-        execute_time: None,
+        trigger_id: data.trigger_id,
+        execute_time: data.execute_time,
         job_id: None,
         logs: vec![],
     };
@@ -64,7 +59,7 @@ pub async fn update(
 
     let mut job_id = None;
     let mut execute_time = None;
-    if let Some(ref time) = data.datetime {
+    if let Some(ref time) = data.execute_time {
         execute_time = Some(time.clone());
         let data_clone = data.clone();
         let db_clone = db.clone();
@@ -78,7 +73,7 @@ pub async fn update(
                     let db = db_clone.clone();
                     let task_id = task_id_clone.clone();
                     async move {
-                        let res = trigger_webhook(&webhook).await;
+                        let _ = trigger_webhook(&webhook).await;
                         let _ = Model::record_task(&db, &task_id, TaskStatus::Success).await;
                     }
                 })
@@ -94,7 +89,7 @@ pub async fn update(
 
     let new_doc = Model {
         name: data.name,
-        webhook,
+        trigger_id: data.trigger_id,
         execute_time,
         job_id,
         logs: vec![],
@@ -135,9 +130,13 @@ pub async fn issue(
     let task = Model::find_by_id(db, &task_id).await?;
 
     if let Some(task) = task {
-        trigger_webhook(&task.model.webhook).await?;
-        Model::record_task(db, task_id, TaskStatus::Success).await?;
-        Ok(())
+        if let Some(trigger) = trigger::Model::find_by_id(db, &task.model.trigger_id).await? {
+            trigger_webhook(&trigger.model.webhook).await?;
+            Model::record_task(db, task_id, TaskStatus::Success).await?;
+            Ok(())
+        } else {
+            Err(anyhow!("不存在该触发器").into())
+        }
     } else {
         Err(anyhow!("非法的任务").into())
     }
@@ -169,10 +168,21 @@ async fn trigger_webhook(webhook: &String) -> anyhow::Result<()> {
 }
 
 
+#[derive(Deserialize, Serialize, Debug)]
+pub struct TaskRecord {
+    name: String,
+    trigger_id: String,
+    // TODO
+    execute_time: Option<String>,
+    #[serde(serialize_with="serialize_time")]
+    create_time: bson::DateTime,
+    #[serde(serialize_with="serialize_time")]
+    update_time: bson::DateTime,
+}
 pub async fn list(
     db: &Database,
     data: Query<()>,
-) -> ServiceResult<PaginationResult<Model>> {
+) -> ServiceResult<PaginationResult<TaskRecord>> {
     let res = Model::pagination(
         db,
         data.page,

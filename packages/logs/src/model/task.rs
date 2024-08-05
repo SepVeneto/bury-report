@@ -28,7 +28,7 @@ pub struct TaskLog {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Model {
     pub name: String,
-    pub webhook: String,
+    pub trigger_id: String,
     pub execute_time: Option<String>,
     pub job_id: Option<Uuid>,
     pub logs: Vec<TaskLog>,

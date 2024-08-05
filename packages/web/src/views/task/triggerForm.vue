@@ -24,9 +24,17 @@
 import type { Trigger } from '@/apis'
 import { required } from '@/util/rules'
 import type { FormInstance } from 'element-plus'
+import type { PropType } from 'vue'
 import { ref } from 'vue'
 
-const formData = ref({} as Trigger)
+const props = defineProps({
+  data: {
+    type: Object as PropType<Trigger>,
+    default: () => ({}),
+  },
+})
+
+const formData = ref(props.data)
 const rules = {
   name: required('触发器名称'),
   webhook: required('触发器地址'),
