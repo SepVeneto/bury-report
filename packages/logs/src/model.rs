@@ -101,16 +101,18 @@ impl Default for PaginationOptions {
 }
 
 pub trait PaginationModel: BaseModel {
-    fn col(db: &Database) -> Collection<QueryBase<Self::Model>> {
+    fn col<T>(db: &Database) -> Collection<QueryBase<T>> {
         let col_name = Self::NAME;
         db.collection(col_name)
     }
-    async fn pagination(
+    async fn pagination<T>(
         db: &Database,
         page: u64,
         size: u64,
         options: Option<PaginationOptions>,
-    ) -> QueryResult<PaginationResult<Self::Model>> {
+    ) -> QueryResult<PaginationResult<T>>
+    where T: for<'a> Deserialize<'a>
+    {
         let col = Self::col(db);
         let start = page;
         let PaginationOptions {query, projection} = options.unwrap_or_default();

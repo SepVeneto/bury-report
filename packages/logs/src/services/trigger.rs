@@ -1,11 +1,11 @@
 use anyhow::anyhow;
-use bson::{doc, Bson};
+use bson::{doc, Bson, DateTime, Document};
 use mongodb::results::UpdateResult;
 use serde::{Deserialize, Serialize};
 
 use crate::{
     apis::{apps::TaskTrigger, Query},
-    model::{trigger::Model, CreateModel, DeleteModel, EditModel, PaginationModel, PaginationOptions, PaginationResult, QueryBase, QueryModel}
+    model::{serialize_time, trigger::Model, CreateModel, DeleteModel, EditModel, PaginationModel, PaginationOptions, PaginationResult, QueryBase, QueryModel}
 };
 
 use super::ServiceResult;
@@ -44,10 +44,17 @@ pub struct TriggerFilter {
     name: Option<String>,
     webhook: Option<String>,
 }
+#[derive(Serialize, Deserialize)]
+pub struct TriggerRes {
+    name: String,
+    webhook: String,
+    #[serde(serialize_with="serialize_time")]
+    create_time: DateTime,
+}
 pub async fn list(
     db: &mongodb::Database,
     data: Query<TriggerFilter>
-) -> ServiceResult<PaginationResult<Model>> {
+) -> ServiceResult<PaginationResult<TriggerRes>> {
     let mut doc = doc! {};
 
     if let Some(name) = data.query.name {
