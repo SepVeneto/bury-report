@@ -7,7 +7,6 @@ mod services;
 mod middleware;
 mod utils;
 
-use std::str::FromStr;
 
 use crate::services::actor;
 
@@ -16,7 +15,6 @@ use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use db::init_db;
 use log::{info, error};
 use tokio_cron_scheduler::{JobScheduler, Job};
-use uuid::Uuid;
 
 #[post("/verify_ticket")]
 async fn ticket(req_body: String) -> impl Responder {

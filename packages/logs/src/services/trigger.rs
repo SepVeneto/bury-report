@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use bson::{doc, Bson, DateTime, Document};
+use bson::{doc, Bson, DateTime};
 use mongodb::results::UpdateResult;
 use serde::{Deserialize, Serialize};
 

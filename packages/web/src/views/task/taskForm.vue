@@ -17,7 +17,18 @@
         v-model="formData.trigger_id"
         custom-label="name"
         custom-value="id"
-        :api="getTriggerOptions"
+        :options="triggerOptions"
+      />
+    </ElFormItem>
+    <ElFormItem
+      label="通知"
+      prop="notify_id"
+    >
+      <BcSelect
+        v-model="formData.notify_id"
+        custom-label="name"
+        custom-value="id"
+        :options="triggerOptions"
       />
     </ElFormItem>
     <ElFormItem
@@ -40,11 +51,11 @@
 </template>
 
 <script setup lang="ts">
-import type { TaskForm } from '@/apis'
+import type { TaskForm, Trigger } from '@/apis'
 import { getTriggerOptions } from '@/apis'
 import type { FormInstance } from 'element-plus'
 import type { PropType } from 'vue'
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 const props = defineProps({
   data: {
@@ -55,6 +66,11 @@ const props = defineProps({
 
 const formData = ref(props.data)
 const formRef = ref<FormInstance>()
+const triggerOptions = shallowRef<Trigger[]>([])
+
+getTriggerOptions().then(res => {
+  triggerOptions.value = res
+})
 
 defineExpose({
   async getFormData() {

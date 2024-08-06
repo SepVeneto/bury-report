@@ -15,7 +15,14 @@
       :config="tableConfig"
       pagination
       :api="getList"
+      empty-text="--"
     >
+      <template #status="{ row }">
+        <StatusIcon
+          :code="row.status"
+          :filter="filterStatus"
+        />
+      </template>
       <template #operate="{ row }">
         <BcButton
           type="primary"
@@ -48,9 +55,10 @@
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import { createDialog } from '@sepveneto/basic-comp'
-import type { TaskForm as TaskRecord } from '@/apis'
+import type { TaskForm as TaskRecord, TaskStatus } from '@/apis'
 import { createTask, getTaskList, stopTask, triggerTask, updateTask } from '@/apis'
 import TaskForm from './taskForm.vue'
+import StatusIcon from '@/components/statusIcon.vue'
 
 const params = ref({
   page: 1,
@@ -66,6 +74,14 @@ const tableConfig = shallowRef([
   { label: '操作', prop: 'operate' },
 ])
 const searchConfig = shallowRef([])
+const filterStatus = (val: TaskStatus) => {
+  return {
+    success: '成功',
+    fail: '失败',
+    pending: '待执行',
+    abort: '已取消',
+  }[val]
+}
 function getList() {
   return getTaskList(params.value)
 }

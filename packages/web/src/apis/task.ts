@@ -1,10 +1,13 @@
 import { reportRequest as request } from '@/util/request'
 
+export type TaskStatus = 'success' | 'fail' | 'pending' | 'abort'
 export type TaskForm = {
   name: string
   trigger_id: string
-  execute_time: string
+  notify_id?: string
+  execute_time?: string
   immediate: boolean
+  status: TaskStatus,
 }
 
 export function getTaskList(params: { page: number, size: number }) {
@@ -83,6 +86,5 @@ export function deleteTrigger(id: string) {
 export function getTriggerOptions() {
   return request<Trigger[]>({
     url: '/trigger/options',
-    raw: 'data',
   })
 }

@@ -28,7 +28,6 @@ pub fn init_service(config: &mut web::ServiceConfig) {
     config.service(stop_task);
     config.service(trigger_task);
     config.service(get_task_list);
-    config.service(get_task_logs);
 }
 
 #[get("/app/list")]
@@ -145,12 +144,13 @@ pub async fn get_trigger_options(
 pub async fn create_task(
     req: HttpRequest,
     client: web::Data<Client>,
-    data: web::Json<TaskPayload>
+    data: web::Json<TaskPayload>,
+    schelder: web::Data<JobScheduler>,
 ) -> ApiResult {
     let appid = get_appid(&req)?;
     let db = db::DbApp::get_by_appid(&client, &appid);
 
-    let res = services::task::create(&db, data.0).await?;
+    let res = services::task::create(&schelder, &db, data.0).await?;
 
     Response::ok(res, "创建成功").to_json()
 }
@@ -220,19 +220,4 @@ pub async fn get_task_list(
     let res = services::task::list(&db, query.0).await?;
 
     Response::ok(res, None).to_json()
-}
-
-#[get("/task/{id}/logs")]
-pub async fn get_task_logs(
-    req: HttpRequest,
-    client: web::Data<Client>,
-    path: web::Path<String>,
-) -> ApiResult {
-    let appid = get_appid(&req)?;
-    let db = db::DbApp::get_by_appid(&client, &appid);
-    let task_id = path.into_inner();
-
-    let list = services::task::logs(&db, &task_id).await?;
-
-    Response::ok(list, None).to_json()
 }
