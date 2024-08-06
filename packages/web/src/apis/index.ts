@@ -7,6 +7,7 @@ export * from './app'
 export * from './project'
 export * as source from './source'
 export * as statistics from './statistics'
+export * from './task'
 
 export class Query {
   private query: Record<string, any> = {}
@@ -28,6 +29,20 @@ export class Query {
 }
 
 const mockMenus = [
+  {
+    pid: 4,
+    id: 41,
+    path: 'list',
+    name: '任务列表',
+    route: 'TaskListView',
+  },
+  {
+    pid: 4,
+    id: 42,
+    path: 'trigger',
+    name: '触发器列表',
+    route: 'TriggerListView',
+  },
   {
     pid: 2,
     id: 3,
@@ -127,6 +142,12 @@ export function getModList(): Promise<Route[]> {
       name: '数据统计',
       path: '/:appid/statistics/:page*',
       route: 'Statistics',
+    },
+    {
+      id: 4,
+      name: '定时任务',
+      path: '/:appid/task/:page*',
+      route: 'Task',
     },
   ])
 }

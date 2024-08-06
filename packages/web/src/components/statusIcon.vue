@@ -5,18 +5,23 @@
       :style="iconStyle"
     />
     <span style="margin-left: 10px;">
-      <slot>{{ code }}</slot>
+      <slot>{{ filter(code) }}</slot>
     </span>
   </div>
 </template>
 
 <script setup lang="ts">
+import type { PropType } from 'vue'
 import { computed } from 'vue'
-
+function noop(val: any) { return val }
 const props = defineProps({
   code: {
     type: [String, Number],
     required: true,
+  },
+  filter: {
+    type: Function as PropType<typeof noop>,
+    default: function <T>(val: T): T { return val },
   },
 })
 
@@ -41,10 +46,13 @@ const type = computed(() => {
 
 const color = computed(() => {
   switch (type.value) {
+    case 'abort':
+    case 'pending':
     case 'info':
       return '--el-color-info'
     case 'success':
       return '--el-color-success'
+    case 'fail':
     case 'error':
       return '--el-color-danger'
     case 'warning':

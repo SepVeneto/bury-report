@@ -9,8 +9,12 @@ import DeviceView from '@/views/app/DeviceView.vue'
 import DeviceDetail from '@/views/app/DeviceDetail.vue'
 import NetworkView from '@/views/app/NetworkView.vue'
 import LogView from '@/views/app/LogView.vue'
+import TaskListView from '@/views/task/listView.vue'
+import TriggerListView from '@/views/task/triggerListView.vue'
 
 export const content = {
+  TriggerListView,
+  TaskListView,
   DashboardView,
   // AppList,
   // AppDetail,
