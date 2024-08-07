@@ -45,6 +45,7 @@ impl Model {
             doc! {
                 "$set": {
                     "job_id": job_id,
+                    "update_time": DateTime::now(),
                 }
             },
             None
@@ -62,6 +63,7 @@ impl Model {
             doc! {
                 "$set": {
                     "status": status,
+                    "update_time": DateTime::now(),
                 }
             },
             None

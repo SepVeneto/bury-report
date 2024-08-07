@@ -11,7 +11,7 @@ use tokio_cron_scheduler::{JobScheduler, Job};
 use reqwest;
 use uuid::Uuid;
 
-use crate::{apis::Query, model::{serialize_time, task::{Model, TaskStatus}, trigger, CreateModel, EditModel, PaginationModel, PaginationResult, QueryModel}};
+use crate::{apis::Query, model::{serialize_time, task::{Model, TaskStatus}, trigger, CreateModel, EditModel, PaginationModel, PaginationOptions, PaginationResult, QueryModel}};
 
 use super::ServiceResult;
 
@@ -310,8 +310,13 @@ async fn trigger_notify(
         .post(webhook.unwrap())
         .json(&data)
         .send().await;
-    if let Err(res) = res {
-        return Err(anyhow!(res).into())
+    match res {
+        Ok(res) => {
+            debug!("notify response: {:?}", res);
+        },
+        Err(err) => {
+            return Err(anyhow!(err).into())
+        }
     }
     Ok(())
 }
@@ -333,11 +338,12 @@ pub async fn list(
     db: &Database,
     data: Query<()>,
 ) -> ServiceResult<PaginationResult<TaskRecord>> {
+    let options = PaginationOptions::new().sort(doc! {"update_time": -1}).build();
     let res = Model::pagination(
         db,
         data.page,
         data.size,
-        None
+        options,
     ).await?;
 
     Ok(res)

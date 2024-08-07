@@ -74,12 +74,14 @@ pub struct PaginationResult<T> {
 pub struct PaginationOptions {
     query: Option<Document>,
     projection: Option<Document>,
+    sort: Option<Document>,
 }
 impl PaginationOptions {
     pub fn new() -> Self {
         Self {
             query: doc! {}.into(),
             projection: None,
+            sort: doc! {"_id": -1}.into(),
         }
     }
     pub fn query(mut self, query: Document) -> Self {
@@ -88,6 +90,10 @@ impl PaginationOptions {
     }
     pub fn projection(mut self, projection: Document) -> Self {
         self.projection = Some(projection);
+        self
+    }
+    pub fn sort(mut self, sort: Document) -> Self {
+        self.sort = Some(sort);
         self
     }
     pub fn build(self) -> Option<Self> {
@@ -115,7 +121,11 @@ pub trait PaginationModel: BaseModel {
     {
         let col = Self::col(db);
         let start = page;
-        let PaginationOptions {query, projection} = options.unwrap_or_default();
+        let PaginationOptions {
+            query,
+            projection,
+            sort,
+        } = options.unwrap_or_default();
 
         let start_count = SystemTime::now();
 
@@ -133,7 +143,7 @@ pub trait PaginationModel: BaseModel {
 
         let start_list= SystemTime::now();
         let options = FindOptions::builder()
-            .sort(doc! {"_id": -1})
+            .sort(sort)
             .projection(projection)
             .skip((start - 1) * size)
             .limit(size as i64)
