@@ -20,7 +20,7 @@ FROM debian:stable-slim as log-deploy
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y openssl
+RUN apt-get update && apt-get install -y curl
 
 COPY --from=log-server /app/target/release/bury-report-logs ./
 
