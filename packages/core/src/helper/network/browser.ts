@@ -9,9 +9,13 @@ export function __BR_API_INIT__(
     private _start = 0
     private _body: any
     private _method = 'GET'
+    private triggerPage = ''
     open(...args: [method: string, url: string]) {
       const [method] = args
       this._method = method
+      // 存在请求触发生重定向导致上报时的路由与实际不符的情况
+      // 所以需要在触发时缓存当前路由
+      this.triggerPage = window.location.href
 
       success && super.addEventListener('loadend', () => {
         const duration = performance.now() - this._start
@@ -55,7 +59,7 @@ export function __BR_API_INIT__(
         method: this._method,
         body: this._body,
         status: this.status,
-        page: window.location.href,
+        page: this.triggerPage || window.location.href,
         responseHeaders: this.getAllResponseHeaders(),
         response: typeof this.response === 'string' ? this.response : null,
         responseType: this.responseType || responseType,
