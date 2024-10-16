@@ -20,6 +20,7 @@ const serverInst = axios.create({
 })
 const reportInst = axios.create({
   baseURL: import.meta.env.VITE_APP_REPORT_BASEURL,
+  timeout: 60 * 1000 * 5,
 })
 
 export const requestInspector = (config: AxiosRequestConfig<any>) => {
