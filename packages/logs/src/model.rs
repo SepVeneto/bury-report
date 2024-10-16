@@ -1,6 +1,6 @@
 use std::{str::FromStr, time::SystemTime};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Error};
 use bson::{oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error, info};
@@ -13,7 +13,7 @@ use mongodb::{
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 use mongodb::Database;
-use futures_util::StreamExt;
+use futures_util::{join, StreamExt};
 
 pub mod logs;
 pub mod captcha;
@@ -127,34 +127,45 @@ pub trait PaginationModel: BaseModel {
             sort,
         } = options.unwrap_or_default();
 
-        let start_count = SystemTime::now();
+        let get_total = async {
+            let start_count = SystemTime::now();
 
-        let total;
-        if let Some(ref query) = query {
-            if query.len() > 0 {
-                total = col.count_documents(query.clone(), None).await?;
+            let total;
+            if let Some(ref query) = query {
+                if query.len() > 0 {
+                    total = col.count_documents(query.clone(), None).await?;
+                } else {
+                    total = col.estimated_document_count(None).await?;
+                }
             } else {
                 total = col.estimated_document_count(None).await?;
             }
-        } else {
-            total = col.estimated_document_count(None).await?;
-        }
-        debug!("count total used: {:?}", SystemTime::now().duration_since(start_count));
+            debug!("count total used: {:?}", SystemTime::now().duration_since(start_count));
 
-        let start_list= SystemTime::now();
-        let options = FindOptions::builder()
-            .sort(sort)
-            .projection(projection)
-            .skip((start - 1) * size)
-            .limit(size as i64)
-            .build();
-        let mut res = col.find(query.clone(), options).await?;
+            Ok::<u64, Error>(total)
+        };
+        let get_list = async {
+            let start_list= SystemTime::now();
 
-        let mut list = vec![];
-        while let Some(record) = res.next().await {
-            list.push(record.unwrap())
-        }
-        debug!("count list used: {:?}", SystemTime::now().duration_since(start_list));
+            let options = FindOptions::builder()
+                .sort(sort)
+                .projection(projection)
+                .skip((start - 1) * size)
+                .limit(size as i64)
+                .build();
+            let mut res = col.find(query.clone(), options).await?;
+
+            let mut list = vec![];
+            while let Some(record) = res.next().await {
+                list.push(record.unwrap())
+            }
+
+            debug!("count list used: {:?}", SystemTime::now().duration_since(start_list));
+            Ok::<Vec<QueryBase<T>>, Error>(list)
+        };
+        let (_total, _list) = join!(get_total, get_list);
+        let total = _total?;
+        let list = _list?;
 
         Ok(PaginationResult {
             total,
