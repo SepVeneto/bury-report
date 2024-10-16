@@ -36,8 +36,10 @@ const params = ref({
 })
 const tableRef = ref()
 const tableConfig = shallowRef([
-  { label: '日志类型', prop: 'type' },
-  { label: '设备ID', prop: 'uuid' },
+  { label: '日志类型', prop: 'type', width: 300 },
+  { label: '上报时间', prop: 'create_time', width: 180 },
+  { label: '发起时间', prop: 'device_time', width: 180 },
+  { label: '设备ID', prop: 'uuid', width: 240 },
   { label: '上报数据', prop: 'data' },
 ])
 const searchConfig = shallowRef([
