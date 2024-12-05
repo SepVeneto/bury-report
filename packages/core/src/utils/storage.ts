@@ -4,10 +4,14 @@ export function setLocalStorage(key: string, value: string) {
     IS_UNIAPP = !!uni
   } catch { }
 
-  if (IS_UNIAPP) {
-    uni.setStorageSync(key, value)
-  } else {
-    window.localStorage.setItem(key, value)
+  try {
+    if (IS_UNIAPP) {
+      uni.setStorageSync(key, value)
+    } else {
+      window.localStorage.setItem(key, value)
+    }
+  } catch (err) {
+    console.warn('[@sepveneto/report-core] set storage queue failed: ' + err)
   }
 }
 export function getLocalStorage(key: string) {
