@@ -17,9 +17,6 @@ importers:
       '@babel/parser':
         specifier: ^7.23.6
         version: 7.24.4
-      core-js:
-        specifier: ^3.8.3
-        version: 3.37.0
       local-pkg:
         specifier: ^0.5.0
         version: 0.5.0
@@ -222,6 +219,10 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+
+  packages/sign/pkg-client: {}
+
+  packages/sign/pkg-server: {}
 
   packages/web:
     dependencies:
@@ -8363,17 +8364,6 @@ packages:
       '@vue/composition-api':
         optional: true
 
-  vue-demi@0.14.8:
-    resolution: {integrity: sha512-Uuqnk9YE9SsWeReYqK2alDI5YzciATE0r2SkA6iMAtuXvNTMNACJLJEXNXaEy94ECuBe4Sk6RzRU80kjdbIo1Q==}
-    engines: {node: '>=12'}
-    hasBin: true
-    peerDependencies:
-      '@vue/composition-api': ^1.0.0-rc.1
-      vue: ^3.0.0-0 || ^2.6.0
-    peerDependenciesMeta:
-      '@vue/composition-api':
-        optional: true
-
   vue-eslint-parser@9.4.2:
     resolution: {integrity: sha512-Ry9oiGmCAK91HrKMtCrKFWmSFWvYkpGglCeFAIqDdr9zdXmMMpJOmUJS7WWsW7fX81h6mwHmUZCQQ1E0PkSwYQ==}
     engines: {node: ^14.17.0 || >=16.0.0}
@@ -13002,7 +12992,7 @@ snapshots:
 
   '@vueuse/shared@10.9.0(vue@3.4.25(typescript@5.4.5))':
     dependencies:
-      vue-demi: 0.14.8(vue@3.4.25(typescript@5.4.5))
+      vue-demi: 0.14.10(vue@3.4.25(typescript@5.4.5))
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
@@ -18920,10 +18910,6 @@ snapshots:
       vue: 3.4.25(typescript@5.4.5)
 
   vue-demi@0.14.7(vue@3.4.25(typescript@5.4.5)):
-    dependencies:
-      vue: 3.4.25(typescript@5.4.5)
-
-  vue-demi@0.14.8(vue@3.4.25(typescript@5.4.5)):
     dependencies:
       vue: 3.4.25(typescript@5.4.5)
 
