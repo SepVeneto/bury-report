@@ -1,10 +1,12 @@
 import { report } from '@/index'
+import { getUtf8Size } from '../utils'
 import { COLLECT_API } from '@/utils/constant'
 
 export function __BR_API_INIT__(
   recordUrl: string,
   successReport: boolean,
   error: boolean,
+  responseLimit: number,
 ) {
   const _request = wx.request
 
@@ -25,7 +27,7 @@ export function __BR_API_INIT__(
             duration,
             status: res.statusCode,
             responseHeaders: res.header,
-            response: res.data,
+            response: normalizeResponse(res.data, responseLimit),
           })
           recordUrl !== info.url && report(COLLECT_API, info)
         }
@@ -66,4 +68,9 @@ export function __BR_API_INIT__(
 
   wx.request = customRequest
   console.info('[@sepveneto/report-core] wx.request has been extended')
+}
+
+function normalizeResponse(response: any, limit: number) {
+  const size = getUtf8Size(typeof response === 'object' ? JSON.stringify(response) : response)
+  return size < limit * 1000 ? response : 'exceed size limit'
 }

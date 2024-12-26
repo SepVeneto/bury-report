@@ -1,9 +1,12 @@
 import { report } from '@/index'
+import { getUtf8Size } from '../utils'
 import { COLLECT_API } from '@/utils/constant'
 
 export function __BR_API_INIT__(
+  _recordUrl: string,
   success: boolean,
   error: boolean,
+  responseLimit: number,
 ) {
   class CustomRequest extends XMLHttpRequest {
     private _start = 0
@@ -61,7 +64,7 @@ export function __BR_API_INIT__(
         status: this.status,
         page: this.triggerPage || window.location.href,
         responseHeaders: this.getAllResponseHeaders(),
-        response: typeof this.response === 'string' ? this.response : null,
+        response: typeof this.response === 'string' ? normalizeResponse(this.response, responseLimit) : null,
         responseType: this.responseType || responseType,
         ...others,
       }
@@ -70,4 +73,9 @@ export function __BR_API_INIT__(
 
   window.XMLHttpRequest = CustomRequest
   console.info('[@sepveneto/report-core] XMLHttpRequest has been extended')
+}
+
+function normalizeResponse(response: string, limit: number) {
+  const size = getUtf8Size(response)
+  return size < limit * 1000 ? response : 'exceed size limit'
 }

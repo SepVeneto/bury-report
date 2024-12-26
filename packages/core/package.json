@@ -12,7 +12,7 @@
     "release": "bumpp --tag core@",
     "build:fix": "esno scripts/postbuild.ts",
     "dev": "tsup --watch src",
-    "play": "npm -C playground run dev"
+    "play": "npm -C playground/browser run dev"
   },
   "files": [
     "dist"
@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@babel/parser": "^7.23.6",
+    "core-js": "^3.39.0",
     "local-pkg": "^0.5.0",
     "recast": "^0.23.4",
     "unplugin": "^1.5.1"

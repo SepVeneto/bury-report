@@ -33,6 +33,10 @@ export interface Options {
    */
   network?: {
     /**
+     * 支持上报的大小限制，单位KB
+     */
+    responseLimit: number,
+    /**
      * 关闭后将不会扩展原生的请求方式，停止所有网络请求的上报
      */
     enable?: boolean

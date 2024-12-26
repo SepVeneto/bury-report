@@ -16,6 +16,7 @@ const defaultConfig = {
     enable: false,
     success: true,
     error: true,
+    responseLimit: 100,
   },
 }
 
