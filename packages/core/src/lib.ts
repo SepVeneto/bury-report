@@ -1,28 +1,40 @@
 import { createUnplugin } from 'unplugin'
 import type { UnpluginFactory } from 'unplugin'
 import type { Options } from './type'
-import { combineCode, createDebug, isEntry, mergeConfig } from './utils'
+import HtmlWebpackPlugin from 'html-webpack-plugin'
+import sdkInjector from './browser/injector?raw'
+import path from 'node:path'
+import fs from 'node:fs'
+import { withDefault } from './utils'
 import MagicString from 'magic-string'
-import { initCollect, initError, initNetwork, initReport } from './helper'
 
-const debug = createDebug('config')
+function combineCode(code: string, reportContent: string) {
+  const s = new MagicString(code)
+  s.prepend(reportContent)
+  return s.toString()
+}
 
-const defaultConfig = {
-  collect: true,
-  error: true,
-  report: process.env.NODE_ENV === 'production',
-  interval: 10,
-  network: {
-    enable: false,
-    success: true,
-    error: true,
-    responseLimit: 100,
-  },
+export function getMainEntry() {
+  if (!process.env.UNI_INPUT_DIR) {
+    throw new Error('UNI_INPUT_DIR not specified')
+  }
+  const mainEntry = fs.existsSync(path.resolve(process.env.UNI_INPUT_DIR, 'main.ts')) ? 'main.ts' : 'main.js'
+  return mainEntry
+}
+
+export function isEntry(id: string, entryFile: string) {
+  // 不能使用env内的环境变量，会导致值被提前确定
+  if (process.env.UNI_PLATFORM) {
+    // 抹平webpack和vite对于windows平台路径分隔符的差异
+    return path.resolve(id) === path.resolve(process.env.UNI_INPUT_DIR!, getMainEntry())
+  } else {
+    return path.resolve(id) === path.resolve(process.cwd(), entryFile)
+  }
 }
 
 export const unpluginFactory: UnpluginFactory<Options> = options => {
-  const config = mergeConfig(defaultConfig, options)
-  debug(JSON.stringify(config, null, 2))
+  const isH5 = process.env.UNI === 'H5' || !process.env.UNI
+  const config = withDefault(options)
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',
@@ -30,22 +42,40 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       return isEntry(id, config.entry)
     },
     transform(code) {
-      if (config.report) {
-        const options = {
-          uniPlatform: process.env.UNI_PLATFORM,
-        }
-        const insertCode = [
-          initReport(config, options),
-          initCollect(config, options),
-          initNetwork(config, options),
-          initError(config, options),
-        ].join('\n')
-        code = combineCode(code, insertCode)
-      }
+      if (isH5) return code
+
+      const insertCode = `
+import ReportSDK from '@sepveneto/report-core/mp'
+new ReportSDK(${JSON.stringify(options)})
+        `
+      code = combineCode(code, insertCode)
       return {
         code,
         map: new MagicString(code).generateMap(),
       }
+    },
+    vite: {
+      transformIndexHtml(html) {
+        if (isH5) {
+          return {
+            html,
+            tags: [
+              { tag: 'script', children: sdkInjector.replace('SDK_OPTIONS', JSON.stringify(options)), injectTo: 'head' },
+            ],
+          }
+        } else {
+          return html
+        }
+      },
+    },
+    webpack(compiler) {
+      compiler.hooks.compilation.tap('HtmlWebpackInjectorPlugin', (compilation) => {
+        HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tapAsync(
+          'HtmlWebpackInjectorPlugin', (data, callback) => {
+            callback(null, data)
+          },
+        )
+      })
     },
   }
 }

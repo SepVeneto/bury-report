@@ -6,7 +6,7 @@ import Unplugin from '@sepveneto/report-core/vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [uni(), Unplugin({
-    url: 'http://localhost:8870/record',
+    url: 'http://localhost:5174/record',
     appid: '65dff60ff2a68ca3dc989de4',
     collect: true,
     interval: 5,
@@ -16,6 +16,7 @@ export default defineConfig({
       enable: true,
       success: true,
       fail: true,
+      responseLimit: 100,
     },
   },
   ) as Plugin],

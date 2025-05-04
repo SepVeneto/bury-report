@@ -23,7 +23,11 @@
       "require": "./dist/index.cjs",
       "import": "./dist/index.js"
     },
-    "./helper/*": "./dist/helper/*",
+    "./mp": {
+      "types": "./dist/mp-uni/index.d.ts",
+      "require": "./dist/mp-uni/index.cjs",
+      "import": "./dist/mp-uni/index.js"
+    },
     "./vite": {
       "types": "./dist/vite.d.ts",
       "require": "./dist/vite.cjs",
@@ -46,6 +50,7 @@
   "dependencies": {
     "@babel/parser": "^7.23.6",
     "core-js": "^3.39.0",
+    "esbuild-raw-plugin": "^0.2.0",
     "local-pkg": "^0.5.0",
     "recast": "^0.23.4",
     "unplugin": "^1.5.1"
@@ -58,9 +63,11 @@
     "@types/node": "^20.10.5",
     "chalk": "^5.3.0",
     "debug": "^4.3.4",
+    "esbuild": "^0.25.3",
     "eslint": "^8.56.0",
     "esno": "^4.0.0",
     "fast-glob": "^3.3.2",
+    "html-webpack-plugin": "^5.6.3",
     "magic-string": "^0.30.5",
     "miniprogram-api-typings": "^3.12.2",
     "nodemon": "^3.0.2",

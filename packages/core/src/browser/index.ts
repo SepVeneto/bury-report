@@ -1,48 +1,60 @@
-import type { Options } from '@/type'
-import { REPORT_QUEUE, REPORT_REQUEST } from '@/utils/constant'
-import { getLocalStorage, setLocalStorage } from '@/utils/storage'
+import { NetworkPlugin } from './plugins/network'
+import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
+import { REPORT_QUEUE } from '@/constant'
+import { getLocalStorage, getUuid, setLocalStorage } from '@/utils'
+import workerStr from './worker?raw'
+import { ErrorPlugin } from './plugins/error'
+import { CollectPlugin } from './plugins/collect'
 
-let timer: number | undefined
+export class BuryReport implements BuryReportBase {
+  public report: ReportFn
+  public options: Options
 
-const workerStr = `
-self.onmessage = (evt) => {
-  switch (evt.data.type) {
-    case 'report':
-      degradationReport(evt.data.body).finally(() => {
-        self.postMessage('finish')
-      })
-      break
-    default:
-      console.warn('[@sepveneto/report-core] invalid event type: ' + evt.data.type)
+  private static pluginsOrder: BuryReportPlugin[] = []
+
+  constructor(config: Options) {
+    this.report = createProxy(config)
+    this.options = config
+
+    this.init()
+  }
+
+  static registerPlugin(plugin: BuryReportPlugin) {
+    this.pluginsOrder.push(plugin)
+  }
+
+  private init() {
+    this.triggerPlugin('init')
+  }
+
+  private triggerPlugin(lifecycle: 'init') {
+    BuryReport.pluginsOrder.forEach(plugin => plugin[lifecycle](this))
   }
 }
 
-function degradationReport(body) {
-  return self.fetch('BR_URL', {
-    method: 'post',
-    mode: 'no-cors',
-    headers: {
-      'Content-Type': 'text/plain; charset=utf-8',
-    },
-    cache: 'no-store',
-    credentials: 'omit',
-    priority: 'low',
-    body,
-  })
-}
-`
+const INNER_PLUGINs = [
+  new CollectPlugin(),
+  new ErrorPlugin(),
+  new NetworkPlugin(),
+]
 
-export function __BR_REPORT_INIT__(
-  appid: Options['appid'],
-  url: Options['url'],
-  interval: Required<Options>['interval'],
-) {
-  globalThis[REPORT_REQUEST] = function (
-    uuid: string,
+INNER_PLUGINs.forEach(plugin => {
+  BuryReport.registerPlugin(plugin)
+})
+
+window.BuryReport = BuryReport
+
+let timer: number | undefined
+function createProxy(options: Options) {
+  const { appid, interval = 10, url } = options
+
+  return function (
     type: string,
     data: Record<string, any>,
     immediate = false,
   ) {
+    const uuid = getUuid()
+
     const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
     list.push({ uuid, type, data, appid, time: new Date().toLocaleString() })
     setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
@@ -81,7 +93,7 @@ export function __BR_REPORT_INIT__(
     }
 
     if (!timer) {
-      timer = (globalThis.setTimeout(sendRequest, interval * 1000)) as unknown as number
+      timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
     }
   }
 }

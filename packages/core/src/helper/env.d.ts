@@ -9,6 +9,7 @@ declare global {
 
     interface Window {
       __BR_WORKER__: Worker | undefined
+      BuryReport: any
     }
   }
 }

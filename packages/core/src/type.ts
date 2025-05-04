@@ -1,3 +1,5 @@
+// import type { BuryReport } from './browser'
+
 export interface Options {
   /**
    * 数据上报周期, 单位秒，默认10秒
@@ -53,4 +55,58 @@ export interface Options {
 
 export interface RuntimeOptions {
   uniPlatform?: string
+}
+
+export interface AsyncCallback<R = void, E = any> {
+  success?: (res: R) => void;
+  fail?: (error: E) => void;
+  complete?: (res?: R | E) => void;
+  [other: string]: any;
+}
+
+interface RequestParams<R> extends AsyncCallback<{
+  data: R,
+  statusCode: number;
+  header?: Record<string, string>;
+  cookies?: string[];
+}> {
+  url: string;
+  data?: string | object | ArrayBuffer;
+  header?: Record<string, string>;
+  timeout?: number;
+  method?:
+    | 'GET'
+    | 'POST'
+    | 'PUT'
+    | 'DELETE'
+    | 'HEAD'
+    | 'OPTIONS'
+    | 'TRACE'
+    | 'CONNECT';
+  dataType?: 'json';
+  responseType?: 'text' | 'arraybuffer';
+  enableHttp2?: boolean;
+  enableQuic?: boolean;
+  enableCache?: boolean;
+}
+
+export type MPSDK = {
+  setStorageSync: (key: string, data: any) => void
+  getStorageSync: (key: string) => any
+  request: <R>(params: RequestParams<R>) => any
+}
+
+export type ReportFn = (
+  type: string,
+  data: Record<string, any>,
+  immediate?: boolean,
+) => void
+export abstract class BuryReportBase {
+  public abstract report: ReportFn
+  public abstract options: Options
+}
+export abstract class BuryReportPlugin {
+  public abstract name: string
+
+  public abstract init: (ctx: BuryReportBase) => void
 }
