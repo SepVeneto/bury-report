@@ -33,7 +33,7 @@ export function isEntry(id: string, entryFile: string) {
 }
 
 export const unpluginFactory: UnpluginFactory<Options> = options => {
-  const isH5 = process.env.UNI === 'H5' || !process.env.UNI
+  const isH5 = process.env.UNI_PLATFORM === 'H5' || !process.env.UNI_PLATFORM
   const config = withDefault(options)
   return {
     name: 'plugin-bury-report',

@@ -2,6 +2,9 @@ import { createSSRApp } from 'vue'
 // import ReportSDK from '@sepveneto/report-core/mp'
 import App from './App.vue'
 
+// import ReportSDK from '@sepveneto/report-core/mp'
+// console.log(ReportSDK)
+
 // const sdk = new ReportSDK({
 //   url: 'http://localhost:5174/record',
 //   appid: '65dff60ff2a68ca3dc989de4',
@@ -18,7 +21,13 @@ import App from './App.vue'
 // })
 // report('test', {mock: mockBody()})
 
-// eval('a??.a')
+setTimeout(() => {
+
+  const a = undefined
+  // a.b
+  console.error(new Error('a'))
+  console.error('b')
+}, 2000)
 
 function mockBody() {
   const n = 64 * 1024 + 1

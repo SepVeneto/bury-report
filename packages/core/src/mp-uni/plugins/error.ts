@@ -1,17 +1,18 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
-import { initErrorProxy, storageReport } from '@/utils'
+import { storageReport } from '@/utils'
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
   private ctx?: BuryReport
   private appid?: string
 
-  public uncaughtErrorListener = (error: { message: string, stack: string }) => {
+  public uncaughtErrorListener = (error: string) => {
+    const errMsg = error.split('\n')
     this.reportError({
-      name: error?.message || '[@sepveneto/report-core] unknown error',
-      message: error?.message,
-      stack: error?.stack,
+      name: errMsg[0] || 'UnknownError',
+      message: errMsg[1] || 'unknown message',
+      stack: error,
     })
   }
 
@@ -32,7 +33,7 @@ export class ErrorPlugin implements BuryReportPlugin {
   }
 
   public reportError(error: { name: string, message: string, stack?: string }) {
-    const data = { ...error, page: window.location.href }
+    const data = { ...error, page: getCurrentPages().map(page => page.route).join('->') }
     // 白屏检测没有上下文，需要先放到缓存中
     if (this.ctx) {
       this.ctx.report(COLLECT_ERROR, data)
@@ -62,4 +63,45 @@ export class ErrorPlugin implements BuryReportPlugin {
       stack: error?.stack,
     })
   }
+}
+
+function initErrorProxy(reportFn: (...args: any[]) => void) {
+  const _tempError = console.error
+  console.error = function (...args) {
+    const [arg, err] = args
+    if (err instanceof TypeError) {
+      const error = {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+      }
+      reportFn(error)
+    } else if (typeof arg === 'string') {
+      const error = {
+        name: 'CustomError',
+        message: arg,
+        stack: '',
+      }
+      reportFn(error)
+    } else if (arg instanceof Error) {
+      const error = {
+        name: arg.name,
+        message: arg.message,
+        stack: arg.stack,
+      }
+      reportFn(error)
+    } else if (globalThis.PromiseRejectionEvent && arg instanceof PromiseRejectionEvent && arg.reason) {
+      const error = {
+        name: arg.reason.name,
+        message: arg.reason.message,
+        stack: arg.reason.stack,
+      }
+      reportFn(error)
+    } else {
+      console.warn(args)
+      console.warn(arg, typeof arg, Object.prototype.toString.call(arg))
+    }
+    _tempError.apply(this, args)
+  }
+  return _tempError
 }
