@@ -46,7 +46,7 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
 
       const insertCode = `
 import ReportSDK from '@sepveneto/report-core/mp'
-new ReportSDK(${JSON.stringify(options)})
+new ReportSDK(${JSON.stringify(options)})\n
         `
       code = combineCode(code, insertCode)
       return {
