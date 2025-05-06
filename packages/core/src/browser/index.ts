@@ -1,20 +1,23 @@
 import { NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
 import { REPORT_QUEUE } from '@/constant'
-import { getLocalStorage, getUuid, setLocalStorage } from '@/utils'
+import { getLocalStorage, getUuid, setLocalStorage, withDefault } from '@/utils'
 import workerStr from './worker?raw'
 import { ErrorPlugin } from './plugins/error'
 import { CollectPlugin } from './plugins/collect'
 
 export class BuryReport implements BuryReportBase {
-  public report: ReportFn
+  public report?: ReportFn
   public options: Options
 
   private static pluginsOrder: BuryReportPlugin[] = []
 
   constructor(config: Options) {
+    this.options = withDefault(config)
+
+    if (!config.report) return 
+
     this.report = createProxy(config)
-    this.options = config
 
     this.init()
   }
@@ -24,6 +27,18 @@ export class BuryReport implements BuryReportBase {
   }
 
   private init() {
+    BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => {
+      switch (plugin.name) {
+        case 'errorPlugin':
+          return this.options?.error
+        case 'collectPlugin':
+          return this.options?.collect
+        case 'networkPlugin':
+          return this.options?.network?.enable
+        default:
+          return true
+      }
+    })
     this.triggerPlugin('init')
   }
 

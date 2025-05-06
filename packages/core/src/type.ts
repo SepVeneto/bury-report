@@ -3,6 +3,7 @@
 export interface Options {
   /**
    * 数据上报周期, 单位秒，默认10秒
+   * @default 10
    */
   interval?: number
   /**
@@ -19,15 +20,18 @@ export interface Options {
   url: string
   /**
    * 是否自动上报应用的环境信息
+   * @default true
    */
   error?: boolean
   /**
    * 是否自动上报
+   * @default true
    */
   collect?: boolean
   /**
    * 是否发送上报请求
    * 默认在开发模式(NODE_ENV == 'development')时关闭，生产模式(NODE_ENV == 'production')时开启
+   * @default NODE_ENV === 'production'
    */
   report?: boolean
   /**
@@ -36,18 +40,22 @@ export interface Options {
   network?: {
     /**
      * 支持上报的大小限制，单位KB
+     * @default 100
      */
-    responseLimit: number,
+    responseLimit?: number,
     /**
      * 关闭后将不会扩展原生的请求方式，停止所有网络请求的上报
+     * @default false
      */
     enable?: boolean
     /**
      * 是否上报所有成功发出的请求
+     * @default true
      */
     success?: boolean
     /**
      * 是否启用接口错误（包括超时和拒绝）请求的上报
+     * @default true
      */
     fail?: boolean
   }
@@ -102,7 +110,7 @@ export type ReportFn = (
   immediate?: boolean,
 ) => void
 export abstract class BuryReportBase {
-  public abstract report: ReportFn
+  public abstract report?: ReportFn
   public abstract options: Options
 }
 export abstract class BuryReportPlugin {

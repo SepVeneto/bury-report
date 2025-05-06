@@ -23,6 +23,18 @@ class BuryReport implements BuryReportBase {
   }
 
   private init() {
+    BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => {
+      switch (plugin.name) {
+        case 'errorPlugin':
+          return this.options?.error
+        case 'collectPlugin':
+          return this.options?.collect
+        case 'networkPlugin':
+          return this.options?.network?.enable
+        default:
+          return true
+      }
+    })
     this.triggerPlugin('init')
   }
 

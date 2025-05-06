@@ -4,8 +4,11 @@
   <meta charset="UTF-8">
   <link rel="icon" href="/favicon.ico" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script crossorigin="anonymous" src="/index.global.js" ></script>
+  <script crossorigin="anonymous" src="http://localhost:5174/sdk/index.global.js" defer></script>
   <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOMContentLoaded')
+    })
     const br = new BuryReport({
       url: 'http://127.0.0.1:7777/record',
       appid: '665fc9a76cc4322eb853df36',

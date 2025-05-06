@@ -4,6 +4,29 @@
 
 适用于web和uniapp的日志上报插件
 
+## 浏览器通过外部脚本直接使用
+
+```html
+<html>
+  <script>
+    const sdk = document.createElement('script')
+    sdk.src = 'https://remote/sdk/index.global.js'
+    sdk.onload = function () {
+      new BuryReport({
+        url: 'http://remote/record',
+        appid: 'appid',
+        collect: true,
+        report: true,
+        interval: 5,
+        network: {
+          enable: true,
+        },
+      })
+    }
+  </script>
+</html>
+```
+
 ## 快速开始
 
 小程序端需预留出大小约`6KB`的空间

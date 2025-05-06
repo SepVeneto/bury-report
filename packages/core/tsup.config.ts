@@ -44,7 +44,6 @@ const browser: Options = {
       },
     },
   ],
-  onSuccess: 'npm run build:fix',
 }
 
 const cli: Options = {
@@ -115,7 +114,6 @@ const cli: Options = {
       },
     },
   ],
-  onSuccess: 'npm run build:fix',
 }
 
 const client: Options = {
@@ -148,6 +146,7 @@ const client: Options = {
       },
     },
   ],
+  onSuccess: 'npm run build:fix',
 }
 
 export default <Options[]>[

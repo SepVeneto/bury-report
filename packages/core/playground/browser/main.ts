@@ -1,4 +1,7 @@
 import axios from 'axios'
+const node = document.createElement('div')
+node.innerHTML = 'test'
+document.body.appendChild(node)
 // document.getElementById('app')!.innerHTML = '__UNPLUGIN__'
 
 // setTimeout(() => {

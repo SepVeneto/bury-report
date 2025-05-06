@@ -24,7 +24,7 @@ export class ErrorPlugin implements BuryReportPlugin {
     const data = { ...error, page: window.location.href }
     // 白屏检测没有上下文，需要先放到缓存中
     if (this.ctx) {
-      this.ctx.report(COLLECT_ERROR, data)
+      this.ctx.report?.(COLLECT_ERROR, data)
     } else {
       storageReport(this.appid!, data)
     }

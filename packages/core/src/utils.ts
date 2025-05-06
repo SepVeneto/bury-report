@@ -21,13 +21,13 @@ export function withDefault(config: Options) {
 export function mergeConfig(
   config: Options,
   defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry'>>,
-): Required<Options> {
+) {
   const res: Record<string, any> = {}
 
   combine(defaultConfig)
   combine(config)
 
-  return res as unknown as Required<Options>
+  return res as unknown as Required<Options> & { network: Required<Options['network']> }
   function combine(obj: Record<string, any>) {
     for (const key in obj) {
       if (!Object.prototype.hasOwnProperty.call(obj, key)) continue

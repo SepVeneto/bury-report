@@ -36,7 +36,7 @@ export class NetworkPlugin implements BuryReportPlugin {
               responseHeaders: res.header,
               response: normalizeResponse(response, network.responseLimit),
             })
-            recordUrl !== info.url && report(COLLECT_API, info)
+            recordUrl !== info.url && report?.(COLLECT_API, info)
           }
           _success?.(res)
         },
@@ -46,7 +46,7 @@ export class NetworkPlugin implements BuryReportPlugin {
               timeout: options.timeout,
               err: res.errMsg,
             })
-            recordUrl !== info.url && report(COLLECT_API, info)
+            recordUrl !== info.url && report?.(COLLECT_API, info)
           }
           _fail?.(res)
         },

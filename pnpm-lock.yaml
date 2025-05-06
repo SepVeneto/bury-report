@@ -232,6 +232,10 @@ importers:
         specifier: ^7.0.3
         version: 7.0.3
 
+  packages/sign/pkg-client: {}
+
+  packages/sign/pkg-server: {}
+
   packages/web:
     dependencies:
       '@element-plus/icons-vue':

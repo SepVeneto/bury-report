@@ -30,24 +30,24 @@ export class NetworkPlugin implements BuryReportPlugin {
           const duration = performance.now() - this._start
           if (this.status === 200) {
             const info = this._collectInfo('success', { duration })
-            report(COLLECT_API, info)
+            report?.(COLLECT_API, info)
           } else {
             const info = this._collectInfo('fail', { duration })
-            report(COLLECT_API, info)
+            report?.(COLLECT_API, info)
           }
         })
         error && super.addEventListener('abort', () => {
           const info = this._collectInfo('abort')
-          report(COLLECT_API, info)
+          report?.(COLLECT_API, info)
         })
 
         error && super.addEventListener('error', () => {
           const info = this._collectInfo('error')
-          report(COLLECT_API, info)
+          report?.(COLLECT_API, info)
         })
         error && super.addEventListener('timeout', () => {
           const info = this._collectInfo('timeout', { timeout: this.timeout })
-          report(COLLECT_API, info)
+          report?.(COLLECT_API, info)
         })
         super.open(...args)
       }
