@@ -44,20 +44,20 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       if (isH5) return code
 
       const plugins = []
-      if (options.collect) {
+      if (config.collect) {
         plugins.push('BuryReport.registerPlugin(new CollectPlugin())')
       }
-      if (options.error) {
+      if (config.error) {
         plugins.push('BuryReport.registerPlugin(new ErrorPlugin())')
       }
-      if (options.network?.enable) {
+      if (config.network?.enable) {
         plugins.push('BuryReport.registerPlugin(new NetworkPlugin())')
       }
 
       const insertCode = `
 import { BuryReport, ErrorPlugin, NetworkPlugin, CollectPlugin } from '@sepveneto/report-core/mp'
 ${plugins.join('\n')}
-new BuryReport(${JSON.stringify(options)})\n
+new BuryReport(${JSON.stringify(config)})\n
         `
       code = combineCode(code, insertCode)
       return {
@@ -71,7 +71,7 @@ new BuryReport(${JSON.stringify(options)})\n
           return {
             html,
             tags: [
-              { tag: 'script', children: sdkInjector.replace('SDK_OPTIONS', JSON.stringify(options)), injectTo: 'head' },
+              { tag: 'script', children: sdkInjector.replace('SDK_OPTIONS', JSON.stringify(config)), injectTo: 'head' },
             ],
           }
         } else {
