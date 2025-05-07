@@ -1,22 +1,19 @@
-import { getBrowserInfo } from '@/utils/system'
-import { COLLECT_INFO } from '@/utils/constant'
-import { report } from '@/index'
+import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
+import { COLLECT_INFO } from '@/constant'
 
-export function __BR_COLLECT_INIT__() {
-  const stat = getSystemInfo()
-  report(COLLECT_INFO, stat, true)
-}
+export class CollectPlugin implements BuryReportPlugin {
+  public name = 'collectPlugin'
 
-function getSystemInfo() {
-  let IS_UNIAPP = false
-  try {
-    IS_UNIAPP = !!uni
-  } catch { }
+  init(ctx: BuryReport) {
+    const stat = this.getSystemInfo()
 
-  if (IS_UNIAPP) {
+    ctx.report?.(COLLECT_INFO, stat, true)
+  }
+
+  getSystemInfo() {
     const system = uni.getSystemInfoSync()
     return {
-      // mp, web
+    // mp, web
       dt: system.deviceType,
       // mp
       db: system.deviceBrand,
@@ -56,19 +53,6 @@ function getSystemInfo() {
       sh: system.screenHeight,
       sbh: system.statusBarHeight,
       sa: system.safeAreaInsets,
-    }
-  } else {
-    const browserInfo = getBrowserInfo()
-    return {
-      dt: browserInfo.deviceType,
-      dm: browserInfo.deviceModel,
-      dp: window.devicePixelRatio,
-      do: browserInfo.deviceOrientation,
-      on: browserInfo.osname,
-      ov: browserInfo.osversion,
-      bn: browserInfo.browserName,
-      bv: browserInfo.browserVersion,
-      ua: browserInfo.ua,
     }
   }
 }

@@ -4,6 +4,29 @@
 
 适用于web和uniapp的日志上报插件
 
+## 浏览器通过外部脚本直接使用
+
+```html
+<html>
+  <script>
+    const sdk = document.createElement('script')
+    sdk.src = 'https://remote/sdk/index.global.js'
+    sdk.onload = function () {
+      new BuryReport({
+        url: 'http://remote/record',
+        appid: 'appid',
+        collect: true,
+        report: true,
+        interval: 5,
+        network: {
+          enable: true,
+        },
+      })
+    }
+  </script>
+</html>
+```
+
 ## 快速开始
 
 小程序端需预留出大小约`6KB`的空间
@@ -97,7 +120,7 @@ module.exports = {
 | :--- | :------ | :---------- | :--- |
 | 基础上报(自定义上报) | report | 1KB | 前置设定，关闭后影响其它功能 |
 | js错误上报 | error | 2KB | - |
-| 环境收集 | collect | <1KB | - |
+| 环境收集 | collect | 1KB | - |
 | 网络请求上报 | network.enable | 4KB | 成功请求和失败请求的上报对大小影响可以忽略不计 |
 
 占用大小不包含基础上报功能, 压缩工具`terser`

@@ -4,6 +4,9 @@
       class="logo"
       src="/static/logo.png"
     />
+    <button @click="c">
+      click me
+    </button>
     <view class="text-area">
       <text class="title">
         {{ title }}
@@ -14,6 +17,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+function c() {
+  window.alert('c')
+}
 const title = ref('Hello')
 uni.request({
   url: '/api/captcha',
