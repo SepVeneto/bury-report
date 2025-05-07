@@ -42,7 +42,6 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       return isEntry(id, config.entry)
     },
     transform(code) {
-      console.log(isH5, 'isH5')
       if (isH5) return code
 
       const plugins = []
