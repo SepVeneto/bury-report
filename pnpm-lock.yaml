@@ -32,6 +32,10 @@ importers:
       unplugin:
         specifier: ^1.5.1
         version: 1.10.1
+    optionalDependencies:
+      html-webpack-plugin:
+        specifier: '>= 4.0.0'
+        version: 5.6.3(webpack@5.91.0(@swc/core@1.7.3)(esbuild@0.25.3))
     devDependencies:
       '@dcloudio/types':
         specifier: ^3.4.3
@@ -66,9 +70,6 @@ importers:
       fast-glob:
         specifier: ^3.3.2
         version: 3.3.2
-      html-webpack-plugin:
-        specifier: ^5.6.3
-        version: 5.6.3(webpack@5.91.0(@swc/core@1.7.3)(esbuild@0.25.3))
       magic-string:
         specifier: ^0.30.5
         version: 0.30.10
@@ -92,7 +93,7 @@ importers:
         version: 5.2.10(@types/node@20.12.7)(less@4.2.0)(sass@1.75.0)(terser@5.30.4)
       vitest:
         specifier: ^1.1.0
-        version: 1.5.2(@types/node@20.12.7)(jsdom@16.7.0(canvas@2.11.2))(less@4.2.0)(sass@1.75.0)(terser@5.30.4)
+        version: 1.5.2(@types/node@20.12.7)(jsdom@16.7.0)(less@4.2.0)(sass@1.75.0)(terser@5.30.4)
       webpack:
         specifier: ^5.89.0
         version: 5.91.0(@swc/core@1.7.3)(esbuild@0.25.3)
@@ -12603,7 +12604,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  '@sepveneto/eslint-config-vue@0.9.2(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)':
+  '@sepveneto/eslint-config-vue@0.9.2(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@4.9.5)':
     dependencies:
       '@sepveneto/eslint-config-basic': 0.9.2(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)
       '@sepveneto/eslint-config-mp': 0.9.2(eslint@8.57.0)
@@ -12620,7 +12621,7 @@ snapshots:
 
   '@sepveneto/eslint-config@0.9.2(eslint@8.57.0)':
     dependencies:
-      '@sepveneto/eslint-config-vue': 0.9.2(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
+      '@sepveneto/eslint-config-vue': 0.9.2(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@5.4.5))(eslint@8.57.0)(typescript@4.9.5)
       '@typescript-eslint/eslint-plugin': 5.62.0(@typescript-eslint/parser@5.62.0(eslint@8.57.0)(typescript@4.9.5))(eslint@8.57.0)(typescript@4.9.5)
       '@typescript-eslint/parser': 5.62.0(eslint@8.57.0)(typescript@4.9.5)
       eslint: 8.57.0
@@ -12811,7 +12812,8 @@ snapshots:
     dependencies:
       '@types/node': 20.12.7
 
-  '@types/html-minifier-terser@6.1.0': {}
+  '@types/html-minifier-terser@6.1.0':
+    optional: true
 
   '@types/http-assert@1.5.5': {}
 
@@ -14434,6 +14436,7 @@ snapshots:
     dependencies:
       pascal-case: 3.1.2
       tslib: 2.6.2
+    optional: true
 
   camelcase@5.3.1: {}
 
@@ -14533,6 +14536,7 @@ snapshots:
   clean-css@5.3.3:
     dependencies:
       source-map: 0.6.1
+    optional: true
 
   clean-regexp@1.0.0:
     dependencies:
@@ -14597,7 +14601,8 @@ snapshots:
 
   commander@7.2.0: {}
 
-  commander@8.3.0: {}
+  commander@8.3.0:
+    optional: true
 
   comment-json@4.2.3:
     dependencies:
@@ -14952,6 +14957,7 @@ snapshots:
   dom-converter@0.2.0:
     dependencies:
       utila: 0.4.0
+    optional: true
 
   dom-serializer@1.4.1:
     dependencies:
@@ -14997,6 +15003,7 @@ snapshots:
     dependencies:
       no-case: 3.0.4
       tslib: 2.6.2
+    optional: true
 
   dot-prop@6.0.1:
     dependencies:
@@ -16044,6 +16051,7 @@ snapshots:
       param-case: 3.0.4
       relateurl: 0.2.7
       terser: 5.30.4
+    optional: true
 
   html-minifier@4.0.0:
     dependencies:
@@ -16066,6 +16074,7 @@ snapshots:
       tapable: 2.2.1
     optionalDependencies:
       webpack: 5.91.0(@swc/core@1.7.3)(esbuild@0.25.3)
+    optional: true
 
   htmlparser2@6.1.0:
     dependencies:
@@ -16073,6 +16082,7 @@ snapshots:
       domhandler: 4.3.1
       domutils: 2.8.0
       entities: 2.2.0
+    optional: true
 
   htmlparser2@7.2.0:
     dependencies:
@@ -16795,6 +16805,41 @@ snapshots:
 
   jsbn@0.1.1: {}
 
+  jsdom@16.7.0:
+    dependencies:
+      abab: 2.0.6
+      acorn: 8.11.3
+      acorn-globals: 6.0.0
+      cssom: 0.4.4
+      cssstyle: 2.3.0
+      data-urls: 2.0.0
+      decimal.js: 10.4.3
+      domexception: 2.0.1
+      escodegen: 2.1.0
+      form-data: 3.0.1
+      html-encoding-sniffer: 2.0.1
+      http-proxy-agent: 4.0.1
+      https-proxy-agent: 5.0.1
+      is-potential-custom-element-name: 1.0.1
+      nwsapi: 2.2.9
+      parse5: 6.0.1
+      saxes: 5.0.1
+      symbol-tree: 3.2.4
+      tough-cookie: 4.1.4
+      w3c-hr-time: 1.0.2
+      w3c-xmlserializer: 2.0.0
+      webidl-conversions: 6.1.0
+      whatwg-encoding: 1.0.5
+      whatwg-mimetype: 2.3.0
+      whatwg-url: 8.7.0
+      ws: 7.5.9
+      xml-name-validator: 3.0.0
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+    optional: true
+
   jsdom@16.7.0(canvas@2.11.2):
     dependencies:
       abab: 2.0.6
@@ -17114,6 +17159,7 @@ snapshots:
   lower-case@2.0.2:
     dependencies:
       tslib: 2.6.2
+    optional: true
 
   lru-cache@10.2.1: {}
 
@@ -17385,6 +17431,7 @@ snapshots:
     dependencies:
       lower-case: 2.0.2
       tslib: 2.6.2
+    optional: true
 
   node-fetch-native@1.6.4: {}
 
@@ -17595,6 +17642,7 @@ snapshots:
     dependencies:
       dot-case: 3.0.4
       tslib: 2.6.2
+    optional: true
 
   parent-module@1.0.1:
     dependencies:
@@ -17638,6 +17686,7 @@ snapshots:
     dependencies:
       no-case: 3.0.4
       tslib: 2.6.2
+    optional: true
 
   path-browserify@1.0.1: {}
 
@@ -17986,6 +18035,7 @@ snapshots:
     dependencies:
       lodash: 4.17.21
       renderkid: 3.0.0
+    optional: true
 
   pretty-format@27.5.1:
     dependencies:
@@ -18279,6 +18329,7 @@ snapshots:
       htmlparser2: 6.1.0
       lodash: 4.17.21
       strip-ansi: 6.0.1
+    optional: true
 
   repeat-string@1.6.1: {}
 
@@ -19101,7 +19152,8 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  utila@0.4.0: {}
+  utila@0.4.0:
+    optional: true
 
   utility@1.18.0:
     dependencies:
@@ -19217,7 +19269,7 @@ snapshots:
       sass: 1.75.0
       terser: 5.30.4
 
-  vitest@1.5.2(@types/node@20.12.7)(jsdom@16.7.0(canvas@2.11.2))(less@4.2.0)(sass@1.75.0)(terser@5.30.4):
+  vitest@1.5.2(@types/node@20.12.7)(jsdom@16.7.0)(less@4.2.0)(sass@1.75.0)(terser@5.30.4):
     dependencies:
       '@vitest/expect': 1.5.2
       '@vitest/runner': 1.5.2
@@ -19241,7 +19293,7 @@ snapshots:
       why-is-node-running: 2.2.2
     optionalDependencies:
       '@types/node': 20.12.7
-      jsdom: 16.7.0(canvas@2.11.2)
+      jsdom: 16.7.0
     transitivePeerDependencies:
       - less
       - lightningcss

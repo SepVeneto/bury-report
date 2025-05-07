@@ -47,6 +47,9 @@
       ]
     }
   },
+  "optionalDependencies": {
+    "html-webpack-plugin": ">= 4.0.0"
+  },
   "dependencies": {
     "@babel/parser": "^7.23.6",
     "core-js": "^3.39.0",

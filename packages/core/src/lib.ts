@@ -1,7 +1,6 @@
 import { createUnplugin } from 'unplugin'
 import type { UnpluginFactory } from 'unplugin'
 import type { Options } from './type'
-import HtmlWebpackPlugin from 'html-webpack-plugin'
 import sdkInjector from './browser/injector?raw'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -80,7 +79,8 @@ new BuryReport(${JSON.stringify(options)})\n
         }
       },
     },
-    webpack(compiler) {
+    async webpack(compiler) {
+      const HtmlWebpackPlugin = (await import('html-webpack-plugin')).default
       compiler.hooks.compilation.tap('HtmlWebpackInjectorPlugin', (compilation) => {
         HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tapAsync(
           'HtmlWebpackInjectorPlugin', (data, callback) => {
