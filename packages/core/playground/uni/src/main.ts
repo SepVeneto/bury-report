@@ -1,6 +1,8 @@
 import { createSSRApp } from 'vue'
 // import ReportSDK from '@sepveneto/report-core/mp'
 import App from './App.vue'
+import { report } from '@sepveneto/report-core/mp'
+report('test', { data: 'a' })
 
 // import ReportSDK from '@sepveneto/report-core/mp'
 // console.log(ReportSDK)
@@ -22,7 +24,6 @@ import App from './App.vue'
 // report('test', {mock: mockBody()})
 
 setTimeout(() => {
-
   const a = undefined
   // a.b
   console.error(new Error('a'))

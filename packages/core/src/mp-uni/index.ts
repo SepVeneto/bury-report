@@ -1,11 +1,15 @@
-import { NetworkPlugin } from './plugins/network'
+import { NetworkPlugin as _NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
-import { REPORT_QUEUE } from '@/constant'
+import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
 import { getLocalStorage, getUuid, setLocalStorage, withDefault } from '@/utils'
-import { ErrorPlugin } from './plugins/error'
-import { CollectPlugin } from './plugins/collect'
+import { ErrorPlugin as _ErrorPlugin } from './plugins/error'
+import { CollectPlugin as _CollectPlugin } from './plugins/collect'
 
-class BuryReport implements BuryReportBase {
+export const CollectPlugin = _CollectPlugin
+export const ErrorPlugin = _ErrorPlugin
+export const NetworkPlugin = _NetworkPlugin
+
+export class BuryReport implements BuryReportBase {
   public report?: ReportFn
   public options: Options
 
@@ -26,18 +30,6 @@ class BuryReport implements BuryReportBase {
   }
 
   private init() {
-    BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => {
-      switch (plugin.name) {
-        case 'errorPlugin':
-          return this.options?.error
-        case 'collectPlugin':
-          return this.options?.collect
-        case 'networkPlugin':
-          return this.options?.network?.enable
-        default:
-          return true
-      }
-    })
     this.triggerPlugin('init')
   }
 
@@ -46,22 +38,26 @@ class BuryReport implements BuryReportBase {
   }
 }
 
-const INNER_PLUGINs = [
-  new CollectPlugin(),
-  new ErrorPlugin(),
-  new NetworkPlugin(),
-]
+export function report(type: string, data: Record<string, any>, immediate = false) {
+  globalThis[REPORT_REQUEST]?.(type, data, immediate)
+}
 
-INNER_PLUGINs.forEach(plugin => {
-  BuryReport.registerPlugin(plugin)
-})
+// const INNER_PLUGINs = [
+//   new CollectPlugin(),
+//   new ErrorPlugin(),
+//   new NetworkPlugin(),
+// ]
+
+// INNER_PLUGINs.forEach(plugin => {
+//   BuryReport.registerPlugin(plugin)
+// })
 
 let timer: number | undefined
 function createProxy(options: Options) {
   const { appid, interval = 10, url } = options
   let abort = false
 
-  return function (
+  const report = function (
     type: string,
     data: Record<string, any>,
     immediate = false,
@@ -99,6 +95,10 @@ function createProxy(options: Options) {
       timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
     }
   }
+
+  globalThis[REPORT_REQUEST] = report
+
+  return report
 }
 
-export default BuryReport
+// export default BuryReport

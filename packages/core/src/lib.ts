@@ -44,9 +44,21 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
     transform(code) {
       if (isH5) return code
 
+      const plugins = []
+      if (options.collect) {
+        plugins.push('BuryReport.registerPlugin(new CollectPlugin())')
+      }
+      if (options.error) {
+        plugins.push('BuryReport.registerPlugin(new ErrorPlugin())')
+      }
+      if (options.network?.enable) {
+        plugins.push('BuryReport.registerPlugin(new NetworkPlugin())')
+      }
+
       const insertCode = `
-import ReportSDK from '@sepveneto/report-core/mp'
-new ReportSDK(${JSON.stringify(options)})\n
+import { BuryReport, ErrorPlugin, NetworkPlugin, CollectPlugin } from '@sepveneto/report-core/mp'
+${plugins.join('\n')}
+new BuryReport(${JSON.stringify(options)})\n
         `
       code = combineCode(code, insertCode)
       return {

@@ -1,11 +1,9 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
-import { storageReport } from '@/utils'
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
   private ctx?: BuryReport
-  private appid?: string
 
   public uncaughtErrorListener = (error: string) => {
     const errMsg = error.split('\n')
@@ -21,12 +19,8 @@ export class ErrorPlugin implements BuryReportPlugin {
     this.unhandleRejectionErrorListener = this.unhandleRejectionErrorListener.bind(this)
   }
 
-  init(ctx: BuryReport | string) {
-    if (typeof ctx === 'string') {
-      this.appid = ctx
-    } else {
-      this.ctx = ctx
-    }
+  init(ctx: BuryReport) {
+    this.ctx = ctx
     initErrorProxy((data) => this.reportError(data))
     this.onUncaughtError()
     this.onUnhandleRejectionError()
@@ -34,12 +28,7 @@ export class ErrorPlugin implements BuryReportPlugin {
 
   public reportError(error: { name: string, message: string, stack?: string }) {
     const data = { ...error, page: getCurrentPages().map(page => page.route).join('->') }
-    // 白屏检测没有上下文，需要先放到缓存中
-    if (this.ctx) {
-      this.ctx.report?.(COLLECT_ERROR, data)
-    } else {
-      storageReport(this.appid!, data)
-    }
+    this.ctx?.report?.(COLLECT_ERROR, data)
   }
 
   public onUncaughtError() {

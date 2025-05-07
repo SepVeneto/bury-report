@@ -9,6 +9,7 @@ const browser: Options = {
   entry: [
     'src/browser/index.ts',
   ],
+  clean: true,
   format: ['iife'],
   platform: 'browser',
   minify: 'terser',
@@ -125,27 +126,27 @@ const client: Options = {
   dts: true,
   bundle: true,
   outDir: 'dist/mp-uni',
-  esbuildPlugins: [
-    {
-      name: 'swc-loader',
-      setup(build) {
-        build.onLoad({ filter: /(.js|.jsx|.ts|.tsx)/ }, (args) => {
-          const content = fs.readFileSync(args.path, 'utf8')
-          const { code } = swc.transformSync(content, {
-            filename: args.path,
-            env: {
-              targets: 'chrome 69',
-              coreJs: '3.21',
-              mode: 'usage',
-            },
-          })
-          return {
-            contents: code,
-          }
-        })
-      },
-    },
-  ],
+  // esbuildPlugins: [
+  //   {
+  //     name: 'swc-loader',
+  //     setup(build) {
+  //       build.onLoad({ filter: /(.js|.jsx|.ts|.tsx)/ }, (args) => {
+  //         const content = fs.readFileSync(args.path, 'utf8')
+  //         const { code } = swc.transformSync(content, {
+  //           filename: args.path,
+  //           env: {
+  //             targets: 'chrome 53,ios 11,safari 10',
+  //             coreJs: '3.21',
+  //             mode: 'usage',
+  //           },
+  //         })
+  //         return {
+  //           contents: code,
+  //         }
+  //       })
+  //     },
+  //   },
+  // ],
   onSuccess: 'npm run build:fix',
 }
 

@@ -8,12 +8,12 @@ export default defineConfig({
   plugins: [uni(), Unplugin({
     url: 'http://localhost:5174/record',
     appid: '65dff60ff2a68ca3dc989de4',
-    collect: true,
+    collect: false,
     interval: 5,
     error: true,
     report: true,
     network: {
-      enable: true,
+      enable: false,
       success: true,
       fail: true,
       responseLimit: 100,
