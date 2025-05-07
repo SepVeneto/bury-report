@@ -5,7 +5,7 @@ export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
   private ctx?: BuryReport
 
-  public uncaughtErrorListener = (error: string | { reason: any }) => {
+  public uncaughtErrorListener = (error: string | PromiseRejectionEvent) => {
     if (typeof error === 'string') {
       const errMsg = error?.split('\n') || []
       this.reportError({
@@ -15,7 +15,7 @@ export class ErrorPlugin implements BuryReportPlugin {
       })
     } else if ('reason' in error) {
       // 微信小程序Promise.reject也会被onError收集
-      this.unhandleRejectionErrorListener(error.reason)
+      this.unhandleRejectionErrorListener(error)
     } else {
       this.reportError({
         name: 'UnknownError',
