@@ -5,13 +5,24 @@ export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
   private ctx?: BuryReport
 
-  public uncaughtErrorListener = (error: string) => {
-    const errMsg = error.split('\n')
-    this.reportError({
-      name: errMsg[0] || 'UnknownError',
-      message: errMsg[1] || 'unknown message',
-      stack: error,
-    })
+  public uncaughtErrorListener = (error: string | { reason: any }) => {
+    if (typeof error === 'string') {
+      const errMsg = error?.split('\n') || []
+      this.reportError({
+        name: errMsg[0] || 'UnknownError',
+        message: errMsg[1] || 'unknown message',
+        stack: error,
+      })
+    } else if ('reason' in error) {
+      // 微信小程序Promise.reject也会被onError收集
+      this.unhandleRejectionErrorListener(error.reason)
+    } else {
+      this.reportError({
+        name: 'UnknownError',
+        message: 'unknown message',
+        stack: error,
+      })
+    }
   }
 
   constructor() {
