@@ -15,7 +15,7 @@ export class BuryReport implements BuryReportBase {
   constructor(config: Options) {
     this.options = withDefault(config)
 
-    if (!config.report) return 
+    if (!config.report) return
 
     this.report = createProxy(config)
 

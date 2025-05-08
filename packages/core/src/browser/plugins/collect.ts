@@ -1,5 +1,7 @@
+import safeAreaInsets from 'safe-area-insets'
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_INFO } from '@/constant'
+import { getUuid } from '@/utils'
 
 export class CollectPlugin implements BuryReportPlugin {
   public name = 'collectPlugin'
@@ -11,68 +13,48 @@ export class CollectPlugin implements BuryReportPlugin {
   }
 
   getSystemInfo() {
-    let IS_UNIAPP = false
-    try {
-      IS_UNIAPP = !!uni
-    } catch { }
-
-    if (IS_UNIAPP) {
-      const system = uni.getSystemInfoSync()
-      return {
+    const system = getSysmteInfo()
+    return {
       // mp, web
-        dt: system.deviceType,
-        // mp
-        db: system.deviceBrand,
-        // mp, web
-        dm: system.deviceModel,
-        // mp, web
-        dp: system.devicePixelRatio,
-        // mp, web
-        do: system.deviceOrientation,
-        // mp, web
-        on: system.osName,
-        // mp, web
-        ov: system.osVersion,
-        // web
-        bn: system.browserName,
-        // web
-        bv: system.browserVersion,
-        // mp
-        hv: system.hostVersion,
-        // mp
-        hfs: system.hostFontSizeSetting,
-        // mp
-        hsdk: system.hostSDKVersion,
-        // web, mp
-        up: system.uniPlatform,
-        // web, mp
-        uc: system.uniCompileVersion,
-        // web, mp
-        ur: system.uniRuntimeVersion,
-        // web
-        ua: system.ua,
-        wt: system.windowTop,
-        wb: system.windowBottom,
-        ww: system.windowWidth,
-        wh: system.windowHeight,
-        sw: system.screenWidth,
-        sh: system.screenHeight,
-        sbh: system.statusBarHeight,
-        sa: system.safeAreaInsets,
-      }
-    } else {
-      const browserInfo = getBrowserInfo()
-      return {
-        dt: browserInfo.deviceType,
-        dm: browserInfo.deviceModel,
-        dp: window.devicePixelRatio,
-        do: browserInfo.deviceOrientation,
-        on: browserInfo.osname,
-        ov: browserInfo.osversion,
-        bn: browserInfo.browserName,
-        bv: browserInfo.browserVersion,
-        ua: browserInfo.ua,
-      }
+      dt: system.deviceType,
+      // mp
+      db: system.deviceBrand,
+      // mp, web
+      dm: system.deviceModel,
+      // mp, web
+      dp: system.devicePixelRatio,
+      // mp, web
+      do: system.deviceOrientation,
+      // mp, web
+      on: system.osName,
+      // mp, web
+      ov: system.osVersion,
+      // web
+      bn: system.browserName,
+      // web
+      bv: system.browserVersion,
+      // mp
+      hv: system.hostVersion,
+      // mp
+      hfs: system.hostFontSizeSetting,
+      // mp
+      hsdk: system.hostSDKVersion,
+      // web, mp
+      up: system.uniPlatform,
+      // web, mp
+      uc: system.uniCompileVersion,
+      // web, mp
+      ur: system.uniRuntimeVersion,
+      // web
+      ua: system.ua,
+      wt: system.windowTop,
+      wb: system.windowBottom,
+      ww: system.windowWidth,
+      wh: system.windowHeight,
+      sw: system.screenWidth,
+      sh: system.screenHeight,
+      sbh: system.statusBarHeight,
+      sa: system.safeAreaInsets,
     }
   }
 }
@@ -255,6 +237,20 @@ export function getBrowserInfo() {
     ua,
     osname,
     osversion,
+    theme: getTheme(),
+  }
+}
+
+function getTheme() {
+  if (window.__uniConfig && window.__uniConfig.darkmode !== true) { return (typeof window.__uniConfig.darkmode === 'string') ? window.__uniConfig.darkmode : 'light' }
+  try {
+    return (
+      window.matchMedia('(prefers-color-scheme: light)').matches
+        ? 'light'
+        : 'dark'
+    )
+  } catch (error) {
+    return 'light'
   }
 }
 
@@ -278,5 +274,183 @@ function IEVersion() {
     return 11
   } else {
     return -1
+  }
+}
+
+const ua = window.navigator.userAgent
+const isIOS = /iphone|ipad|ipod/i.test(ua)
+
+function getScreenFix() {
+  if (!isIOS) return false
+  const angle = window.screen?.orientation?.angle
+  return angle == null ? typeof window.orientation === 'number' : !!angle
+}
+function isLandscape(screenFix: boolean) {
+  const angle = Math.abs(window.screen?.orientation?.angle || window.orientation)
+  return screenFix && angle === 90
+}
+
+function getSysmteInfo() {
+  const windowInfo = getWindowInfo()
+  const deviceInfo = getDeviceInfo()
+  const appBaseInfo = getAppBaseInfo()
+
+  const { ua, browserName, browserVersion, osname, osversion } = getBrowserInfo()
+
+  return {
+    ...windowInfo,
+    ...deviceInfo,
+    ...appBaseInfo,
+    ua,
+    browserName,
+    browserVersion,
+    uniPlatform: 'web',
+    uniCompileVersion: window.__uniConfig?.compilerVersion,
+    uniRuntimeVersion: window.__uniConfig?.compilerVersion,
+    fontSizeSetting: undefined,
+    osName: osname!.toLocaleLowerCase(),
+    osVersion: osversion,
+    osLanguage: undefined,
+    osTheme: undefined,
+  }
+}
+
+function getAppBaseInfo() {
+  const browserInfo = getBrowserInfo()
+  const { theme, language, browserName, browserVersion } = browserInfo
+
+  return {
+    hostName: browserName,
+    hostVersion: browserVersion,
+    hostTheme: theme,
+    hostLanguage: language,
+    hostSDKVersion: undefined,
+    hostFontSizeSetting: undefined,
+    uniPlatform: 'web',
+    uniCompileVersion: window.__uniConfig?.compilerVersion,
+    uniCompilerVersion: window.__uniConfig?.compilerVersion,
+    uniRuntimeVersion: window.__uniConfig?.compilerVersion,
+  }
+}
+
+function getDeviceInfo() {
+  const browserInfo = getBrowserInfo()
+  const {
+    deviceBrand,
+    deviceModel,
+    brand,
+    model,
+    platform,
+    system,
+    deviceOrientation,
+    deviceType,
+    osname,
+    osversion,
+  } = browserInfo
+
+  return {
+    brand,
+    deviceBrand,
+    deviceModel,
+    devicePixelRatio: window.devicePixelRatio,
+    deviceId: getUuid(),
+    deviceOrientation,
+    deviceType,
+    model,
+    platform,
+    system,
+    osName: osname ? osname.toLocaleLowerCase() : undefined,
+    osVersion: osversion,
+  }
+}
+
+function getWindowInfo() {
+  const pixelRatio = window.devicePixelRatio
+  // 横屏时 iOS 获取的屏幕宽高颠倒，进行纠正
+  const screenFix = getScreenFix()
+  const landscape = isLandscape(screenFix)
+  const screenWidth = getScreenWidth(screenFix, landscape)
+  const screenHeight = getScreenHeight(screenFix, landscape)
+  const windowWidth = getWindowWidth(screenWidth)
+  let windowHeight = window.innerHeight
+  const statusBarHeight = safeAreaInsets.top
+
+  const safeArea = {
+    left: safeAreaInsets.left,
+    right: windowWidth - safeAreaInsets.right,
+    top: safeAreaInsets.top,
+    bottom: windowHeight - safeAreaInsets.bottom,
+    width: windowWidth - safeAreaInsets.left - safeAreaInsets.right,
+    height: windowHeight - safeAreaInsets.top - safeAreaInsets.bottom,
+  }
+
+  const { top: windowTop, bottom: windowBottom } = getWindowOffset()
+
+  windowHeight -= windowTop
+  windowHeight -= windowBottom
+
+  return {
+    windowTop,
+    windowBottom,
+    windowWidth,
+    windowHeight,
+    pixelRatio,
+    screenWidth,
+    screenHeight,
+    statusBarHeight,
+    safeArea,
+    safeAreaInsets: {
+      top: safeAreaInsets.top,
+      right: safeAreaInsets.right,
+      bottom: safeAreaInsets.bottom,
+      left: safeAreaInsets.left,
+    },
+    screenTop: screenHeight - windowHeight,
+  }
+}
+
+function getScreenWidth(screenFix: boolean, landscape: boolean) {
+  return screenFix
+    ? Math[landscape ? 'max' : 'min'](screen.width, screen.height)
+    : screen.width
+}
+
+function getScreenHeight(screenFix: boolean, landscape: boolean) {
+  return screenFix
+    ? Math[landscape ? 'min' : 'max'](screen.height, screen.width)
+    : screen.height
+}
+
+export function getWindowWidth(screenWidth: number) {
+  return (
+    Math.min(
+      window.innerWidth,
+      document.documentElement.clientWidth,
+      screenWidth,
+    ) || screenWidth
+  )
+}
+
+function getWindowOffsetCssVar(style: CSSStyleDeclaration, name: string) {
+  return parseInt((style.getPropertyValue(name).match(/\d+/) || ['0'])[0])
+}
+function getWindowTop() {
+  const style = document.documentElement.style
+  const top = getWindowOffsetCssVar(style, '--window-top')
+  return top ? top + safeAreaInsets.top : 0
+}
+function getWindowOffset() {
+  const style = document.documentElement.style
+  const top = getWindowTop()
+  const bottom = getWindowOffsetCssVar(style, '--window-bottom')
+  const left = getWindowOffsetCssVar(style, '--window-left')
+  const right = getWindowOffsetCssVar(style, '--window-right')
+  const topWindowHeight = getWindowOffsetCssVar(style, '--top-window-height')
+  return {
+    top,
+    bottom: bottom ? bottom + safeAreaInsets.bottom : 0,
+    left: left ? left + safeAreaInsets.left : 0,
+    right: right ? right + safeAreaInsets.right : 0,
+    topWindowHeight: topWindowHeight || 0,
   }
 }
