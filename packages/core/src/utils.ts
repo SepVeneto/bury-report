@@ -83,8 +83,13 @@ export function getUuid() {
 }
 
 export function setLocalStorage(key: string, value: string) {
+  let IS_UNIAPP = false
   try {
-    if (uni?.setStorageSync) {
+    IS_UNIAPP = !!uni
+  } catch { }
+
+  try {
+    if (IS_UNIAPP && uni.setStorageSync) {
       uni.setStorageSync(key, value)
     } else {
       window.localStorage.setItem(key, value)
@@ -94,7 +99,12 @@ export function setLocalStorage(key: string, value: string) {
   }
 }
 export function getLocalStorage(key: string) {
-  if (uni?.getStorageSync) {
+  let IS_UNIAPP = false
+  try {
+    IS_UNIAPP = !!uni
+  } catch { }
+
+  if (IS_UNIAPP && uni.getStorageSync) {
     return uni.getStorageSync(key)
   } else {
     return window.localStorage.getItem(key)
