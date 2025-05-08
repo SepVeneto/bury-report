@@ -15,6 +15,7 @@ export class ErrorPlugin implements BuryReportPlugin {
         stack: error,
       })
     } else if ('reason' in error) {
+      console.log('reason', error)
       // 微信小程序Promise.reject也会被onError收集
       this.unhandleRejectionErrorListener(error)
     } else {
@@ -57,6 +58,7 @@ export class ErrorPlugin implements BuryReportPlugin {
 
   public unhandleRejectionErrorListener = (evt: PromiseRejectionEvent) => {
     const error = evt.reason
+    console.log(evt)
 
     this.reportError({
       name: 'UnhandleRejection',
@@ -82,8 +84,10 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
         message: arg,
         stack: '',
       }
-      if (err instanceof Error) {
+      if ('message' in err) {
         error.message += err.message
+      }
+      if ('stack' in err) {
         error.stack = err.stack || ''
       }
       reportFn(error)
