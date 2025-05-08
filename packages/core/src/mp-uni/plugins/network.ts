@@ -1,14 +1,6 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_API } from '@/constant'
-import { normalizeResponse, withDefault } from '@/utils'
-
-function tryJsonString(json: Record<string, any>) {
-  try {
-    return JSON.stringify(json)
-  } catch (e) {
-    return `failed to stringify with error: ${e}`
-  }
-}
+import { normalizeResponse, tryJsonString, withDefault } from '@/utils'
 
 export class NetworkPlugin implements BuryReportPlugin {
   public name = 'NetworkPlugin'

@@ -122,3 +122,11 @@ export function storageReport(appid: string, data: Record<string, any>) {
   list.push({ uuid, type, data, appid, time: new Date().toLocaleString() })
   setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
 }
+
+export function tryJsonString(json: Record<string, any>) {
+  try {
+    return JSON.stringify(json)
+  } catch (e) {
+    return `failed to stringify with error: ${e}`
+  }
+}

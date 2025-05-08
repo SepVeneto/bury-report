@@ -1,5 +1,6 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
+import { tryJsonString } from '@/utils'
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
@@ -59,7 +60,7 @@ export class ErrorPlugin implements BuryReportPlugin {
 
     this.reportError({
       name: 'UnhandleRejection',
-      message: error,
+      message: typeof error === 'string' ? error : tryJsonString(error),
     })
   }
 }
