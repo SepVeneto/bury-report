@@ -82,6 +82,10 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
         message: arg,
         stack: '',
       }
+      if (err instanceof Error) {
+        error.message += err.message
+        error.stack = err.stack || ''
+      }
       reportFn(error)
     } else if (arg instanceof Error) {
       const error = {
