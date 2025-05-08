@@ -84,7 +84,7 @@ export function getUuid() {
 
 export function setLocalStorage(key: string, value: string) {
   try {
-    if (uni) {
+    if (uni?.setStorageSync) {
       uni.setStorageSync(key, value)
     } else {
       window.localStorage.setItem(key, value)
@@ -94,7 +94,7 @@ export function setLocalStorage(key: string, value: string) {
   }
 }
 export function getLocalStorage(key: string) {
-  if (uni) {
+  if (uni?.getStorageSync) {
     return uni.getStorageSync(key)
   } else {
     return window.localStorage.getItem(key)
