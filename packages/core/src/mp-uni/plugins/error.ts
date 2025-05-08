@@ -56,12 +56,10 @@ export class ErrorPlugin implements BuryReportPlugin {
 
   public unhandleRejectionErrorListener = (evt: PromiseRejectionEvent) => {
     const error = evt.reason
-    const mockError = new Error(typeof error === 'string' ? error : JSON.stringify(error))
 
     this.reportError({
       name: 'UnhandleRejection',
-      message: mockError.message,
-      stack: mockError.stack,
+      message: error,
     })
   }
 }

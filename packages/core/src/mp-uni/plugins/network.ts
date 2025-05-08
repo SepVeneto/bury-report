@@ -2,6 +2,14 @@ import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_API } from '@/constant'
 import { normalizeResponse, withDefault } from '@/utils'
 
+function tryJsonString(json: Record<string, any>) {
+  try {
+    return JSON.stringify(json)
+  } catch (e) {
+    return `failed to stringify with error: ${e}`
+  }
+}
+
 export class NetworkPlugin implements BuryReportPlugin {
   public name = 'NetworkPlugin'
   public reportRequest: any
@@ -29,7 +37,7 @@ export class NetworkPlugin implements BuryReportPlugin {
         success: (res) => {
           if (network.success) {
             const duration = Date.now() - start
-            const response = typeof res.data === 'string' ? res.data : 'data object'
+            const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
             const info = collectInfo(options, 'success', {
               duration,
               status: res.statusCode,
