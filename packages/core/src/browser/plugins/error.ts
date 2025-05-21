@@ -26,7 +26,7 @@ export class ErrorPlugin implements BuryReportPlugin {
     if (this.ctx) {
       this.ctx.report?.(COLLECT_ERROR, data)
     } else {
-      storageReport(this.appid!, data)
+      storageReport(COLLECT_ERROR, data)
     }
   }
 

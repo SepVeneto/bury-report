@@ -51,6 +51,7 @@ const cli: Options = {
   entry: [
     'src/vite.ts',
     'src/webpack.ts',
+    'src/index.ts'
   ],
   format: ['esm', 'cjs'],
   dts: true,

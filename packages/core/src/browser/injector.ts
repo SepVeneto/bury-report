@@ -2,22 +2,28 @@ import type { Options } from '@/type'
 import { ErrorPlugin } from './plugins/error'
 
 function init(options: Options) {
-  const plugin = new ErrorPlugin()
-  plugin.init(options.appid)
+  try {
+    const plugin = new ErrorPlugin()
+    plugin.init(options.appid)
 
-  const script = document.createElement('script')
-  const coreUrl = `${options.url.replace('record', '')}sdk/index.global.js?v=${process.env.DEFINE_VERSION}`
-  script.src = coreUrl
-  script.crossOrigin = 'anonymous'
-  script.onload = () => {
-    plugin.resetListener()
+    const script = document.createElement('script')
+    const coreUrl = `${options.url.replace('record', '')}sdk/index.global.js?v=${process.env.DEFINE_VERSION}`
+    script.src = coreUrl
+    script.crossOrigin = 'anonymous'
+    script.onload = () => {
+      plugin.resetListener()
 
-    // @ts-expect-error: window
-    // eslint-disable-next-line no-new
-    new BuryReport(options)
+      if ('BuryReport' in window) {
+        new window.BuryReport(options)
+      } else {
+        console.warn('[@sepveneto/report-core] cannot find BuryReport  in window, maybe the core script is not loaded correctly')
+      }
+    }
+
+    document.head.appendChild(script)
+  } catch (error) {
+    console.warn('[@sepveneto/report-core] init failed with error', error)
   }
-
-  document.head.appendChild(script)
 }
 
 // @ts-expect-error: replace

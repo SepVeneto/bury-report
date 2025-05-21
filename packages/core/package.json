@@ -1,6 +1,6 @@
 {
   "name": "@sepveneto/report-core",
-  "version": "0.4.8",
+  "version": "0.4.9-beta.6",
   "description": "",
   "type": "module",
   "main": "dist/index.cjs",
@@ -46,9 +46,6 @@
         "./*"
       ]
     }
-  },
-  "optionalDependencies": {
-    "html-webpack-plugin": ">= 4.0.0"
   },
   "dependencies": {
     "@babel/parser": "^7.23.6",

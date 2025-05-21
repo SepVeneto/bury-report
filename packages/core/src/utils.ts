@@ -111,15 +111,19 @@ export function getLocalStorage(key: string) {
   }
 }
 
-export function storageReport(appid: string, data: Record<string, any>) {
+// 最多使用1MB本地缓存
+const MAX_CACHE_REQUEST = 10
+export function storageReport(
+  type: string,
+  data: Record<string, any>
+) {
   const uuid = getUuid()
-  const type = COLLECT_ERROR
 
   const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]') as Array<any>
-  if (list.length > 30) {
+  if (list.length > MAX_CACHE_REQUEST) {
     list.shift()
   }
-  list.push({ uuid, type, data, appid, time: new Date().toLocaleString() })
+  list.push({ uuid, type, data, time: new Date().toLocaleString() })
   setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
 }
 

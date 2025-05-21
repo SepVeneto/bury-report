@@ -3,7 +3,7 @@ declare global {
     function __BR_REPORT__(
       type: string,
       data: Record<string, any>,
-      immediate: boolean,
+      immediate?: boolean,
     ): void
 
     interface Window {

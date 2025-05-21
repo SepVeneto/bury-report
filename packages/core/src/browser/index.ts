@@ -1,7 +1,7 @@
 import { NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
-import { REPORT_QUEUE } from '@/constant'
-import { getLocalStorage, getUuid, setLocalStorage, withDefault } from '@/utils'
+import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
+import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/utils'
 import workerStr from './worker?raw'
 import { ErrorPlugin } from './plugins/error'
 import { CollectPlugin } from './plugins/collect'
@@ -18,6 +18,8 @@ export class BuryReport implements BuryReportBase {
     if (!config.report) return
 
     this.report = createProxy(config)
+
+    globalThis[REPORT_REQUEST] = this.report
 
     this.init()
   }
@@ -68,15 +70,11 @@ function createProxy(options: Options) {
     data: Record<string, any>,
     immediate = false,
   ) {
-    const uuid = getUuid()
-
-    const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-    list.push({ uuid, type, data, appid, time: new Date().toLocaleString() })
-    setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+    storageReport(type, data)
 
     const sendRequest = () => {
-      const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-      const body = JSON.stringify({ appid, data: list })
+      const list: any[] = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
+      const body = JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) })
 
       // 按照sendBeacon的实现标准，不同浏览器可能会有不同的大小限制
       // 以Chrome为例，是队列加总计64KB

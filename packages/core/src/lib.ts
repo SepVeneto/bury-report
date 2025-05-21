@@ -35,6 +35,7 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
   const platform = process.env.UNI_PLATFORM
   const isH5 = !platform || platform.toUpperCase() === 'H5'
   const config = withDefault(options)
+  const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify(config))
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',
@@ -58,7 +59,11 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
       const insertCode = `
 import { BuryReport, ErrorPlugin, NetworkPlugin, CollectPlugin } from '@sepveneto/report-core/mp'
 ${plugins.join('\n')}
-new BuryReport(${JSON.stringify(config)})\n
+try {
+  new BuryReport(${JSON.stringify(config)})\n
+} catch (error) {
+  console.warn('[@sepveneto/report-core] init failed with error', error)
+}\n
         `
       code = combineCode(code, insertCode)
       return {
@@ -72,7 +77,7 @@ new BuryReport(${JSON.stringify(config)})\n
           return {
             html,
             tags: [
-              { tag: 'script', children: sdkInjector.replace('SDK_OPTIONS', JSON.stringify(config)), injectTo: 'head' },
+              { tag: 'script', children: sdk, injectTo: 'head' },
             ],
           }
         } else {
@@ -80,11 +85,17 @@ new BuryReport(${JSON.stringify(config)})\n
         }
       },
     },
-    async webpack(compiler) {
-      const HtmlWebpackPlugin = (await import('html-webpack-plugin')).default
-      compiler.hooks.compilation.tap('HtmlWebpackInjectorPlugin', (compilation) => {
+    webpack(compiler) {
+      const HtmlWebpackPlugin: any = require('html-webpack-plugin')
+      compiler.hooks.thisCompilation.tap('plugin-bury-report', (compilation) => {
         HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tapAsync(
-          'HtmlWebpackInjectorPlugin', (data, callback) => {
+          'plugin-bury-report', (data: any, callback: any) => {
+            data.headTags.push({
+              tagName: 'script',
+              voidTag: false,
+              meta: { plugin: 'plugin-bury-report' },
+              innerHTML: sdk,
+            })
             callback(null, data)
           },
         )
