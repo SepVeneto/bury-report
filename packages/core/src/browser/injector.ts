@@ -14,13 +14,14 @@ function init(options: Options) {
       plugin.resetListener()
 
       if ('BuryReport' in window) {
+        // eslint-disable-next-line no-new
         new window.BuryReport(options)
       } else {
         console.warn('[@sepveneto/report-core] cannot find BuryReport  in window, maybe the core script is not loaded correctly')
       }
     }
 
-    document.head.appendChild(script)
+    document.body.appendChild(script)
   } catch (error) {
     console.warn('[@sepveneto/report-core] init failed with error', error)
   }

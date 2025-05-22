@@ -77,7 +77,7 @@ try {
           return {
             html,
             tags: [
-              { tag: 'script', children: sdk, injectTo: 'head' },
+              { tag: 'script', children: sdk, injectTo: 'body-prepend' },
             ],
           }
         } else {
@@ -86,11 +86,12 @@ try {
       },
     },
     webpack(compiler) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const HtmlWebpackPlugin: any = require('html-webpack-plugin')
       compiler.hooks.thisCompilation.tap('plugin-bury-report', (compilation) => {
         HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tapAsync(
           'plugin-bury-report', (data: any, callback: any) => {
-            data.headTags.push({
+            data.bodyTags.unshift({
               tagName: 'script',
               voidTag: false,
               meta: { plugin: 'plugin-bury-report' },
