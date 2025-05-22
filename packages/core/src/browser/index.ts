@@ -70,10 +70,11 @@ function createProxy(options: Options) {
     data: Record<string, any>,
     immediate = false,
   ) {
-    storageReport(type, data)
-
-    const sendRequest = () => {
+    const sendRequest = (record?: any) => {
       const list: any[] = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
+      if (record) {
+        list.push(record)
+      }
       const body = JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) })
 
       // 按照sendBeacon的实现标准，不同浏览器可能会有不同的大小限制
@@ -101,12 +102,14 @@ function createProxy(options: Options) {
     }
 
     if (immediate) {
-      sendRequest()
-      return
-    }
+      const record = storageReport(type, data, false)
+      sendRequest(record)
+    } else {
+      storageReport(type, data)
 
-    if (!timer) {
-      timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
+      if (!timer) {
+        timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
+      }
     }
   }
 }

@@ -1,5 +1,5 @@
 import type { Options } from '@/type'
-import { COLLECT_ERROR, REPORT_QUEUE, UUID_KEY } from '@/constant'
+import { REPORT_QUEUE, UUID_KEY } from '@/constant'
 
 const DEFAULT_CONFIG = {
   collect: true,
@@ -115,15 +115,21 @@ export function getLocalStorage(key: string) {
 const MAX_CACHE_REQUEST = 10
 export function storageReport(
   type: string,
-  data: Record<string, any>
+  data: Record<string, any>,
+  store = true,
 ) {
   const uuid = getUuid()
+  const record = { uuid, type, data, time: new Date().toLocaleString() }
+
+  if (!store) {
+    return record
+  }
 
   const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]') as Array<any>
   if (list.length > MAX_CACHE_REQUEST) {
     list.shift()
   }
-  list.push({ uuid, type, data, time: new Date().toLocaleString() })
+  list.push(record)
   setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
 }
 

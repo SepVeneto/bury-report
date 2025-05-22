@@ -1,7 +1,7 @@
 import { NetworkPlugin as _NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
 import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
-import { getLocalStorage, getUuid, setLocalStorage, storageReport, withDefault } from '@/utils'
+import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/utils'
 import { ErrorPlugin as _ErrorPlugin } from './plugins/error'
 import { CollectPlugin as _CollectPlugin } from './plugins/collect'
 
@@ -42,16 +42,6 @@ export function report(type: string, data: Record<string, any>, immediate = fals
   globalThis[REPORT_REQUEST]?.(type, data, immediate)
 }
 
-// const INNER_PLUGINs = [
-//   new CollectPlugin(),
-//   new ErrorPlugin(),
-//   new NetworkPlugin(),
-// ]
-
-// INNER_PLUGINs.forEach(plugin => {
-//   BuryReport.registerPlugin(plugin)
-// })
-
 let timer: number | undefined
 function createProxy(options: Options) {
   const { appid, interval = 10, url } = options
@@ -62,12 +52,14 @@ function createProxy(options: Options) {
     data: Record<string, any>,
     immediate = false,
   ) {
-    storageReport(type, data)
-
-    const sendRequest = () => {
+    const sendRequest = (record?: any) => {
       if (abort) return
 
       const list: any[] = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
+      if (record) {
+        list.push(record)
+      }
+
       const postData = list.map(item => ({ ...item, appid }))
       uni.request({
         url,
@@ -84,12 +76,13 @@ function createProxy(options: Options) {
     }
 
     if (immediate) {
-      sendRequest()
-      return
-    }
-
-    if (!timer) {
-      timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
+      const record = storageReport(type, data)
+      sendRequest(record)
+    } else {
+      storageReport(type, data)
+      if (!timer) {
+        timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
+      }
     }
   }
 
