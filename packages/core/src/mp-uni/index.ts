@@ -59,6 +59,7 @@ function createProxy(options: Options) {
       if (record) {
         list.push(record)
       }
+      if (!list.length) return
 
       const postData = list.map(item => ({ ...item, appid }))
       uni.request({

@@ -75,6 +75,8 @@ function createProxy(options: Options) {
       if (record) {
         list.push(record)
       }
+      if (!list.length) return
+
       const body = JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) })
 
       // 按照sendBeacon的实现标准，不同浏览器可能会有不同的大小限制

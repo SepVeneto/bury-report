@@ -1,9 +1,9 @@
-import { REPORT_REQUEST } from "./constant";
-import { ReportFn } from "./type";
-import { storageReport } from "./utils";
+import { REPORT_REQUEST } from './constant'
+import type { ReportFn } from './type'
+import { storageReport } from './utils'
 
 export function report(...args: any[]) {
-  const fn: ReportFn | undefined  = globalThis[REPORT_REQUEST]
+  const fn: ReportFn | undefined = globalThis[REPORT_REQUEST]
   const [type, data, immediate] = args || []
 
   if (typeof type !== 'string') {
