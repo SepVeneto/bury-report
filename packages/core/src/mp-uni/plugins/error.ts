@@ -105,9 +105,16 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
         stack: arg.reason.stack,
       }
       reportFn(error)
+    } else if (Object.prototype.toString.call(arg) === '[object Object]') {
+      const error = {
+        name: 'CustomError',
+        message: JSON.stringify(arg),
+        stack: '',
+      }
+      reportFn(error)
     } else {
       console.warn(args)
-      console.warn(arg, typeof arg, Object.prototype.toString.call(arg))
+      console.warn(arg, Object.prototype.toString.call(arg))
     }
     _tempError.apply(this, args)
   }
