@@ -19,6 +19,7 @@ function degradationReport(body: any) {
     },
     cache: 'no-store',
     credentials: 'omit',
+    signal: AbortSignal.timeout(3000),
     priority: 'low',
     body,
   })

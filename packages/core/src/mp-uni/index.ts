@@ -66,6 +66,7 @@ function createProxy(options: Options) {
         url,
         method: 'POST',
         data: JSON.stringify({ appid, data: postData }),
+        timeout: 3000,
         fail: () => {
           // 防止record失败触发死循环
           abort = true
