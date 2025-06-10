@@ -12,7 +12,25 @@ export class CollectPlugin implements BuryReportPlugin {
 
   getSystemInfo() {
     const system = uni.getSystemInfoSync()
-    return {
+    if (uni.canIUse('getDeviceInfo')) {
+      const deviceInfo = uni.getDeviceInfo()
+      system.deviceType = deviceInfo.deviceType
+      system.deviceBrand = deviceInfo.brand
+      system.deviceModel = deviceInfo.model
+      system.osName = deviceInfo.platform
+      system.osVersion = deviceInfo.system
+    }
+    if (uni.canIUse('getWindowInfo')) {
+      const info = uni.getWindowInfo()
+      system.devicePixelRatio = info.pixelRatio
+    }
+    if (uni.canIUse('getAppBaseInfo')) {
+      const info = uni.getAppBaseInfo()
+      system.hostVersion = info.version
+      system.hostFontSizeSetting = info.hostFontSizeSetting
+      system.hostSDKVersion = info.SDKVersion
+    }
+    const info: Record<string, any> = {
     // mp, web
       dt: system.deviceType,
       // mp
@@ -27,10 +45,6 @@ export class CollectPlugin implements BuryReportPlugin {
       on: system.osName,
       // mp, web
       ov: system.osVersion,
-      // web
-      bn: system.browserName,
-      // web
-      bv: system.browserVersion,
       // mp
       hv: system.hostVersion,
       // mp
@@ -43,8 +57,6 @@ export class CollectPlugin implements BuryReportPlugin {
       uc: system.uniCompileVersion,
       // web, mp
       ur: system.uniRuntimeVersion,
-      // web
-      ua: system.ua,
       wt: system.windowTop,
       wb: system.windowBottom,
       ww: system.windowWidth,
@@ -54,5 +66,11 @@ export class CollectPlugin implements BuryReportPlugin {
       sbh: system.statusBarHeight,
       sa: system.safeAreaInsets,
     }
+
+    if (uni.canIUse('getSystemSetting')) {
+      const _info = uni.getSystemSetting()
+      info.al = _info.locationEnabled
+    }
+    return info
   }
 }
