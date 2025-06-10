@@ -51,7 +51,7 @@ const cli: Options = {
   entry: [
     'src/vite.ts',
     'src/webpack.ts',
-    'src/index.ts'
+    'src/index.ts',
   ],
   format: ['esm', 'cjs'],
   dts: true,
@@ -103,11 +103,6 @@ const cli: Options = {
           const content = fs.readFileSync(args.path, 'utf8')
           const { code } = swc.transformSync(content, {
             filename: args.path,
-            env: {
-              targets: 'chrome 69',
-              coreJs: '3.21',
-              mode: 'usage',
-            },
           })
           return {
             contents: code,
