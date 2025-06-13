@@ -84,10 +84,10 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
         message: arg,
         stack: '',
       }
-      if ('message' in err) {
+      if (err && 'message' in err) {
         error.message += err.message
       }
-      if ('stack' in err) {
+      if (err && 'stack' in err) {
         error.stack = err.stack || ''
       }
       reportFn(error)
