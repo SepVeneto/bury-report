@@ -9,11 +9,11 @@ use mongodb::{
 };
 use serde::{Deserialize, Serialize};
 use futures_util::StreamExt;
-use crate::config::serialize_from_oid;
+use crate::{config::serialize_from_oid, model::PaginationResultTotal};
 
 use crate::apis::apps::CreatePayload;
 
-use super::{QueryResult, QueryPayload, PaginationResult, QueryBase};
+use super::{QueryResult, QueryPayload, QueryBase};
 
 pub const NAME:&str = "apps";
 
@@ -82,7 +82,7 @@ impl Model {
     pub async fn pagination(
         db: &Database,
         data: &QueryPayload
-    ) -> QueryResult<PaginationResult<Self>> {
+    ) -> QueryResult<PaginationResultTotal<Self>> {
         let col = Self::col_with_id(db);
         let start = data.page;
         let size = data.size;
@@ -100,7 +100,7 @@ impl Model {
             list.push(record?)
         }
 
-        Ok(PaginationResult {
+        Ok(PaginationResultTotal {
             total,
             list,
         })

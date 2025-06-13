@@ -27,29 +27,29 @@ impl RecordPayload {
             RecordPayload::V2(v2) => v2.appid.to_owned(),
         }
     }
-    pub fn normalize(&self) -> Vec<Log> {
-        match self {
-            RecordPayload::V1(v1) => vec![Self::normalize_from(v1.clone())],
-            RecordPayload::V2(v2) => {
-                let data = v2.data.clone();
-                let res = data.into_iter().map(|item| Self::normalize_from(item));
-                res.collect()
-            }
-        }
-    }
+    // pub fn normalize(&self) -> Vec<Log> {
+    //     match self {
+    //         RecordPayload::V1(v1) => vec![Self::normalize_from(v1.clone())],
+    //         RecordPayload::V2(v2) => {
+    //             let data = v2.data.clone();
+    //             let res = data.into_iter().map(|item| Self::normalize_from(item));
+    //             res.collect()
+    //         }
+    //     }
+    // }
     pub fn to_string(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
-    pub fn normalize_from(record: RecordV1) -> Log {
-        Log {
-            r#type: record.r#type,
-            uuid: record.uuid,
-            appid: record.appid,
-            data: record.data,
-            create_time: DateTime::now(),
-            device_time: record.time,
-        }
-    }
+    // pub fn normalize_from(record: RecordV1) -> Log {
+    //     Log {
+    //         r#type: record.r#type,
+    //         uuid: record.uuid,
+    //         appid: record.appid,
+    //         data: record.data,
+    //         create_time: DateTime::now(),
+    //         device_time: record.time,
+    //     }
+    // }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -120,13 +120,13 @@ pub struct RecordV2 {
   pub data: Vec<RecordV1>,
 }
 
-impl RecordV2 {
-    pub fn normalize(&self) -> Vec<RecordItem> {
-        let data = &self.data;
-        let res = data.into_iter().map(|item| item.normalize_from());
-        res.collect()
-    }
-}
+// impl RecordV2 {
+//     pub fn normalize(&self) -> Vec<RecordItem> {
+//         let data = &self.data;
+//         let res = data.into_iter().map(|item| item.normalize_from());
+//         res.collect()
+//     }
+// }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {

@@ -3,7 +3,7 @@ use mongodb::Database;
 
 use crate::{
     apis::{record::DeviceFilter, Query},
-    model::{device::{self, DeviceInfo, Model}, logs, PaginationModel, PaginationOptions, PaginationResult, QueryModel}
+    model::{device::{self, DeviceInfo, Model}, logs, PaginationModel, PaginationOptions, PaginationResultTotal, QueryModel}
 };
 
 use super::{gen_timerange_doc, ServiceResult};
@@ -27,7 +27,7 @@ pub async fn get_device_by_uuid(db: &Database, device_id: &str) -> ServiceResult
 pub async fn get_device_pagination(
     db: &Database,
     query: Query<DeviceFilter>
-) -> ServiceResult<PaginationResult<device::Model>> {
+) -> ServiceResult<PaginationResultTotal<device::Model>> {
     let Query { page, size, query } = query;
     let mut doc = doc! {};
 
@@ -39,7 +39,7 @@ pub async fn get_device_pagination(
         doc.insert("last_open", time_doc);
     }
 
-    let res = device::Model::pagination(
+    let res = device::Model::pagination_with_total(
         db,
         page,
         size,

@@ -2,7 +2,7 @@ use actix::{Actor, Addr, AsyncContext, Handler, StreamHandler};
 use actix::prelude::*;
 use actix_web_actors::ws;
 use super::actor::{Connect, Disconnect, WsActor, WsMessage};
-use uuid::Uuid;
+// use uuid::Uuid;
 
 pub struct WebsocketConnect {
     pub id: String,
@@ -29,7 +29,7 @@ impl Actor for WebsocketConnect {
         let addr = ctx.address();
         self.ws_actor
         .send(Connect {
-            id: format!("{}", Uuid::new_v4()),
+            // id: format!("{}", Uuid::new_v4()),
             addr: addr.recipient(),
         })
         .into_actor(self)

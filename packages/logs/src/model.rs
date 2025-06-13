@@ -66,8 +66,12 @@ pub struct QueryBase<T> {
 }
 
 #[derive(Deserialize, Serialize, Debug)]
-pub struct PaginationResult<T> {
+pub struct PaginationResultTotal<T> {
     pub total: u64,
+    pub list: Vec<QueryBase<T>>,
+}
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PaginationResult<T> {
     pub list: Vec<QueryBase<T>>,
 }
 
@@ -111,12 +115,12 @@ pub trait PaginationModel: BaseModel {
         let col_name = Self::NAME;
         db.collection(col_name)
     }
-    async fn pagination<T>(
+    async fn pagination_with_total<T>(
         db: &Database,
         page: u64,
         size: u64,
         options: Option<PaginationOptions>,
-    ) -> QueryResult<PaginationResult<T>>
+    ) -> QueryResult<PaginationResultTotal<T>>
     where T: for<'a> Deserialize<'a>
     {
         let col = Self::col(db);
@@ -167,8 +171,49 @@ pub trait PaginationModel: BaseModel {
         let total = _total?;
         let list = _list?;
 
-        Ok(PaginationResult {
+        Ok(PaginationResultTotal {
             total,
+            list,
+        })
+    }
+    async fn pagination<T>(
+        db: &Database,
+        page: u64,
+        size: u64,
+        options: Option<PaginationOptions>,
+    ) -> QueryResult<PaginationResult<T>>
+    where T: for<'a> Deserialize<'a>
+    {
+        let col = Self::col(db);
+        let start = page;
+        let PaginationOptions {
+            query,
+            projection,
+            sort,
+        } = options.unwrap_or_default();
+
+        let get_list = async {
+            let start_list= SystemTime::now();
+
+            let options = FindOptions::builder()
+                .sort(sort)
+                .projection(projection)
+                .skip((start - 1) * size)
+                .limit(size as i64)
+                .build();
+            let mut res = col.find(query.clone(), options).await?;
+
+            let mut list = vec![];
+            while let Some(record) = res.next().await {
+                list.push(record.unwrap())
+            }
+
+            debug!("count list used: {:?}", SystemTime::now().duration_since(start_list));
+            Ok::<Vec<QueryBase<T>>, Error>(list)
+        };
+        let list = get_list.await?;
+
+        Ok(PaginationResult {
             list,
         })
     }
@@ -311,7 +356,7 @@ pub trait DeleteModel: BaseModel {
             Ok(())
         }
     }
-    async fn delete_all(
+    async fn _delete_all(
         db: &Database,
     ) -> QueryResult<()> {
         let col = Self::col(db);

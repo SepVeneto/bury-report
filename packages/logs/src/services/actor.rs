@@ -16,7 +16,7 @@ pub struct Disconnect {
 #[derive(Message)]
 #[rtype(String)]
 pub struct Connect {
-    pub id: String,
+    // pub id: String,
     pub addr: Recipient<WsMessage>,
 }
 #[derive(Message)]

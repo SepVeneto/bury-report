@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use crate::config::serialize_oid;
+// use crate::config::serialize_oid;
 use log::error;
 
 use bson::{from_document, Document};
@@ -81,14 +81,14 @@ impl Model {
         };
         Ok(Self::col(db).insert_one(new_doc, None).await?)
     }
-    pub async fn find_many(db: &Database) -> QueryResult<Vec<Model>> {
-        let mut list = vec![];
-        let mut res = Self::col(db).find(doc! {}, None).await?;
-        while let Some(record) = res.next().await {
-            list.push(record?)
-        }
-        Ok(list)
-    }
+    // pub async fn find_many(db: &Database) -> QueryResult<Vec<Model>> {
+    //     let mut list = vec![];
+    //     let mut res = Self::col(db).find(doc! {}, None).await?;
+    //     while let Some(record) = res.next().await {
+    //         list.push(record?)
+    //     }
+    //     Ok(list)
+    // }
     pub async fn find_by_id(db: &Database, id: &str) -> QueryResult<Option<Model>> {
         let oid = oid::ObjectId::from_str(id)?;
         let res = Self::col(db).find_one(doc! {

@@ -50,7 +50,7 @@ export function readLogs(
 }
 
 export function getAppLogs(appId: string, params: { page: number, size: number }) {
-  return request<{ list: any[], total: number }>({
+  return request<{ list: any[] }>({
     url: `/app/${appId}/logs`,
     params,
     raw: 'data',
@@ -59,7 +59,7 @@ export function getAppLogs(appId: string, params: { page: number, size: number }
 
 export function getAppErrors(params: { page: number, size: number, timerange?: string[] }) {
   const _params = new Query(params).build()
-  return request<{ list: any[], total: number }>({
+  return request<{ list: any[] }>({
     url: '/record/errors',
     params: _params,
     raw: 'data',

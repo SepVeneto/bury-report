@@ -1,6 +1,6 @@
-use chrono::{Datelike, LocalResult, TimeZone};
+// use chrono::{Datelike, LocalResult, TimeZone};
 use log::{error, info};
-use mongodb::{bson::{bson, doc, Bson, DateTime}, options::{FindOptions, UpdateOptions}, Database};
+use mongodb::{bson::{doc, DateTime}, options::{UpdateOptions}, Database};
 use anyhow::anyhow;
 
 use crate::{model::{device, logs, statistics::{self, DataType, ListModel, Model, Rule}, QueryBase, QueryModel}, services::ServiceError};
@@ -160,13 +160,13 @@ pub async fn query_with_date(
     db: &Database,
     source: &str,
     dimension: &str,
-    value: &Vec<String>,
-    range: &Vec<String>,
+    _value: &Vec<String>,
+    _range: &Vec<String>,
 ) -> ServiceResult<Vec<DataType>> {
     let (start, end) = get_recent_30day()?;
-    let or = value.iter().map(|value| {
-        bson! ({ format!("data.{}", dimension): value})
-    }).collect::<Vec<Bson>>();
+    // let or = value.iter().map(|value| {
+    //     bson! ({ format!("data.{}", dimension): value})
+    // }).collect::<Vec<Bson>>();
     let pipeline_match = doc! {
         "$match": {
             // "type": log_type.to_string(),
@@ -370,40 +370,40 @@ pub async fn _count_total(
 //     }
 // }
 
-fn get_sub_date() -> ServiceResult<(DateTime, DateTime)>{
-    let now = chrono::Utc::now();
-    if let Some(time) = now.checked_sub_signed(chrono::Duration::days(1)) {
-        let year = time.year();
-        let month = time.month();
-        let day = time.day();
+// fn get_sub_date() -> ServiceResult<(DateTime, DateTime)>{
+//     let now = chrono::Utc::now();
+//     if let Some(time) = now.checked_sub_signed(chrono::Duration::days(1)) {
+//         let year = time.year();
+//         let month = time.month();
+//         let day = time.day();
 
-        let time_start = chrono::Utc.with_ymd_and_hms(year, month, day, 0, 0, 0);
-        let time_end = chrono::Utc.with_ymd_and_hms(year, month, day, 23, 59, 59);
+//         let time_start = chrono::Utc.with_ymd_and_hms(year, month, day, 0, 0, 0);
+//         let time_end = chrono::Utc.with_ymd_and_hms(year, month, day, 23, 59, 59);
 
-        if let (LocalResult::Single(yesterday_start), LocalResult::Single(yesterday_end)) = (time_start, time_end) {
-            let start = DateTime::from_millis(yesterday_start.timestamp_millis());
-            let end = DateTime::from_millis(yesterday_end.timestamp_millis());
-            Ok((start, end))
-        } else {
-            Err(anyhow!("获取前一天失败").into())
-        }
-    } else {
-        Err(anyhow!("获取前一天失败").into())
-    }
-}
+//         if let (LocalResult::Single(yesterday_start), LocalResult::Single(yesterday_end)) = (time_start, time_end) {
+//             let start = DateTime::from_millis(yesterday_start.timestamp_millis());
+//             let end = DateTime::from_millis(yesterday_end.timestamp_millis());
+//             Ok((start, end))
+//         } else {
+//             Err(anyhow!("获取前一天失败").into())
+//         }
+//     } else {
+//         Err(anyhow!("获取前一天失败").into())
+//     }
+// }
 
 pub async fn _total_trend(
-    db: &Database,
-    appid: &String,
-    log_type: &str,
-    unique: bool,
+    _db: &Database,
+    _appid: &String,
+    _log_type: &str,
+    _unique: bool,
 ) -> ServiceResult<Option<()>>{
-    let pipeline = doc! {
-        "$match": {
-            "appid": appid.to_owned(),
-            "type": log_type.to_owned(),
-        }
-    };
+    // let pipeline = doc! {
+    //     "$match": {
+    //         "appid": appid.to_owned(),
+    //         "type": log_type.to_owned(),
+    //     }
+    // };
 
     Ok(Some(()))
 }

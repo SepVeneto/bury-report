@@ -10,6 +10,7 @@
       v-model="params"
       :config="tableConfig"
       pagination
+      layout="prev, next"
       :api="getList"
     >
       <template #uuid="{ row }">

@@ -6,13 +6,7 @@ use crate::{
     apis::apps::CreatePayload,
     db,
     model::{
-        apps::Model,
-        logs,
-        logs_error,
-        logs_network,
-        DeleteModel,
-        PaginationResult,
-        QueryPayload
+        apps::Model, logs, logs_error, logs_network, DeleteModel, PaginationResultTotal, QueryPayload
     }
 };
 
@@ -61,7 +55,7 @@ pub async fn delete_app(client: &Client, db: &Database, id: &str) -> ServiceResu
     Ok(())
 }
 
-pub async fn get_list(db: &Database, query: &QueryPayload) -> ServiceResult<PaginationResult<Model>> {
+pub async fn get_list(db: &Database, query: &QueryPayload) -> ServiceResult<PaginationResultTotal<Model>> {
     let res = Model::pagination(db, query).await?;
 
     Ok(res)

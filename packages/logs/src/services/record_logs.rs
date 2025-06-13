@@ -113,7 +113,7 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
     }
     Ok(())
 }
-fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&str, RecordList> {
+fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&'a str, RecordList> {
     let mut list_collect = vec![];
     let mut list_network = vec![];
     let mut list_error = vec![];
