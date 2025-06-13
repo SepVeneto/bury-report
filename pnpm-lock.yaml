@@ -92,7 +92,7 @@ importers:
         version: 5.2.10(@types/node@20.12.7)(less@4.2.0)(sass@1.75.0)(terser@5.30.4)
       vitest:
         specifier: ^1.1.0
-        version: 1.5.2(@types/node@20.12.7)(jsdom@16.7.0)(less@4.2.0)(sass@1.75.0)(terser@5.30.4)
+        version: 1.5.2(@types/node@20.12.7)(jsdom@16.7.0(canvas@2.11.2))(less@4.2.0)(sass@1.75.0)(terser@5.30.4)
       webpack:
         specifier: ^5.89.0
         version: 5.91.0(@swc/core@1.7.3)(esbuild@0.25.3)
@@ -231,10 +231,6 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
-
-  packages/sign/pkg-client: {}
-
-  packages/sign/pkg-server: {}
 
   packages/web:
     dependencies:
@@ -19216,7 +19212,7 @@ snapshots:
       sass: 1.75.0
       terser: 5.30.4
 
-  vitest@1.5.2(@types/node@20.12.7)(jsdom@16.7.0)(less@4.2.0)(sass@1.75.0)(terser@5.30.4):
+  vitest@1.5.2(@types/node@20.12.7)(jsdom@16.7.0(canvas@2.11.2))(less@4.2.0)(sass@1.75.0)(terser@5.30.4):
     dependencies:
       '@vitest/expect': 1.5.2
       '@vitest/runner': 1.5.2
