@@ -9,8 +9,6 @@
       ref="tableRef"
       v-model="params"
       :config="tableConfig"
-      pagination
-      layout="prev, next"
       :api="getList"
     >
       <template #uuid="{ row }">
@@ -28,12 +26,18 @@
         {{ `${row.data.name}: ${row.data.message}` }}
       </template>
     </bc-table>
+
+    <UnlimitPagination
+      v-model="params"
+      @pagination="handleSearch"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
+import UnlimitPagination from '@/components/UnlimitPagination.vue'
 
 const params = ref({
   page: 1,

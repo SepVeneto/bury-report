@@ -9,8 +9,6 @@
       ref="tableRef"
       v-model="params"
       :config="tableConfig"
-      pagination
-      layout="prev, next"
       :api="getList"
     >
       <template #device_time-header>
@@ -49,6 +47,11 @@
         />
       </template>
     </bc-table>
+
+    <UnlimitPagination
+      v-model="params"
+      @pagination="handleSearch"
+    />
   </section>
 </template>
 
@@ -60,12 +63,13 @@ import NetworkDetail from './components/NetworkDetail.vue'
 import { ref, shallowRef } from 'vue'
 import { getAppNetworks } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'
+import UnlimitPagination from '@/components/UnlimitPagination.vue'
 
 defineOptions({ name: 'NetworkView' })
 
 const params = ref({
   page: 1,
-  size: 10,
+  size: 50,
 })
 const tableRef = ref()
 const tableConfig = shallowRef([

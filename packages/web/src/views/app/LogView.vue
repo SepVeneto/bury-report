@@ -9,8 +9,6 @@
       ref="tableRef"
       v-model="params"
       :config="tableConfig"
-      pagination
-      layout="prev, next"
       :api="getList"
     >
       <template #uuid="{ row }">
@@ -23,6 +21,11 @@
         <span>{{ row.data }}</span>
       </template>
     </bc-table>
+
+    <UnlimitPagination
+      v-model="params"
+      @pagination="handleSearch"
+    />
   </section>
 </template>
 
@@ -30,6 +33,7 @@
 import { ref, shallowRef } from 'vue'
 import { getLogList } from '@/apis'
 import DeviceLink from './components/DeviceLink.vue'
+import UnlimitPagination from '@/components/UnlimitPagination.vue'
 
 const params = ref({
   page: 1,
