@@ -2,9 +2,17 @@ import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_API } from '@/constant'
 import { normalizeResponse, tryJsonString, withDefault } from '@/utils'
 
+type NetWorkOptions = {
+  condition?: (response: UniApp.RequestSuccessCallbackResult) => boolean
+}
 export class NetworkPlugin implements BuryReportPlugin {
   public name = 'NetworkPlugin'
   public reportRequest: any
+  private options: NetWorkOptions
+
+  constructor(options: NetWorkOptions) {
+    this.options = options
+  }
 
   init(ctx: BuryReport) {
     const {
@@ -15,6 +23,7 @@ export class NetworkPlugin implements BuryReportPlugin {
 
     const report = ctx.report
     const _request = uni.request
+    const condition = this.options.condition
 
     function customRequest(this: any, options: UniNamespace.RequestOptions): ReturnType<typeof uni.request> {
       const { success, fail, complete } = options
@@ -27,7 +36,7 @@ export class NetworkPlugin implements BuryReportPlugin {
       _request({
         ...options,
         success: (res) => {
-          if (network.success) {
+          if (network.success || condition?.(res)) {
             const duration = Date.now() - start
             const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
             const info = collectInfo(options, 'success', {
