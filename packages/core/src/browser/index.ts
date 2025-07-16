@@ -1,4 +1,5 @@
 import { NetworkPlugin } from './plugins/network'
+import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
 import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
 import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/utils'
@@ -50,6 +51,7 @@ export class BuryReport implements BuryReportBase {
 }
 
 const INNER_PLUGINs = [
+  new PerfPlugin(),
   new CollectPlugin(),
   new ErrorPlugin(),
   new NetworkPlugin(),
