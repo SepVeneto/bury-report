@@ -1,6 +1,8 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
 import { storageReport } from '@/utils'
+// @ts-expect-error: ignore
+import globalThis from 'core-js/internals/global-this.js'
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'

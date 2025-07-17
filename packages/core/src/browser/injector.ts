@@ -7,7 +7,8 @@ function init(options: Options) {
     plugin.init(options.appid)
 
     const script = document.createElement('script')
-    const coreUrl = `${options.url.replace('record', '')}sdk/index.global.js?v=${process.env.DEFINE_VERSION}`
+    const versionPefix = process.env.DEFINE_VERSION?.split('.').slice(0, -1).join('.')
+    const coreUrl = `${options.url.replace('record', '')}sdk/${versionPefix}/index.global.js`
     script.src = coreUrl
     script.crossOrigin = 'anonymous'
     script.onload = () => {

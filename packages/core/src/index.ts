@@ -1,6 +1,8 @@
 import { COLLECT_API, REPORT_REQUEST } from './constant'
 import type { ReportFn } from './type'
 import { storageReport } from './utils'
+// @ts-expect-error: ignore
+import globalThis from 'core-js/internals/global-this.js'
 
 export function report(...args: any[]) {
   const fn: ReportFn | undefined = globalThis[REPORT_REQUEST]

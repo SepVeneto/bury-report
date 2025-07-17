@@ -33,15 +33,33 @@ function round(num: number, decimals: number) {
 
 export class PerfPlugin implements BuryReportPlugin {
   public name = 'paintPlugin'
+  private ctx?: BuryReport
+  private observer?: PerformanceObserver
 
   init(ctx: BuryReport) {
+    this.ctx = ctx
     if (supportPerformanceObject()) {
-      const fcpEntry = window.performance.getEntries().find(entry => {
-        return entry.entryType === 'paint' && entry.name === 'first-contentful-paint'
-      })
+      this.handleEntry(performance)
+    }
 
-      if (fcpEntry && fcpEntry.startTime < firstHidden.timestamp && fcpEntry.startTime < TIMING_MAXIMUM_DELAY) {
-        ctx.report?.(PERF_INFO, { fcp: formatTime(fcpEntry.startTime) }, true)
+    if (window.PerformanceObserver) {
+      this.observer = new PerformanceObserver(list => {
+        this.handleEntry(list)
+      })
+      this.observer.observe({ entryTypes: ['paint'] })
+    }
+  }
+
+  handleEntry(entries: PerformanceObserverEntryList) {
+    const fcpEntry = entries.getEntries().find(entry => {
+      return entry.entryType === 'paint' && entry.name === 'first-contentful-paint'
+    })
+
+    if (fcpEntry && fcpEntry.startTime < firstHidden.timestamp && fcpEntry.startTime < TIMING_MAXIMUM_DELAY) {
+      this.ctx!.report?.(PERF_INFO, { fcp: formatTime(fcpEntry.startTime) }, true)
+      if (this.observer) {
+        this.observer.disconnect()
+        this.observer = undefined
       }
     }
   }

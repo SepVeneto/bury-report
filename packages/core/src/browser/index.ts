@@ -6,6 +6,8 @@ import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/
 import workerStr from './worker?raw'
 import { ErrorPlugin } from './plugins/error'
 import { CollectPlugin } from './plugins/collect'
+// @ts-expect-error: ignore
+import globalThis from 'core-js/internals/global-this.js'
 
 export class BuryReport implements BuryReportBase {
   public report?: ReportFn
