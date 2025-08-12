@@ -40,7 +40,12 @@ export class ErrorPlugin implements BuryReportPlugin {
   }
 
   public reportError(error: { name: string, message: string, stack?: string }) {
-    const data = { ...error, page: getCurrentPages().map(page => page.route).join('->') }
+    const data = {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      page: getCurrentPages().map(page => page.route).join('->'),
+    }
     this.ctx?.report?.(COLLECT_ERROR, data)
   }
 
