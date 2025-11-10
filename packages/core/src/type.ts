@@ -58,6 +58,12 @@ export interface Options {
      * @default true
      */
     fail?: boolean
+  },
+  /**
+   * 是否记录用户操作，仅h5支持
+   */
+  operationRecord?: {
+    enable?: boolean
   }
 }
 

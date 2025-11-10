@@ -26,6 +26,7 @@ pub mod statistics;
 pub mod device;
 pub mod logs_network;
 pub mod logs_error;
+pub mod logs_track;
 pub mod config;
 pub mod trigger;
 pub mod task;

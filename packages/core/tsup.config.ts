@@ -8,6 +8,7 @@ import { version } from './package.json'
 const browser: Options = {
   entry: [
     'src/browser/index.ts',
+    'src/browser/plugins/operationRecord.ts',
   ],
   clean: true,
   format: ['iife'],

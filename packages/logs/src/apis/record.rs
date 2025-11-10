@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use log::error;
+use log::{error, info };
 use mongodb::{Client, Database};
 use serde::{Deserialize, Serialize};
 use crate::apis::get_appid;
@@ -9,7 +9,7 @@ use crate::model::logs::RecordPayload;
 use crate::model::{ignore_empty_string, convert_to_i32};
 
 use super::{ApiError, ApiResult, Query};
-use crate::services::{device, record_logs};
+use crate::services::{device, record_logs, track};
 use crate::services::{Response, actor::WsActor};
 
 pub fn init_service(config: &mut web::ServiceConfig) {
@@ -21,6 +21,7 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(get_network_detail);
   config.service(get_device);
   config.service(get_device_list);
+  config.service(get_track_list);
 //   config.service(get_record_log);
 }
 
@@ -65,6 +66,7 @@ async fn record_log(
 pub struct LogFilter {
     #[serde(deserialize_with="ignore_empty_string", default)]
     pub uuid: Option<String>,
+    pub session: Option<String>,
     pub r#type: Option<String>,
     pub data: Option<String>,
     pub start_time: Option<String>,
@@ -91,6 +93,7 @@ async fn get_log(
 pub struct ErrorFilter {
     #[serde(deserialize_with="ignore_empty_string", default)]
     pub uuid: Option<String>,
+    pub session: Option<String>,
     pub start_time: Option<String>,
     pub end_time: Option<String>,
 }
@@ -137,6 +140,8 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
 pub struct FilterNetwork {
     #[serde(deserialize_with="ignore_empty_string", default)]
     pub uuid: Option<String>,
+    #[serde(deserialize_with="ignore_empty_string", default)]
+    pub session: Option<String>,
     #[serde(deserialize_with="ignore_empty_string", default)]
     pub url: Option<String>,
     #[serde(deserialize_with="ignore_empty_string", default)]
@@ -205,6 +210,20 @@ async fn get_device(
     } else {
         Response::err(404, "设备不存在".to_string()).to_json()
     }
+}
+
+#[get("/device/{id}/track-list")]
+async fn get_track_list(
+    client: web::Data<Client>,
+    req: HttpRequest,
+    path: web::Path<String>
+) -> ApiResult {
+    let appid = get_appid(&req)?;
+    let db = db::DbApp::get_by_appid(&client, &appid);
+    let device_id = path.into_inner();
+    let res = track::get_track_list(&db, &device_id).await?;
+
+    Response::ok(res, None).to_json()
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,10 +1,16 @@
 use super::{
-    serialize_time, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryModel
+    serialize_time,
+    BaseModel,
+    QueryModel,
+    CreateModel,
+    DeleteModel,
+    PaginationModel,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use mongodb::bson::DateTime;
 
-pub const NAME: &'static str = "records_api";
+pub const NAME: &'static str = "records_track";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
@@ -14,7 +20,7 @@ pub struct Model {
   pub uuid: String,
   pub session: Option<String>,
   #[serde(serialize_with = "serialize_time")]
-  pub create_time: bson::DateTime,
+  pub create_time: DateTime,
   pub device_time: Option<String>,
 }
 

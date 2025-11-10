@@ -9,6 +9,7 @@ declare global {
     interface Window {
       __BR_WORKER__: Worker | undefined
       BuryReport: any
+      OperationRecordPlugin: any
       __uniConfig?: Record<string, any>
       uni?: Record<string, any>
     }

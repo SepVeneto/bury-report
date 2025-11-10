@@ -22,6 +22,7 @@ pub mod device;
 pub mod project;
 pub mod trigger;
 pub mod task;
+pub mod track;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

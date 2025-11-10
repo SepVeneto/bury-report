@@ -9,7 +9,17 @@ use mongodb::{
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{Map, Value};
 use super::{
-    logs_error, logs_network, serialize_time, BaseModel, CreateModel, DeleteModel, EditModel, PaginationModel, QueryModel, QueryResult
+    logs_error,
+    logs_network,
+    logs_track,
+    serialize_time,
+    BaseModel,
+    CreateModel,
+    DeleteModel,
+    EditModel,
+    PaginationModel,
+    QueryModel,
+    QueryResult,
 };
 
 pub const NAME: &str = "records_log";
@@ -58,17 +68,20 @@ pub struct RecordV1 {
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
+  pub session: Option<String>,
   pub time: Option<String>,
 }
 const TYPE_LOG: &'static str = "__BR_COLLECT_INFO__";
 const TYPE_NETWORK: &'static str = "__BR_API__";
 const TYPE_ERROR: &'static str = "__BR_COLLECT_ERROR__";
+const TYPE_TRACK: &'static str = "__BR_TRACK__";
 
 #[derive(Clone, Debug)]
 pub enum RecordItem {
     Log(Model),
     Network(logs_network::Model),
     Error(logs_error::Model),
+    Track(logs_track::Model),
     Custom(Model),
 }
 impl RecordV1 {
@@ -77,6 +90,7 @@ impl RecordV1 {
             RecordItem::Log(Log {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
+                session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
@@ -86,6 +100,7 @@ impl RecordV1 {
             RecordItem::Network(logs_network::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
+                session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
@@ -95,6 +110,17 @@ impl RecordV1 {
             RecordItem::Error(logs_error::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
+                session: self.session.clone(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                create_time: DateTime::now(),
+                device_time: self.time.clone(),
+            })
+        } else if self.r#type == TYPE_TRACK {
+            RecordItem::Track(logs_track::Model {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
@@ -104,6 +130,7 @@ impl RecordV1 {
             RecordItem::Custom(Log {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
+                session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
@@ -134,6 +161,7 @@ pub struct Model {
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
+  pub session: Option<String>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
   pub device_time: Option<String>,

@@ -44,5 +44,7 @@ services:
       - '27017:27017'
     command:
       - '--auth'
+    env_file:
+      - .env.db.local
     volumes:
       - /root/mongodb:/data/db

@@ -1,5 +1,5 @@
 import type { Options } from '@/type'
-import { REPORT_QUEUE, UUID_KEY } from '@/constant'
+import { REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
 
 const DEFAULT_CONFIG = {
   collect: true,
@@ -11,6 +11,9 @@ const DEFAULT_CONFIG = {
     success: true,
     error: true,
     responseLimit: 100,
+  },
+  operationRecord: {
+    enable: false,
   },
 }
 
@@ -82,6 +85,25 @@ export function getUuid() {
   return uuid
 }
 
+export function resetSessionId() {
+  try {
+    removeLocalStorage(SESSIONID_KEY)
+  } catch {}
+}
+export function getSessionId() {
+  let sessionId
+  try {
+    sessionId = getLocalStorage(SESSIONID_KEY)
+  } catch {}
+  if (!sessionId) {
+    sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 10)
+    try {
+      setLocalStorage(SESSIONID_KEY, sessionId)
+    } catch {}
+  }
+  return sessionId
+}
+
 export function setLocalStorage(key: string, value: string) {
   let IS_UNIAPP = false
   try {
@@ -110,6 +132,18 @@ export function getLocalStorage(key: string) {
     return window.localStorage.getItem(key)
   }
 }
+export function removeLocalStorage(key: string) {
+  let IS_UNIAPP = false
+  try {
+    IS_UNIAPP = !!uni
+  } catch { }
+
+  if (IS_UNIAPP && uni.removeStorageSync) {
+    uni.removeStorageSync(key)
+  } else {
+    window.localStorage.removeItem(key)
+  }
+}
 
 // 最多使用1MB本地缓存
 const MAX_CACHE_REQUEST = 10
@@ -119,7 +153,14 @@ export function storageReport(
   store = true,
 ) {
   const uuid = getUuid()
-  const record = { uuid, type, data, time: new Date().toLocaleString() }
+  const sessionId = getSessionId()
+  const record = {
+    session: sessionId,
+    uuid,
+    type,
+    data,
+    time: new Date().toLocaleString(),
+  }
 
   if (!store) {
     return record

@@ -1,4 +1,6 @@
 export const UUID_KEY = '__BR_UUID__'
+export const SESSIONID_KEY = '__BR_SESSIONID__'
+export const OPERATION_TRACK = '__BR_TRACK__'
 export const REPORT_REQUEST = '__BR_REPORT__'
 export const COLLECT_INFO = '__BR_COLLECT_INFO__'
 export const PERF_INFO = '__BR_PERF_INFO__'

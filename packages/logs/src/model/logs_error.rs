@@ -17,6 +17,7 @@ pub struct Model {
   pub appid: String,
   pub data: Map<String, Value>,
   pub uuid: String,
+  pub session: Option<String>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
   pub device_time: Option<String>,

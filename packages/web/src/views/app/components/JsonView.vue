@@ -7,7 +7,7 @@
 </template>
 
 <script lang="ts" setup>
-import 'vue3-json-viewer/dist/index.css'
+import 'vue3-json-viewer/dist/vue3-json-viewer.css'
 import { JsonViewer } from 'vue3-json-viewer'
 import { computed } from 'vue'
 

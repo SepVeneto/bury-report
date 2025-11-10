@@ -17,6 +17,12 @@
           @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
         />
       </template>
+      <template #session="{ row }">
+        <DeviceLink
+          :uuid="row.session"
+          @click="$router.push({ name: 'DeviceDetail', params: { id: row.session } })"
+        />
+      </template>
       <template #data="{ row }">
         <span>{{ row.data }}</span>
       </template>
@@ -44,6 +50,7 @@ const tableConfig = shallowRef([
   { label: '日志类型', prop: 'type', width: 300 },
   { label: '上报时间', prop: 'create_time', width: 180 },
   { label: '发起时间', prop: 'device_time', width: 180 },
+  { label: '会话ID', prop: 'session', width: 240 },
   { label: '设备ID', prop: 'uuid', width: 240 },
   { label: '上报数据', prop: 'data' },
 ])

@@ -15,6 +15,7 @@ use crate::{
         apps,
         logs,
         logs_error,
+        logs_track,
         logs_network,
         CreateModel,
         PaginationModel,
@@ -42,6 +43,7 @@ enum RecordList {
     LogList(Vec<logs::Model>),
     NetworkList(Vec<logs_network::Model>),
     ErrorList(Vec<logs_error::Model>),
+    TrackList(Vec<logs_track::Model>),
     CustomList(Vec<logs::Model>),
 }
 pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) -> ServiceResult<()> {
@@ -64,6 +66,9 @@ pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) 
                 logs::RecordItem::Error(err) => {
                     logs_error::Model::insert_one(db, err).await?;
                 },
+                logs::RecordItem::Track(track) => {
+                    logs_track::Model::insert_one(db, track).await?;
+                }
                 logs::RecordItem::Custom(data) => {
                     logs::Model::insert_one(db, data).await?;
                 }
@@ -76,6 +81,7 @@ pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) 
             let db = &db::DbApp::get_by_appid(client, &appid);
             insert_group(db, &group["collect"]).await?;
             insert_group(db, &group["network"]).await?;
+            insert_group(db, &group["track"]).await?;
             insert_group(db, &group["error"]).await?;
         }
     }
@@ -104,6 +110,12 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
             }
             logs_error::Model::insert_many(db, data).await?;
         },
+        RecordList::TrackList(data) => {
+            if data.len() == 0 {
+                return Ok(());
+            }
+            logs_track::Model::insert_many(db, data).await?;
+        }
         RecordList::CustomList(data) => {
             if data.len() == 0 {
                 return Ok(());
@@ -117,6 +129,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&'a str, RecordLi
     let mut list_collect = vec![];
     let mut list_network = vec![];
     let mut list_error = vec![];
+    let mut list_track = vec![];
 
     list.iter().for_each(|item| {
         match item.normalize_from() {
@@ -129,6 +142,9 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&'a str, RecordLi
             logs::RecordItem::Error(err) => {
                 list_error.push(err);
             },
+            logs::RecordItem::Track(track) => {
+                list_track.push(track)
+            }
             logs::RecordItem::Custom(log) => {
                 list_collect.push(log);
             }
@@ -139,6 +155,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&'a str, RecordLi
         "collect" => RecordList::LogList(list_collect),
         "network" => RecordList::NetworkList(list_network),
         "error" => RecordList::ErrorList(list_error),
+        "track" => RecordList::TrackList(list_track),
         "custom" => RecordList::CustomList(vec![]),
     }
 }

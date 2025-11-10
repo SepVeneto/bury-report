@@ -1,120 +1,126 @@
 <template>
-  <div style="position: relative;">
-    <ElSkeleton
-      :loading="!info"
-    >
-      <template
-        v-if="!!info"
-        #default
-      >
-        <ElDescriptions
-          title="设备信息"
-          :column="1"
+  <ElTabs>
+    <ElTabPane label="设备信息">
+      <div style="position: relative;">
+        <ElSkeleton
+          :loading="!info"
         >
-          <ElDescriptionsItem
-            v-for="(column, index) in deviceInfo"
-            :key="index"
-            :label="column.label"
+          <template
+            v-if="!!info"
+            #default
           >
-            <img
-              v-if="column.prop === 'dt'"
-              style="width: 32px; height: 32px; display: inline-block;"
-              :title="info[column.prop]"
-              :alt="info[column.prop]"
-              :src="filterDtIcon(info[column.prop])"
+            <ElDescriptions
+              title="设备信息"
+              :column="1"
             >
-            <span v-else>
-              {{ 'filter' in column && column.filter(info[column.prop]) || info[column.prop] }}
-            </span>
-          </ElDescriptionsItem>
-        </ElDescriptions>
+              <ElDescriptionsItem
+                v-for="(column, index) in deviceInfo"
+                :key="index"
+                :label="column.label"
+              >
+                <img
+                  v-if="column.prop === 'dt'"
+                  style="width: 32px; height: 32px; display: inline-block;"
+                  :title="info[column.prop]"
+                  :alt="info[column.prop]"
+                  :src="filterDtIcon(info[column.prop])"
+                >
+                <span v-else>
+                  {{ 'filter' in column && column.filter(info[column.prop]) || info[column.prop] }}
+                </span>
+              </ElDescriptionsItem>
+            </ElDescriptions>
 
-        <ElDescriptions
-          title="系统信息"
-          :column="1"
-        >
-          <ElDescriptionsItem
-            v-for="(column, index) in systemInfo"
-            :key="index"
-            :label="column.label"
-          >
-            <img
-              v-if="column.prop === 'on'"
-              style="width: 32px; height: 32px; display: inline-block;"
-              :title="info[column.prop]"
-              :alt="info[column.prop]"
-              :src="filterOnIcon(info[column.prop])"
+            <ElDescriptions
+              title="系统信息"
+              :column="1"
             >
-            <span v-else>
-              {{ info[column.prop] }}
-            </span>
-          </ElDescriptionsItem>
-        </ElDescriptions>
+              <ElDescriptionsItem
+                v-for="(column, index) in systemInfo"
+                :key="index"
+                :label="column.label"
+              >
+                <img
+                  v-if="column.prop === 'on'"
+                  style="width: 32px; height: 32px; display: inline-block;"
+                  :title="info[column.prop]"
+                  :alt="info[column.prop]"
+                  :src="filterOnIcon(info[column.prop])"
+                >
+                <span v-else>
+                  {{ info[column.prop] }}
+                </span>
+              </ElDescriptionsItem>
+            </ElDescriptions>
 
-        <ElDescriptions
-          title="Uni信息"
-          :column="1"
-        >
-          <ElDescriptionsItem
-            v-for="(column, index) in uniInfo"
-            :key="index"
-            :label="column.label"
-          >
-            <img
-              v-if="column.prop === 'up'"
-              style="width: 32px; height: 32px; display: inline-block;"
-              :title="info[column.prop]"
-              :alt="info[column.prop]"
-              :src="filterUpIcon(info[column.prop])"
+            <ElDescriptions
+              title="Uni信息"
+              :column="1"
             >
-            <span v-else>{{ info[column.prop] }}</span>
-          </ElDescriptionsItem>
-        </ElDescriptions>
+              <ElDescriptionsItem
+                v-for="(column, index) in uniInfo"
+                :key="index"
+                :label="column.label"
+              >
+                <img
+                  v-if="column.prop === 'up'"
+                  style="width: 32px; height: 32px; display: inline-block;"
+                  :title="info[column.prop]"
+                  :alt="info[column.prop]"
+                  :src="filterUpIcon(info[column.prop])"
+                >
+                <span v-else>{{ info[column.prop] }}</span>
+              </ElDescriptionsItem>
+            </ElDescriptions>
 
-        <ElDescriptions
-          title="浏览器信息"
-          :column="1"
-        >
-          <ElDescriptionsItem
-            v-for="(column, index) in browserInfo"
-            :key="index"
-            :label="column.label"
-          >
-            <img
-              v-if="column.prop === 'bn'"
-              style="width: 32px; height: 32px; display: inline-block;"
-              :title="info[column.prop]"
-              :alt="info[column.prop]"
-              :src="filterBnIcon(info[column.prop])"
+            <ElDescriptions
+              title="浏览器信息"
+              :column="1"
             >
-            <span v-else>{{ info[column.prop] }}</span>
-          </ElDescriptionsItem>
-        </ElDescriptions>
+              <ElDescriptionsItem
+                v-for="(column, index) in browserInfo"
+                :key="index"
+                :label="column.label"
+              >
+                <img
+                  v-if="column.prop === 'bn'"
+                  style="width: 32px; height: 32px; display: inline-block;"
+                  :title="info[column.prop]"
+                  :alt="info[column.prop]"
+                  :src="filterBnIcon(info[column.prop])"
+                >
+                <span v-else>{{ info[column.prop] }}</span>
+              </ElDescriptionsItem>
+            </ElDescriptions>
 
-        <ElDescriptions
-          v-if="info.hsdk"
-          title="客户端信息"
-          :column="1"
-        >
-          <ElDescriptionsItem
-            v-for="(column, index) in hostInfo"
-            :key="index"
-            :label="column.label"
-          >
-            {{ info[column.prop] }}
-          </ElDescriptionsItem>
-        </ElDescriptions>
+            <ElDescriptions
+              v-if="info.hsdk"
+              title="客户端信息"
+              :column="1"
+            >
+              <ElDescriptionsItem
+                v-for="(column, index) in hostInfo"
+                :key="index"
+                :label="column.label"
+              >
+                {{ info[column.prop] }}
+              </ElDescriptionsItem>
+            </ElDescriptions>
 
-        <DeviceScreen
-          style="position: absolute; right: 0; top: 0; transform: scale(0.5); transform-origin: top right;"
-          :width="info.sw"
-          :height="info.sh"
-          :screen="[info.wt, info.wb, info.ww, info.wh]"
-          :status="info.sbh"
-        />
-      </template>
-    </ElSkeleton>
-  </div>
+            <DeviceScreen
+              style="position: absolute; right: 0; top: 0; transform: scale(0.5); transform-origin: top right;"
+              :width="info.sw"
+              :height="info.sh"
+              :screen="[info.wt, info.wb, info.ww, info.wh]"
+              :status="info.sbh"
+            />
+          </template>
+        </ElSkeleton>
+      </div>
+    </ElTabPane>
+
+    <ElTabPane label="会话记录" />
+  </ElTabs>
 </template>
 
 <script lang="ts" setup>

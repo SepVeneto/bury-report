@@ -1,10 +1,12 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_INFO } from '@/constant'
+import { resetSessionId } from '@/utils'
 
 export class CollectPlugin implements BuryReportPlugin {
   public name = 'collectPlugin'
 
   init(ctx: BuryReport) {
+    resetSessionId()
     const stat = this.getSystemInfo()
 
     ctx.report?.(COLLECT_INFO, stat, true)
