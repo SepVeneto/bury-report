@@ -1,6 +1,9 @@
 <template>
-  <ElTabs>
-    <ElTabPane label="设备信息">
+  <ElTabs v-model="active">
+    <ElTabPane
+      label="设备信息"
+      name="device"
+    >
       <div style="position: relative;">
         <ElSkeleton
           :loading="!info"
@@ -119,7 +122,12 @@
       </div>
     </ElTabPane>
 
-    <ElTabPane label="会话记录" />
+    <ElTabPane
+      label="会话记录"
+      name="session"
+    >
+      <div ref="player" />
+    </ElTabPane>
   </ElTabs>
 </template>
 
@@ -142,8 +150,29 @@ import DeviceScreen from './components/DeviceScreen.vue'
 
 import type { DeviceInfo } from '@/apis'
 import { getAppDevice } from '@/apis'
-import { ref } from 'vue'
+import { nextTick, ref, useTemplateRef, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
+import RrwebPlayer from 'rrweb-player'
+import 'rrweb-player/dist/style.css'
+
+const active = ref('device')
+const playerRef = useTemplateRef('player')
+
+watchEffect(() => {
+  if (active.value === 'session') {
+    nextTick().then(() => {
+      if (!playerRef.value) return
+
+      const player = new RrwebPlayer({
+        target: playerRef.value,
+        props: {
+          events: [],
+        },
+      })
+      console.log(player)
+    })
+  }
+})
 
 function filterModel(dm: DeviceInfo['dm']) {
   if (info.value?.db) {
