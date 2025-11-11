@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb"
-import { Model } from "./index.js"
+import { Model } from "./index.ts"
 
 export class Project extends Model {
   constructor() {

@@ -1,4 +1,4 @@
-import { Model } from "./index.js";
+import { Model } from "./index.ts";
 
 export class App extends Model {
   constructor() {

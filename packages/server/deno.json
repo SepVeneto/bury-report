@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@josefabio/deno-canvas": "jsr:@josefabio/deno-canvas@^1.5.2",
+    "@oak/oak": "jsr:@oak/oak@^17.1.6"
+  }
+}

@@ -1,9 +1,9 @@
-import Router from '@koa/router'
+import { Router } from '@oak/oak'
 
-import db from '../db.js'
+import db from '../db.ts'
 import { ObjectId } from 'mongodb'
-import { normalize } from '../utils/index.js'
-import { Project } from '../model/project.js'
+import { normalize } from '../utils/index.ts'
+import { Project } from '../model/project.ts'
 
 const router = new Router()
 

@@ -1,52 +1,52 @@
-import Router from '@koa/router'
-import db from '../db.js'
+import { Router } from '@oak/oak'
+import db from '../db.ts'
 import { ObjectId } from 'mongodb'
-import { normalize } from '../utils/index.js'
-import { Project } from '../model/project.js'
+import { normalize } from '../utils/index.ts'
+import { Project } from '../model/project.ts'
 
 const router = new Router()
 
-router.get('/project/list', async (ctx, next) => {
-  const project = new Project(db)
+router.get('/project/list', async (ctx) => {
+  const project = new Project()
   const list = await project.getAll({}, { name: 1, apps: 1 })
-  ctx.body = list
-
-  await next()
+  ctx.response.body = list
 })
 router.get('/project', async (ctx, next) => {
-  const { id } = ctx.query
-  const project = new Project(db)
+  const id = ctx.request.url.searchParams.get('id')
+  const project = new Project()
   const res = await project.findById(id)
   if (res) {
     const { _id, ...res } = project
-    ctx.body = { id: _id, ...res }
-    await next()
+    ctx.response.body = { id: _id, ...res }
   } else {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '没有找到指定的项目'
+    ctx.response.body = {
+      code: 1,
+      message: '没有找到指定的项目',
+    }
   }
 })
 router.post('/project', async (ctx, next) => {
-  const { name } = ctx.request.body
+  const { name } = ctx.request.body.json()
 
   if (!name) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '项目名称不能为空'
+    ctx.response.body = {
+      code: 1,
+      message: '项目名称不能为空',
+
+    }
     return
   }
-  const project = new Project(db)
+  const project = new Project()
 
   const res = await project.findOne({ name })
   if (res) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '项目已存在'
+    ctx.response.body = {
+      code: 1,
+      message: '项目已存在',
+    }
   } else {
     const res = await project.insertOne({ name, apps: [] })
-    ctx.body = res.insertedId
-    await next()
+    ctx.response.body = res.insertedId
     ctx.body.message = '项目创建成功'
   }
 })

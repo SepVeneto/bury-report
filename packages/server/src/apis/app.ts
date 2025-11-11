@@ -1,10 +1,12 @@
-import Router from '@koa/router'
-import db from '../db.js'
+import { Router } from '@oak/oak'
+import db from '../db.ts'
 import { ObjectId } from 'mongodb'
 import md5 from 'md5'
-import { SECRET, normalize } from '../utils/index.js'
-import { Project } from '../model/project.js'
-import { App } from '../model/app.js'
+import { SECRET, normalize } from '../utils/index.ts'
+import { Project } from '../model/project.ts'
+import { App } from '../model/app.ts'
+import type { Document } from 'bson'
+
 
 const router = new Router()
 
@@ -17,22 +19,26 @@ function randomColor() {
 }
 
 router.get('/app/list', async (ctx, next) => {
-  const { page = 1, size = 20, ...query } = ctx.request.query
+  const searchParams = ctx.request.url.searchParams
+  const  page = Number(searchParams.get('page')) || 1
+  const size = Number(searchParams.get('size')) || 20
+  const appId = searchParams.get('appId')
+  const name = searchParams.get('name')
+
   const apps = db.collection('apps')
 
-  const _query = normalize(query)
   const offset = (page - 1) * size
-  const match = {
+  const match: Document = {
     is_delete: { $ne: true }
   }
-  if (_query.name) {
-    match.name = { $regex: _query.name }
+  if (name) {
+    match.name = { $regex: name }
   }
-  if (_query.appId) {
+  if (appId) {
     try {
-      match._id = new ObjectId(_query.appId)
+      match._id = new ObjectId(appId)
     } catch {
-      match._id = _query.appId
+      match._id = appId
     }
   }
   const res = await apps.aggregate([
@@ -50,7 +56,7 @@ router.get('/app/list', async (ctx, next) => {
       }
     }
   ]).toArray()
-  ctx.body = {
+  ctx.response.body = {
     total: res[0].total,
     list: res[0].list.map(item => {
       const { _id,...record } = item
@@ -74,29 +80,42 @@ router.get('/app/options', async (ctx, next) => {
       }
     }
   ]).toArray()
-  ctx.body = res
+  ctx.response.body = res
   await next()
 })
 router.get('/app', async (ctx, next) => {
-  const { id } = ctx.query
+  const id = ctx.request.url.searchParams.get('id')
+  if (!id) {
+    await next()
+    ctx.response.body = {
+      code: 1,
+      message: '缺少应用ID'
+    }
+    return
+  }
+
   const app = await db.collection('apps').findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
   if (app) {
     const { _id, ...res } = app
-    ctx.body = { id: _id, ...res }
+    ctx.response.body = { id: _id, ...res }
     await next()
   } else {
     await next()
-    ctx.body.code = 1
-    ctx.body.message = '没有找到指定的应用'
+    ctx.response.body = {
+      code: 1,
+      message: '没有找到指定的应用'
+    }
   }
 })
 router.post('/app', async (ctx, next) => {
-  const { pid, name, icon } = ctx.request.body
+  const { pid, name, icon } = await ctx.request.body.json()
 
   if (!name) {
     await next()
-    ctx.body.code = 1
-    ctx.body.message = '应用名称不能为空'
+    ctx.response.body = {
+      code: 1,
+      message: '应用名称不能为空'
+    }
     return
   }
 
@@ -109,23 +128,28 @@ router.post('/app', async (ctx, next) => {
   }
   const aid = await app.insertOne(newApp)
   await project.insertApp(pid, { id: aid.insertedId, ...newApp })
-  ctx.body = aid.insertedId
+  ctx.response.body = aid.insertedId
 
   await next()
-  ctx.body.message = '应用创建成功'
+  ctx.response.body = {
+    ...ctx.response.body,
+    message: '应用创建成功',
+  }
 })
 router.patch('/app', async (ctx, next) => {
-  const { id, name, icon } = ctx.request.body
+  const { id, name, icon } = await ctx.request.body.json()
   if (!name) {
     await next()
-    ctx.body.code = 1
-    ctx.body.message = '应用名称不能为空'
+    ctx.response.body = {
+      code: 1,
+      message: '应用名称不能为空',
+    }
     return
   }
 
   const apps = db.collection('apps')
   const projects = db.collection('projects')
-  const appId = new ObjectId(id)
+  const appId = new ObjectId(id as string)
   const app = await apps.findOne({ _id: appId, is_delete: { $ne: true } })
 
   if (app) {
@@ -140,19 +164,26 @@ router.patch('/app', async (ctx, next) => {
       )
     ])
     await next()
-    ctx.body.message = '修改成功'
+    ctx.response.body = {
+      code: 0,
+      message: '修改成功',
+    }
   } else {
     await next()
-    ctx.body.code = 1
-    ctx.body.message = '找不到该应用'
+    ctx.response.body = {
+      code: 1,
+      message: '找不到该应用'
+    }
   }
 })
 router.delete('/app', async (ctx, next) => {
-  const { id } = ctx.query
+  const id = ctx.request.url.searchParams.get('id')
   if (!id) {
     await next()
-    ctx.body.code = 1
-    ctx.body.message = '缺少应用ID'
+    ctx.response.body = {
+      code: 1,
+      message: '缺少应用ID',
+    }
     return
   }
 
@@ -163,28 +194,14 @@ router.delete('/app', async (ctx, next) => {
     apps.updateOne({ _id: appId }, { $set: { is_delete: true } }),
     projects.updateMany(
       { 'apps.id': appId },
-      { $pull: { apps: { id: appId } }},
+      { $pull: { apps: { id: appId } } as Document},
     )
   ])
   await next()
-  ctx.body.message = '删除成功'
-})
-/**
- * deprecated
- */
-router.post('/generate', async (ctx, next) => {
-  const { id } = ctx.request.body
-  if (!id) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '缺少应用ID'
-    return
+  ctx.response.body = {
+    code: 0,
+    message: '删除成功'
   }
-  const secret = md5(`${id}-${Date.now()}-${SECRET}`)
-  await db.collection('apps').findOneAndUpdate({ _id: new ObjectId(id)}, { $set: { secret }})
-  ctx.body = secret
-  await next()
-  ctx.body.message = '密钥生成成功'
 })
 
 router.get('/app/:appId/logs', async (ctx, next) => {

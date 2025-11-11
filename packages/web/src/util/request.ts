@@ -18,10 +18,6 @@ let isRedirect = false
 const serverInst = axios.create({
   baseURL: import.meta.env.VITE_APP_SERVER_BASEURL,
 })
-const reportInst = axios.create({
-  baseURL: import.meta.env.VITE_APP_REPORT_BASEURL,
-  timeout: 60 * 1000 * 5,
-})
 
 export const requestInspector = (config: AxiosRequestConfig<any>) => {
   NProgress.start()
@@ -81,8 +77,6 @@ export const responseError = (err: any) => {
 
 serverInst.interceptors.request.use(requestInspector)
 serverInst.interceptors.response.use(responseInspector, responseError)
-reportInst.interceptors.request.use(requestInspector)
-reportInst.interceptors.response.use(responseInspector, responseError)
 
 export function reportRequest<T>(
   config: AxiosRequestConfig & { raw?: false },
@@ -100,7 +94,7 @@ export async function reportRequest(
   config: AxiosRequestConfig,
   needTip?: boolean | string,
 ) {
-  const res = await reportInst(config)
+  const res = await serverInst(config)
 
   if (res.data instanceof Blob) {
     const disposition = res.headers['content-disposition']

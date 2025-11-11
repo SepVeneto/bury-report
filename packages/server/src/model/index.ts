@@ -1,5 +1,5 @@
 import { ObjectId } from "mongodb"
-import db from '../db.js'
+import db from '../db.ts'
 
 export class Filter {
   constructor(filter = {}) {
