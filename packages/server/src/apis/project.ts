@@ -1,32 +1,33 @@
-import { Router } from '@oak/oak'
-import db from '../db.ts'
-import { ObjectId } from 'mongodb'
-import { normalize } from '../utils/index.ts'
+import { Context as OakContext, Router } from '@oak/oak'
 import { Project } from '../model/project.ts'
+
+interface Context extends OakContext {
+  resMsg?: string
+  resBody?: unknown
+  resCode?: number
+}
 
 const router = new Router()
 
-router.get('/project/list', async (ctx) => {
+router.get('/project/list', async (ctx: Context) => {
   const project = new Project()
   const list = await project.getAll({}, { name: 1, apps: 1 })
-  ctx.response.body = list
+  ctx.resBody = list
 })
-router.get('/project', async (ctx, next) => {
+router.get('/project', async (ctx: Context) => {
   const id = ctx.request.url.searchParams.get('id')
   const project = new Project()
   const res = await project.findById(id)
   if (res) {
     const { _id, ...res } = project
-    ctx.response.body = { id: _id, ...res }
+    ctx.resBody = { id: _id, ...res }
   } else {
-    ctx.response.body = {
-      code: 1,
-      message: '没有找到指定的项目',
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '没有找到指定的项目'
   }
 })
-router.post('/project', async (ctx, next) => {
-  const { name } = ctx.request.body.json()
+router.post('/project', async (ctx: Context) => {
+  const { name } = await ctx.request.body.json()
 
   if (!name) {
     ctx.response.body = {
@@ -46,38 +47,34 @@ router.post('/project', async (ctx, next) => {
     }
   } else {
     const res = await project.insertOne({ name, apps: [] })
-    ctx.response.body = res.insertedId
-    ctx.body.message = '项目创建成功'
+    ctx.resBody = res.insertedId
+    ctx.resMsg = '项目创建成功'
   }
 })
-router.patch('/project', async (ctx, next) => {
-  const { id, name } = ctx.request.body
+router.patch('/project', async (ctx: Context) => {
+  const { id, name } = await ctx.request.body.json()
   if (!name) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '项目名称不能为空'
+    ctx.resCode = 1
+    ctx.resMsg = '项目名称不能为空'
     return
   }
 
-  const project = new Project(db)
+  const project = new Project()
 
   await project.updateOne({ id, name })
-  await next()
-  ctx.body.message = '修改成功'
+  ctx.resMsg = '修改成功'
 })
-router.delete('/project', async (ctx, next) => {
-  const { id } = ctx.query
+router.delete('/project', async (ctx: Context) => {
+  const { id } = await ctx.request.body.json()
   if (!id) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '缺少项目ID'
+    ctx.resCode = 1
+    ctx.resMsg = '缺少项目ID'
     return
   }
 
-  const project = new Project(db)
+  const project = new Project()
   await project.deleteOne(id)
-  await next()
-  ctx.body.message = '删除成功'
+  ctx.resMsg = '删除成功'
 })
 
 export default router
