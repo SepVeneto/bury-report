@@ -1,32 +1,15 @@
-import { Context as OakContext, Router } from '@oak/oak'
+import { Router } from '@oak/oak'
 import { Project } from '../model/project.ts'
-
-interface Context extends OakContext {
-  resMsg?: string
-  resBody?: unknown
-  resCode?: number
-}
 
 const router = new Router()
 
-router.get('/project/list', async (ctx: Context) => {
+router.get('/project/list', async (ctx) => {
   const project = new Project()
   const list = await project.getAll({}, { name: 1, apps: 1 })
   ctx.resBody = list
 })
-router.get('/project', async (ctx: Context) => {
-  const id = ctx.request.url.searchParams.get('id')
-  const project = new Project()
-  const res = await project.findById(id)
-  if (res) {
-    const { _id, ...res } = project
-    ctx.resBody = { id: _id, ...res }
-  } else {
-    ctx.resCode = 1
-    ctx.resMsg = '没有找到指定的项目'
-  }
-})
-router.post('/project', async (ctx: Context) => {
+
+router.post('/project', async (ctx) => {
   const { name } = await ctx.request.body.json()
 
   if (!name) {
@@ -51,7 +34,7 @@ router.post('/project', async (ctx: Context) => {
     ctx.resMsg = '项目创建成功'
   }
 })
-router.patch('/project', async (ctx: Context) => {
+router.patch('/project', async (ctx) => {
   const { id, name } = await ctx.request.body.json()
   if (!name) {
     ctx.resCode = 1
@@ -64,8 +47,8 @@ router.patch('/project', async (ctx: Context) => {
   await project.updateOne({ id, name })
   ctx.resMsg = '修改成功'
 })
-router.delete('/project', async (ctx: Context) => {
-  const { id } = await ctx.request.body.json()
+router.delete('/project', async (ctx) => {
+  const id = ctx.request.url.searchParams.get('id')
   if (!id) {
     ctx.resCode = 1
     ctx.resMsg = '缺少项目ID'

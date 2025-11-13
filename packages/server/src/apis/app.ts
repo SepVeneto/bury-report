@@ -1,11 +1,10 @@
 import { Router } from '@oak/oak'
 import db from '../db.ts'
-import { ObjectId } from 'mongodb'
-import md5 from 'md5'
-import { SECRET, normalize } from '../utils/index.ts'
+import { ObjectId, WithId } from 'mongodb'
 import { Project } from '../model/project.ts'
 import { App } from '../model/app.ts'
 import type { Document } from 'bson'
+import { normalize } from "../utils/tools.ts";
 
 
 const router = new Router()
@@ -18,104 +17,94 @@ function randomColor() {
   return `rgb(${r}, ${g}, ${b})`
 }
 
-router.get('/app/list', async (ctx, next) => {
-  const searchParams = ctx.request.url.searchParams
-  const  page = Number(searchParams.get('page')) || 1
-  const size = Number(searchParams.get('size')) || 20
-  const appId = searchParams.get('appId')
-  const name = searchParams.get('name')
+// router.get('/app/list', async (ctx, next) => {
+//   const searchParams = ctx.request.url.searchParams
+//   const  page = Number(searchParams.get('page')) || 1
+//   const size = Number(searchParams.get('size')) || 20
+//   const appId = searchParams.get('appId')
+//   const name = searchParams.get('name')
 
-  const apps = db.collection('apps')
+//   const apps = db.collection('apps')
 
-  const offset = (page - 1) * size
-  const match: Document = {
-    is_delete: { $ne: true }
-  }
-  if (name) {
-    match.name = { $regex: name }
-  }
-  if (appId) {
-    try {
-      match._id = new ObjectId(appId)
-    } catch {
-      match._id = appId
-    }
-  }
-  const res = await apps.aggregate([
-    {
-      $match: match,
-    },
-    { $facet: {
-      total: [{ $count: 'total' }],
-      list: [{ $skip: offset }, { $limit: Number(size) }]
-    }},
-    {
-      $project: {
-        total: { $ifNull: [{ $arrayElemAt: ['$total.total', 0]}, 0] },
-        list: 1,
-      }
-    }
-  ]).toArray()
-  ctx.response.body = {
-    total: res[0].total,
-    list: res[0].list.map(item => {
-      const { _id,...record } = item
-      return {
-        id: _id,
-      ...record,
-      }
-    })
-  }
-  await next()
-})
-router.get('/app/options', async (ctx, next) => {
-  const apps = db.collection('apps')
-  const res = await apps.aggregate([
-    { $match: { is_delete: { $ne: true }}},
-    {
-      $project: {
-        _id: 0,
-        value: '$_id',
-        label: '$name',
-      }
-    }
-  ]).toArray()
-  ctx.response.body = res
-  await next()
-})
-router.get('/app', async (ctx, next) => {
+//   const offset = (page - 1) * size
+//   const match: Document = {
+//     is_delete: { $ne: true }
+//   }
+//   if (name) {
+//     match.name = { $regex: name }
+//   }
+//   if (appId) {
+//     try {
+//       match._id = new ObjectId(appId)
+//     } catch {
+//       match._id = appId
+//     }
+//   }
+//   const res = await apps.aggregate([
+//     {
+//       $match: match,
+//     },
+//     { $facet: {
+//       total: [{ $count: 'total' }],
+//       list: [{ $skip: offset }, { $limit: Number(size) }]
+//     }},
+//     {
+//       $project: {
+//         total: { $ifNull: [{ $arrayElemAt: ['$total.total', 0]}, 0] },
+//         list: 1,
+//       }
+//     }
+//   ]).toArray()
+//   ctx.response.body = {
+//     total: res[0].total,
+//     list: res[0].list.map(item => {
+//       const { _id,...record } = item
+//       return {
+//         id: _id,
+//       ...record,
+//       }
+//     })
+//   }
+//   await next()
+// })
+// router.get('/app/options', async (ctx, next) => {
+//   const apps = db.collection('apps')
+//   const res = await apps.aggregate([
+//     { $match: { is_delete: { $ne: true }}},
+//     {
+//       $project: {
+//         _id: 0,
+//         value: '$_id',
+//         label: '$name',
+//       }
+//     }
+//   ]).toArray()
+//   ctx.response.body = res
+//   await next()
+// })
+router.get('/app', async (ctx) => {
   const id = ctx.request.url.searchParams.get('id')
   if (!id) {
-    await next()
-    ctx.response.body = {
-      code: 1,
-      message: '缺少应用ID'
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '缺少应用ID'
     return
   }
 
   const app = await db.collection('apps').findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
   if (app) {
     const { _id, ...res } = app
-    ctx.response.body = { id: _id, ...res }
-    await next()
+    ctx.resBody = { id: _id, ...res }
   } else {
-    await next()
-    ctx.response.body = {
-      code: 1,
-      message: '没有找到指定的应用'
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '没有找到指定的应用'
   }
 })
-router.post('/app', async (ctx, next) => {
+router.post('/app', async (ctx) => {
   const { pid, name, icon } = await ctx.request.body.json()
 
   if (!name) {
-    await next()
-    ctx.response.body = {
-      code: 1,
-      message: '应用名称不能为空'
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '应用名称不能为空'
     return
   }
 
@@ -128,22 +117,15 @@ router.post('/app', async (ctx, next) => {
   }
   const aid = await app.insertOne(newApp)
   await project.insertApp(pid, { id: aid.insertedId, ...newApp })
-  ctx.response.body = aid.insertedId
-
-  await next()
-  ctx.response.body = {
-    ...ctx.response.body,
-    message: '应用创建成功',
-  }
+  ctx.resBody = aid.insertedId
+  ctx.resMsg = '应用创建成功'
 })
-router.patch('/app', async (ctx, next) => {
+
+router.patch('/app', async (ctx) => {
   const { id, name, icon } = await ctx.request.body.json()
   if (!name) {
-    await next()
-    ctx.response.body = {
-      code: 1,
-      message: '应用名称不能为空',
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '应用名称不能为空'
     return
   }
 
@@ -163,27 +145,18 @@ router.patch('/app', async (ctx, next) => {
         { $set: { 'apps.$.name': name }},
       )
     ])
-    await next()
-    ctx.response.body = {
-      code: 0,
-      message: '修改成功',
-    }
+    ctx.resMsg = '修改成功'
   } else {
-    await next()
-    ctx.response.body = {
-      code: 1,
-      message: '找不到该应用'
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '找不到该应用'
   }
 })
-router.delete('/app', async (ctx, next) => {
+
+router.delete('/app', async (ctx) => {
   const id = ctx.request.url.searchParams.get('id')
   if (!id) {
-    await next()
-    ctx.response.body = {
-      code: 1,
-      message: '缺少应用ID',
-    }
+    ctx.resCode = 1
+    ctx.resMsg = '缺少应用ID'
     return
   }
 
@@ -197,14 +170,10 @@ router.delete('/app', async (ctx, next) => {
       { $pull: { apps: { id: appId } } as Document},
     )
   ])
-  await next()
-  ctx.response.body = {
-    code: 0,
-    message: '删除成功'
-  }
+  ctx.resMsg = '删除成功'
 })
 
-router.get('/app/:appId/logs', async (ctx, next) => {
+router.get('/app/:appId/logs', async (ctx) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const { appId } = ctx.params
   const logs = db.collection('logs')
@@ -238,14 +207,13 @@ router.get('/app/:appId/logs', async (ctx, next) => {
     .toArray()
   const total = await logs.countDocuments(match)
 
-  ctx.body = {
+  ctx.resBody = {
     list,
     total,
   }
-  await next()
 })
 
-router.get('/app/:appId/errors', async (ctx, next) => {
+router.get('/app/:appId/errors', async (ctx) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const { appId } = ctx.params
   const logs = db.collection('logs')
@@ -276,11 +244,10 @@ router.get('/app/:appId/errors', async (ctx, next) => {
     .toArray()
   const total = await logs.countDocuments(match)
 
-  ctx.body = {
+  ctx.resBody = {
     list,
     total,
   }
-  await next()
 })
 
 router.get('/app/:appId/statistics', async (ctx, next) => {
@@ -300,7 +267,7 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
     create_time: { $gte: new Date('2024-01-04 00:00:00'), $lte: new Date('2024-01-05 00:00:00') }
   })
   let list = await logs.find(match, { projection: { _id: 0, deviceId: '$data.uuid' }}).toArray()
-  let tempObj = {}
+  let tempObj: Record<string, boolean> = {}
   const total = list.reduce((total, item) => {
     if (!tempObj[item.deviceId]) {
       tempObj[item.deviceId] = true
@@ -321,7 +288,7 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
     return total
   }, 0)
 
-  ctx.body = {
+  ctx.resBody = {
     total,
     yesterdayTotal,
     totalOpen,
@@ -330,7 +297,7 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
   await next()
 })
 
-router.get('/app/:appId/chart/:type', async (ctx, next) => {
+router.get('/app/:appId/chart/:type', async (ctx) => {
   const { appId, type } = ctx.params
   const logs = db.collection('logs')
   const match = {
@@ -360,8 +327,7 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
           { $sort: { _id: 1 } },
           { $project: { _id: 0, date: '$_id', count: 1 }}
         ]).toArray()
-        ctx.body = res
-        await next()
+        ctx.resBody = res
       }
       break
     case 'yesterdayOpenTrend':
@@ -387,15 +353,14 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
           { $sort: { _id: 1 } },
           { $project: { _id: 0, date: '$_id', count: 1 }}
         ]).toArray()
-        ctx.body = res
-        await next()
+        ctx.resBody = res
       }
       break
     case 'deviceType':
       {
-        const tempObj = {}
+        const tempObj: Record<string, boolean> = {}
         const _arr = await logs.find(match, { projection: { _id: 0, 'data.uuid': 1, 'data.on': 1 }}).toArray()
-        const unionList = []
+        const unionList: WithId<Document>[] = []
         _arr.forEach(item => {
           if (item.data && !tempObj[item.data.uuid]) {
             tempObj[item.data.uuid] = true
@@ -415,18 +380,17 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
               break
           }
         })
-        ctx.body = {
+        ctx.resBody = {
           android,
           ios,
         }
       }
-      await next()
       break
     case 'deviceBrand':
       {
-        const tempObj = {}
+        const tempObj: Record<string, boolean> = {}
         const _arr = await logs.find(match, { projection: { _id: 0, 'data.uuid': 1, 'data.db': 1 }}).toArray()
-        const unionList = []
+        const unionList: WithId<Document>[] = []
         _arr.forEach(item => {
           if (item.data && !tempObj[item.data.uuid]) {
             tempObj[item.data.uuid] = true
@@ -434,7 +398,7 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
           }
         })
 
-        const res = {}
+        const res: Record<string, number> = {}
         unionList.forEach(item => {
           const brand = item.data.db
           if (res[brand]) {
@@ -443,16 +407,15 @@ router.get('/app/:appId/chart/:type', async (ctx, next) => {
             res[brand] = 1
           }
         })
-        ctx.body = res
-        await next()
+        ctx.resBody = res
       }
       break
   }
 })
 
-router.patch('/app/:appId/move_to', async (ctx, next) => {
+router.patch('/app/:appId/move_to', async (ctx) => {
   const { appId } = ctx.params
-  const { projectId } = ctx.request.body
+  const { projectId } = await ctx.request.body.json()
 
 
   const project = new Project()
@@ -460,18 +423,16 @@ router.patch('/app/:appId/move_to', async (ctx, next) => {
   const oappId = ObjectId.createFromHexString(appId)
   await project.col.updateOne(
     { 'apps.id': oappId },
-    { $pull: { apps: { id: oappId } }},
+    { $pull: { apps: { id: oappId } } as Document},
   )
   const moveApp = await app.findById(appId, { name: 1, icon: 1 })
   await project.col.updateOne({
     _id: ObjectId.createFromHexString(projectId),
   }, {
-    $push: { apps: moveApp }
+    $push: { apps: moveApp } as Document
   })
 
-  await next()
-
-  ctx.body.message = '移动成功'
+  ctx.resMsg = '移动成功'
 })
 
 export default router

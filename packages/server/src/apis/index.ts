@@ -7,6 +7,7 @@ import app from './app.ts'
 import auth from './auth.ts'
 import project from './project.ts'
 import portal from './portal.ts'
+import { normalizeQuery } from "../utils/tools.ts";
 
 const router = new Router()
 
@@ -43,23 +44,25 @@ router.use(async (ctx, next) => {
 })
 
 router.use(async (ctx, next) => {
+  ctx.request.query = normalizeQuery(ctx)
   await next()
+})
 
+router.use(async (ctx, next) => {
   try {
-  if (ctx.response.body) {
+    await next()
     ctx.response.body = {
-      code: 0,
-      data: ctx.response.body,
-      message: 'success'
+      code: ctx.resCode || 0,
+      data: ctx.resBody,
+      message: ctx.resMsg || 'success'
     }
-  }
   }
   catch (err) {
     console.error(err)
     ctx.response.status = 500
     ctx.response.body = {
-      code: 1,
-      message: '服务器错误'
+      code: ctx.resCode || 1,
+      message: ctx.resMsg || '服务器错误'
     }
   }
 })
