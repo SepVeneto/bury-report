@@ -1,6 +1,7 @@
 // global.d.ts 或 types/oak.d.ts
 import { State } from "@oak/oak";
 import { RouteParams } from "@oak/oak";
+import { Db } from "mongodb";
 
 declare module '@oak/oak' {
   interface RouterContext<
@@ -12,6 +13,7 @@ declare module '@oak/oak' {
     resMsg?: string
     resBody?: unknown
     resCode?: number
+    db: Db
   }
 
   interface Request {

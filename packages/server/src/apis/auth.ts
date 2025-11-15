@@ -1,5 +1,4 @@
 import { Router } from '@oak/oak'
-import db from '../db.ts'
 import md5 from 'md5'
 import jwt from 'jsonwebtoken'
 import { SECRET } from '../utils/index.ts'
@@ -13,15 +12,14 @@ const router = new Router()
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
-router.post('/login', async (ctx, next) => {
-  const { name, password, key, offset } = ctx.request.body
+router.post('/login', async (ctx) => {
+  const { name, password, key, offset } = await ctx.request.body.json()
 
-  const captcha = db.collection('captcha')
+  const captcha = ctx.db.collection('captcha')
   const res = await captcha.findOne({ key })
   if (!res) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '验证码已过期'
+    ctx.resCode = 1
+    ctx.resBody = '验证码已过期'
     return
   }
   await captcha.deleteOne({ key })
@@ -29,13 +27,12 @@ router.post('/login', async (ctx, next) => {
   const isVerify = verifyCaptcha(target, offset)
 
   if (!isVerify) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '验证码错误'
+    ctx.resCode = 1
+    ctx.resMsg = '验证码错误'
     return
   }
 
-  const users = db.collection('users')
+  const users = ctx.db.collection('users')
 
   const isAccess = await users.findOne({ name, password: md5(password)} )
   if (isAccess) {
@@ -43,36 +40,32 @@ router.post('/login', async (ctx, next) => {
       account: name,
       time: Date.now(),
     }
-    ctx.body = { token: jwt.sign(payload, SECRET) }
-    await next()
+    ctx.resBody = { token: jwt.sign(payload, SECRET) }
   } else {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = '用户名或密码错误'
+    ctx.resCode = 1
+    ctx.resMsg = '用户名或密码错误'
   }
 
 })
-router.post('/register', async (ctx, next) => {
-  const { name, password } = ctx.request.body
+router.post('/register', async (ctx) => {
+  const { name, password } = await ctx.request.body.json()
 
-  const users = db.collection('users')
+  const users = ctx.db.collection('users')
   const res = await users.findOne({ name })
   if (res) {
-    await next()
-    ctx.body.code = 1
-    ctx.body.message = 'The name has been registered'
+    ctx.resCode = 1
+    ctx.resMsg = 'The name has been registered'
     return
   }
   const md5pwd = md5(password)
   users.insertOne({ name, password: md5pwd })
 
-  await next()
-  ctx.body.message = '注册成功'
+  ctx.resMsg = '注册成功'
 })
 
 const L = 42
 const R = 9
-function getRandomPos(w) {
+function getRandomPos(w: number) {
   const x = Math.random() * (w - L * 2) + L
   return [Number(x.toFixed(0)), 50]
 }
@@ -100,21 +93,21 @@ router.get('/captcha', async (ctx, next) => {
   blockCtx.putImageData(imageData, 0, 0)
 
   const captchaMd5 = md5(`${Date.now()}-captcha`)
-  ctx.body = {
+  ctx.resBody = {
     background: background.toDataURL('image/jpeg', 1),
     block: block.toDataURL(),
     key: captchaMd5,
   }
-  const captcha = db.collection('captcha')
+  const captcha = ctx.db.collection('captcha')
   await captcha.insertOne({ key: captchaMd5, offset: x, create_time: new Date() })
   await next()
 })
-function verifyCaptcha(target, answer) {
+function verifyCaptcha(target: number, answer: number) {
   const offset = Math.abs(target - answer)
   return offset < 5
 }
 
-function drawSlot(ctx, x, y) {
+function drawSlot(ctx: canvas.CanvasRenderingContext2D, x: number, y: number) {
   ctx.beginPath()
 
   ctx.moveTo(x, y)

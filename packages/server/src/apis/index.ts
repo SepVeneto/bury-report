@@ -1,4 +1,4 @@
-import db from '../db.ts'
+import { client } from '../db.ts'
 import { Router } from '@oak/oak'
 import jwt from 'jsonwebtoken'
 import { SECRET } from '../utils/index.ts'
@@ -6,7 +6,9 @@ import { SECRET } from '../utils/index.ts'
 import app from './app.ts'
 import auth from './auth.ts'
 import project from './project.ts'
-import portal from './portal.ts'
+import source from './source.ts'
+import record from './record.ts'
+import device from './device.ts'
 import { normalizeQuery } from "../utils/tools.ts";
 
 const router = new Router()
@@ -14,10 +16,12 @@ const router = new Router()
 const whiteList = ['/login', '/register', '/record', '/captcha']
 
 router.use(async (ctx, next) => {
+  ctx.request.query = normalizeQuery(ctx)
   if (whiteList.includes(ctx.request.url.pathname)) {
     await next()
     return
   }
+  ctx.db = client.db('reporter')
 
   const token = ctx.request.headers.get('authorization') || ctx.request.url.searchParams.get('token')
 
@@ -29,7 +33,7 @@ router.use(async (ctx, next) => {
      */
     try {
       const res = jwt.verify(token, SECRET)
-      const isLogin = await db.collection('users').findOne({ name: res.account })
+      const isLogin = await ctx.db.collection('users').findOne({ name: res.account })
       if (!isLogin) {
         ctx.response.status = 403
       } else {
@@ -43,8 +47,21 @@ router.use(async (ctx, next) => {
   }
 })
 
+const portalEntry = ['/project', '/app']
 router.use(async (ctx, next) => {
-  ctx.request.query = normalizeQuery(ctx)
+  if (portalEntry.some(item => ctx.request.url.pathname.startsWith(item))) {
+    await next()
+    return
+  }
+  const appid = ctx.request.headers.get('appid')
+  if (!appid) {
+    ctx.response.status = 403
+    ctx.response.body = '缺少appid'
+    return
+  }
+
+  const _db = client.db(`app_${appid}`)
+  ctx.db = _db
   await next()
 })
 
@@ -53,7 +70,7 @@ router.use(async (ctx, next) => {
     await next()
     ctx.response.body = {
       code: ctx.resCode || 0,
-      data: ctx.resBody,
+      data: ctx.resBody || null,
       message: ctx.resMsg || 'success'
     }
   }
@@ -70,6 +87,8 @@ router.use(async (ctx, next) => {
 router.use(app.routes())
 router.use(auth.routes())
 router.use(project.routes())
-router.use(portal.routes())
+router.use(source.routes())
+router.use(record.routes())
+router.use(device.routes())
 
 export default router

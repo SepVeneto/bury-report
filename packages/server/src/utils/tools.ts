@@ -1,12 +1,13 @@
 import { Context } from "@oak/oak";
 
 export function normalizeQuery(ctx: Context) {
-  return normalize(ctx.request.url.searchParams)
+  return normalize(Array.from(ctx.request.url.searchParams.entries()))
 }
 
-export function normalize(obj: object) {
+export function normalize(objOrArr: object | Array<[string, string]>) {
+  const list = Array.isArray(objOrArr) ? objOrArr : Object.entries(objOrArr)
   // deno-lint-ignore no-explicit-any
-  return Object.entries(obj).reduce<Record<string, any>>((all, curr) => {
+  return list.reduce<Record<string, any>>((all, curr) => {
     const [key, value] = curr
     if (value == null || value === '') {
       return all

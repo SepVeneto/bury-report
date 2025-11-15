@@ -1,29 +1,27 @@
-import { Document, ObjectId } from "mongodb"
-import { Model } from "./index.ts"
+import { Db, Document, Filter, ObjectId, WithId } from "mongodb"
+import { BaseType, Model } from "./index.ts"
+import { IApp } from "./app.ts";
 
-export class Project extends Model {
-  constructor() {
-    super('projects')
+interface IProject extends BaseType {
+  name: string
+  apps: IApp[]
+}
+
+export class Project extends Model<IProject> {
+  constructor(db: Db) {
+    super(db, 'projects')
   }
-  async findAppById(pid: string, id: string) {
-    const project = await this.findById(pid, { apps: 1 })
-    if (!project) throw new Error('没有找到指定的项目')
-    const { _id, ...app }= project.apps.find((app: any) => app._id === id)
-    return {
-      id: _id,
-      ...app,
-    }
-  }
-  async insertApp(pid: string, app: any) {
+
+  async insertApp(pid: string, app: IApp & { id: ObjectId }) {
     const _id = ObjectId.createFromHexString(pid)
-    await this.col.updateOne({ _id }, {
+    await this.col.updateOne({ _id } as Filter<IProject>, {
       $addToSet: { apps: app }
     })
   }
-  async updateApp(pid: string, data: any) {
+  async updateApp(pid: string, data: WithId<IApp>) {
     const _id = ObjectId.createFromHexString(pid)
     const { _id: aid, ...app } = data
-    const _appId = ObjectId.createFromHexString(aid)
+    const _appId = aid
     await this.col.updateOne({ _id, 'apps._id': _appId }, {
       $set: app
     })

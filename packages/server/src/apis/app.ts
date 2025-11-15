@@ -1,5 +1,4 @@
 import { Router } from '@oak/oak'
-import db from '../db.ts'
 import { ObjectId, WithId } from 'mongodb'
 import { Project } from '../model/project.ts'
 import { App } from '../model/app.ts'
@@ -90,6 +89,7 @@ router.get('/app', async (ctx) => {
     return
   }
 
+  const db = ctx.db
   const app = await db.collection('apps').findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
   if (app) {
     const { _id, ...res } = app
@@ -108,12 +108,13 @@ router.post('/app', async (ctx) => {
     return
   }
 
-  const project = new Project()
-  const app = new App()
+  const project = new Project(ctx.db)
+  const app = new App(ctx.db)
 
   const newApp = {
     name,
     icon: icon || randomColor(),
+    is_delete: false,
   }
   const aid = await app.insertOne(newApp)
   await project.insertApp(pid, { id: aid.insertedId, ...newApp })
@@ -129,6 +130,7 @@ router.patch('/app', async (ctx) => {
     return
   }
 
+  const db = ctx.db
   const apps = db.collection('apps')
   const projects = db.collection('projects')
   const appId = new ObjectId(id as string)
@@ -160,6 +162,7 @@ router.delete('/app', async (ctx) => {
     return
   }
 
+  const db = ctx.db
   const apps = db.collection('apps')
   const projects = db.collection('projects')
   const appId = new ObjectId(id)
@@ -176,6 +179,7 @@ router.delete('/app', async (ctx) => {
 router.get('/app/:appId/logs', async (ctx) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const { appId } = ctx.params
+  const db = ctx.db
   const logs = db.collection('logs')
   const offset = (page - 1) * size
 
@@ -216,6 +220,7 @@ router.get('/app/:appId/logs', async (ctx) => {
 router.get('/app/:appId/errors', async (ctx) => {
   const { page = 1, size = 20, ...query } = ctx.request.query
   const { appId } = ctx.params
+  const db = ctx.db
   const logs = db.collection('logs')
   const offset = (page - 1) * size
 
@@ -252,6 +257,7 @@ router.get('/app/:appId/errors', async (ctx) => {
 
 router.get('/app/:appId/statistics', async (ctx, next) => {
   const { appId } = ctx.params
+  const db = ctx.db
   const logs = db.collection('logs')
   const match = {
     appid: appId,
@@ -299,6 +305,7 @@ router.get('/app/:appId/statistics', async (ctx, next) => {
 
 router.get('/app/:appId/chart/:type', async (ctx) => {
   const { appId, type } = ctx.params
+  const db = ctx.db
   const logs = db.collection('logs')
   const match = {
     appid: appId,
@@ -417,9 +424,9 @@ router.patch('/app/:appId/move_to', async (ctx) => {
   const { appId } = ctx.params
   const { projectId } = await ctx.request.body.json()
 
-
-  const project = new Project()
-  const app = new App()
+  const db = ctx.db
+  const project = new Project(db)
+  const app = new App(db)
   const oappId = ObjectId.createFromHexString(appId)
   await project.col.updateOne(
     { 'apps.id': oappId },
