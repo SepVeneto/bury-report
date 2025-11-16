@@ -9,6 +9,8 @@ import project from './project.ts'
 import source from './source.ts'
 import record from './record.ts'
 import device from './device.ts'
+import task from './task.ts'
+import statistics from './statistics.ts'
 import { normalizeQuery } from "../utils/tools.ts";
 
 const router = new Router()
@@ -90,5 +92,7 @@ router.use(project.routes())
 router.use(source.routes())
 router.use(record.routes())
 router.use(device.routes())
+router.use(task.routes())
+router.use(statistics.routes())
 
 export default router

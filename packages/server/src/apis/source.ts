@@ -6,7 +6,7 @@ const router = new Router()
 router.get('/source/options', async (ctx) => {
   const source = new Source(ctx.db)
 
-  const options = await source.getAll()
+  const options = await source.getAll({ pid: null })
   ctx.resBody = options
 })
 
@@ -39,6 +39,13 @@ router.delete('/source/:sourceId', async (ctx) => {
   const { sourceId } = ctx.params
   await source.deleteOne(sourceId)
   ctx.resMsg = '删除成功'
+})
+
+router.get('/source/:sourceId/children', async (ctx) => {
+  const source = new Source(ctx.db)
+  const sourceId = ctx.params.sourceId
+  const res = await source.getAll({ pid: sourceId })
+  ctx.resBody = res
 })
 
 export default router

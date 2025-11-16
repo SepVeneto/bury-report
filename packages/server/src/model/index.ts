@@ -1,4 +1,5 @@
-import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId } from "mongodb"
+import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId, Document } from "mongodb"
+import dayjs from 'dayjs'
 
 export type BaseType = {
   is_delete: boolean
@@ -19,23 +20,6 @@ export class Filter<M extends BaseType> {
   }
 }
 
-export type ProjectionType<BaseType> = {
-  [K in keyof BaseType]?: 0 | 1 | boolean
-} & { id?: string }
-export class Projection<M extends BaseType> {
-  public projection: ProjectionType<M>
-  constructor(projection: ProjectionType<M> = {}) {
-    this.projection = {
-      _id: 0,
-      id: '$_id',
-      ...projection,
-    }
-  }
-  build() {
-    return this.projection
-  }
-}
-
 export class Model<M extends BaseType> {
   public col: Collection<M>
   public db: Db
@@ -46,24 +30,22 @@ export class Model<M extends BaseType> {
 
   async findOne(filter = {}) {
     const _filter = new Filter(filter)
-    return await this.col.findOne(_filter.build())
+    return processData(await this.col.findOne(_filter.build()))
   }
-  async findById(id: string, projection = {}): Promise<WithId<M> | null> {
+  async findById(id: string): Promise<WithId<M> | null> {
     const _id = ObjectId.createFromHexString(id)
     const _filter = new Filter({ _id }).build()
-    const _projection = new Projection(projection).build()
-    return await this.col.findOne(_filter, { projection: _projection })
+    return await this.col.findOne(_filter)
   }
-  async getAll(filter = {}, projection = {}) {
+  async getAll(filter = {}) {
     const _filter = new Filter(filter)
-    const _projection = new Projection(projection)
-    return await this.col.find(_filter.build(), { projection: _projection.build() }).toArray()
+    return (await this.col.find(_filter.build()).toArray()).map(processData)
   }
   async updateOne(update: {id: string } & Partial<Omit<M, 'id' | '_id' | 'is_delete'>>) {
     const { id, ...rest } = update
     const _id = ObjectId.createFromHexString(id)
     return await this.col.updateOne({ _id } as MongoFilter<M>, {
-      $set: rest as unknown as  Partial<M>
+      $set: { ...rest, update_time: new Date() } as unknown as  Partial<M>
     })
   }
   async deleteOne(id: string) {
@@ -71,7 +53,7 @@ export class Model<M extends BaseType> {
     return await this.col.updateOne({ _id } as MongoFilter<M>, { $set: { is_delete: true } as Partial<M> })
   }
   async insertOne(data: OptionalUnlessRequiredId<M>) {
-    return await this.col.insertOne(data)
+    return await this.col.insertOne({ ...data, is_delete: false, create_time: new Date() })
   }
 
   async pagination(page: number, size: number, filter = {}) {
@@ -79,8 +61,14 @@ export class Model<M extends BaseType> {
       size = Number(size)
     }
     const skip = Math.max(0, (page - 1)) * size
+    const _filter = new Filter(filter)
 
-    const list = await this.col.find(filter).sort({ _id: -1 }).skip(skip).limit(size).toArray()
+    const list = (await this.col
+      .find(_filter.build())
+      .sort({ _id: -1 })
+      .skip(skip)
+      .limit(size)
+      .toArray()).map(processData)
     const total = await this.col.countDocuments(filter)
 
     return {
@@ -107,7 +95,8 @@ export class Model<M extends BaseType> {
         list = res
       }
     } else {
-      list = await this.col.find().sort({ _id: -1 }).limit(size).toArray()
+      const _filter = new Filter()
+      list = await this.col.find(_filter.build()).sort({ _id: -1 }).limit(size).toArray()
     }
 
     const hasMore = list.length === size
@@ -124,4 +113,42 @@ export class Model<M extends BaseType> {
       }
     }
   }
+
+  async findFromAggregrate(db: Db, name: string, pipeline: Document[]) {
+    const res = db.collection(name).aggregate(pipeline)
+    const collectData = [] 
+
+    let record = await res.next()
+    while(record) {
+      collectData.push(record)
+      record = await res.next()
+    }
+
+    return collectData
+  }
+}
+
+function processData<T extends {
+  _id: ObjectId
+  create_time?: string 
+  update_time?: string
+  is_delete?: boolean
+} | null>(data: T) {
+  if (!data) {
+    return {}
+  }
+  // deno-lint-ignore no-unused-vars
+  const { _id, is_delete, create_time, update_time, ...rest } = data
+  const res: Record<string, unknown> = rest
+
+  if (_id) {
+    res.id = _id.toHexString()
+  }
+  if (create_time) {
+    res.create_time = dayjs(create_time).format('YYYY-MM-DD HH:mm:ss')
+  }
+  if (update_time) {
+    res.update_time = dayjs(update_time).format('YYYY-MM-DD HH:mm:ss')
+  }
+  return rest
 }
