@@ -38,12 +38,11 @@ COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
-RUN ls
 RUN deno cache ./src/main.ts
 
 EXPOSE 8878
 
-CMD ["deno", "task", "dev:local"]
+CMD ["deno", "task", "start"]
 
 FROM node:20.9.0 as build
 

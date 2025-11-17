@@ -8,6 +8,7 @@
     "bootstrap": "wasm-pack build ../sign --target nodejs --out-dir ../sign/pkg-server --mode no-install --scope server",
     "dev": "cross-env REPORT_DB_URL=10.7.12.26:27017 node ./src/main.js",
     "dev:local": "deno --allow-env --allow-sys --allow-net --allow-ffi --allow-read --env-file=.env.local ./src/main.ts",
+    "start": "deno --allow-env --allow-sys --allow-net --allow-ffi --allow-read ./src/main.ts",
     "release": "bumpp --tag server@",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
