@@ -27,22 +27,23 @@ COPY --from=log-server /app/target/release/bury-report-logs ./
 CMD ["/app/bury-report-logs"]
 
 # *************************************
-FROM node:20.9.0 as server
+FROM denoland/deno:2.5.6 as server
 
 WORKDIR /app
 
 COPY ./.npmrc ./pnpm-* ./package.json ./
-COPY ./packages/server/package.json ./packages/server/package.json
-
-RUN npm i -g pnpm && pnpm i
+COPY ./packages/server/package.json ./packages/server/deno.* ./packages/server/
 
 COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
+RUN ls
+RUN deno cache ./src/main.ts
+
 EXPOSE 8878
 
-CMD ["node", "./src/main.js"]
+CMD ["deno", "task", "dev:local"]
 
 FROM node:20.9.0 as build
 
