@@ -1,6 +1,7 @@
 import { Db, Document, Filter, ObjectId, WithId } from "mongodb"
-import { BaseType, Model } from "./index.ts"
-import { IApp } from "./app.ts";
+import { Model } from "./index.ts"
+import type { BaseType } from "./index.ts";
+import type { IApp } from "./app.ts";
 
 interface IProject extends BaseType {
   name: string

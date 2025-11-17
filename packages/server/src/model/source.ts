@@ -14,7 +14,7 @@ export class Source extends Model<ISource> {
   }
 
   async list() {
-    const list = await this.getAll({}, { name: 1, value: 1, pid: 1 })
+    const list = await this.getAll()
     return array2tree(list)
   }
 }

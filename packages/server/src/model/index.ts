@@ -135,7 +135,7 @@ function processData<T extends {
   is_delete?: boolean
 } | null>(data: T) {
   if (!data) {
-    return {}
+    return
   }
   // deno-lint-ignore no-unused-vars
   const { _id, is_delete, create_time, update_time, ...rest } = data

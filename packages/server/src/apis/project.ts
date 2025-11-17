@@ -5,7 +5,7 @@ const router = new Router()
 
 router.get('/project/list', async (ctx) => {
   const project = new Project(ctx.db)
-  const list = await project.getAll({}, { name: 1, apps: 1 })
+  const list = await project.getAll()
   ctx.resBody = list
 })
 

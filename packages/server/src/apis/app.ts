@@ -432,7 +432,7 @@ router.patch('/app/:appId/move_to', async (ctx) => {
     { 'apps.id': oappId },
     { $pull: { apps: { id: oappId } } as Document},
   )
-  const moveApp = await app.findById(appId, { name: 1, icon: 1 })
+  const moveApp = await app.findById(appId)
   await project.col.updateOne({
     _id: ObjectId.createFromHexString(projectId),
   }, {
