@@ -16,16 +16,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@koa/router": "^12.0.1",
-    "croner": "^9.1.0",
     "dayjs": "^1.11.19",
     "jsonwebtoken": "^9.0.2",
-    "koa": "^2.14.2",
-    "koa-body": "^6.0.1",
     "md5": "^2.3.0",
-    "mongodb": "^6.3.0",
-    "uuid": "^13.0.0",
-    "ws": "^8.16.0"
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
