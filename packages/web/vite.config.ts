@@ -13,15 +13,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/server': {
-        target: 'http://localhost:8878',
+        target: 'https://scsj.jsrxjt.com/v2',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/server/, ''),
+        // rewrite: (path) => path.replace(/^\/api\/server/, ''),
       },
-      '/api/report': {
-        target: 'http://localhost:8870',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/report/, ''),
-      },
+      // '/api/report': {
+      //   target: 'http://localhost:8870',
+      //   changeOrigin: true,
+      //   rewrite: (path) => path.replace(/^\/api\/report/, ''),
+      // },
       // '/api/record/ws': {
       //   // target: 'wss://scsj.jsrxjt.com',
       //   target: 'ws://localost:5454',

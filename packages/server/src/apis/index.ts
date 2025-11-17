@@ -18,12 +18,13 @@ const router = new Router()
 const whiteList = ['/login', '/register', '/record', '/captcha']
 
 router.use(async (ctx, next) => {
+  ctx.db = client.db('reporter')
+  ctx.db = client.db('reporter')
   ctx.request.query = normalizeQuery(ctx)
   if (whiteList.includes(ctx.request.url.pathname)) {
     await next()
     return
   }
-  ctx.db = client.db('reporter')
 
   const token = ctx.request.headers.get('authorization') || ctx.request.url.searchParams.get('token')
 
@@ -51,7 +52,7 @@ router.use(async (ctx, next) => {
 
 const portalEntry = ['/project', '/app']
 router.use(async (ctx, next) => {
-  if (portalEntry.some(item => ctx.request.url.pathname.startsWith(item))) {
+  if (whiteList.includes(ctx.request.url.pathname) || portalEntry.some(item => ctx.request.url.pathname.startsWith(item))) {
     await next()
     return
   }
