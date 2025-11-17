@@ -38,7 +38,7 @@ COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
-RUN deno cache ./src/main.ts
+RUN deno install && deno cache ./src/main.ts
 
 EXPOSE 8878
 

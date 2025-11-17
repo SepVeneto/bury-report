@@ -73,9 +73,9 @@ router.get('/captcha', async (ctx, next) => {
   const width = 310
   const height = 155
   const background = canvas.createCanvas(width, height)
-  const block = canvas.createCanvas(width, height)
+  let block = canvas.createCanvas(width, height)
   const backgroundCtx = background.getContext('2d')
-  const blockCtx = block.getContext('2d')
+  let blockCtx = block.getContext('2d')
 
   const image = await canvas.loadImage('./976-310x155.jpg')
   const [x, y] = getRandomPos(width)
@@ -89,12 +89,14 @@ router.get('/captcha', async (ctx, next) => {
   blockCtx.drawImage(image, 0, 0, width, height)
 
   const imageData = blockCtx.getImageData(x, 0, L + L / 2, height)
-  block.width = L + L / 2
+  // block.width = L + L / 2
+  block = canvas.createCanvas(L + L / 2, block.height)
+  blockCtx = block.getContext('2d')
   blockCtx.putImageData(imageData, 0, 0)
 
   const captchaMd5 = md5(`${Date.now()}-captcha`)
   ctx.resBody = {
-    background: background.toDataURL('image/jpeg', 1),
+    background: background.toDataURL(),
     block: block.toDataURL(),
     key: captchaMd5,
   }

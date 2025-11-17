@@ -20,7 +20,6 @@
     "npm:dayjs@^1.11.19": "1.11.19",
     "npm:jsonwebtoken@^9.0.2": "9.0.2",
     "npm:md5@^2.3.0": "2.3.0",
-    "npm:mongodb@6.3.0": "6.3.0",
     "npm:path-to-regexp@^6.3.0": "6.3.0",
     "npm:uuid@13": "13.0.0"
   },
@@ -309,7 +308,7 @@
         "npm:dayjs@^1.11.19",
         "npm:jsonwebtoken@^9.0.2",
         "npm:md5@^2.3.0",
-        "npm:mongodb@6.3.0",
+        "npm:mongodb@^6.3.0",
         "npm:uuid@13"
       ]
     }

@@ -1,5 +1,4 @@
 {
-  "nodeModulesDir": "auto",
   "imports": {
     "croner": "npm:croner",
     "@josefabio/deno-canvas": "jsr:@josefabio/deno-canvas@^1.5.2",

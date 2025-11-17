@@ -213,7 +213,7 @@ importers:
         specifier: ^2.3.0
         version: 2.3.0
       mongodb:
-        specifier: 6.3.0
+        specifier: ^6.3.0
         version: 6.3.0
       uuid:
         specifier: ^13.0.0
