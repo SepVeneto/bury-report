@@ -6,14 +6,17 @@ function init(options: Options) {
     const plugin = new ErrorPlugin()
     plugin.init(options.appid)
 
-    Promise.all([
+    Promise.allSettled([
       loadScript(options.url),
       loadScript(options.url, 'plugins/operationRecord.global.js'),
     ]).then(() => {
+      console.log('foo?')
       plugin.resetListener()
 
       if ('BuryReport' in window) {
-        window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
+        if ('OperationRecordPlugin' in window) {
+          window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
+        }
         // eslint-disable-next-line no-new
         new window.BuryReport(options)
       } else {
@@ -31,8 +34,9 @@ function loadScript(reportUrl: string, entry = 'index.global.js') {
   const coreUrl = `${reportUrl.replace('record', '')}sdk/${versionPefix}/${entry}`
   script.src = coreUrl
   script.crossOrigin = 'anonymous'
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     script.onload = resolve
+    script.onerror = reject
     document.body.appendChild(script)
   })
 }

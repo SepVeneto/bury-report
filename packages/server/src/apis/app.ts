@@ -117,7 +117,7 @@ router.post('/app', async (ctx) => {
     is_delete: false,
   }
   const aid = await app.insertOne(newApp)
-  await project.insertApp(pid, { id: aid.insertedId, ...newApp })
+  await project.insertApp(pid, { id: aid.insertedId.toHexString(), ...newApp })
   ctx.resBody = aid.insertedId
   ctx.resMsg = '应用创建成功'
 })

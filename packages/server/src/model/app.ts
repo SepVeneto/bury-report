@@ -3,6 +3,8 @@ import { BaseType, Model } from "./index.ts";
 
 export interface IApp extends BaseType {
   name: string,
+  icon?: string
+  id?: string
 }
 
 export class App extends Model<IApp> {

@@ -1,4 +1,4 @@
-import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId, Document } from "mongodb"
+import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId } from "mongodb"
 import dayjs from 'dayjs'
 
 export type BaseType = {
@@ -30,7 +30,10 @@ export class Model<M extends BaseType> {
 
   async findOne(filter = {}) {
     const _filter = new Filter(filter)
-    return processData(await this.col.findOne(_filter.build()))
+    const res = await this.col.findOne(_filter.build())
+    if (!res) return
+
+    return processData(res)
   }
   async findById(id: string): Promise<WithId<M> | null> {
     const _id = ObjectId.createFromHexString(id)
@@ -113,19 +116,6 @@ export class Model<M extends BaseType> {
       }
     }
   }
-
-  async findFromAggregrate(db: Db, name: string, pipeline: Document[]) {
-    const res = db.collection(name).aggregate(pipeline)
-    const collectData = [] 
-
-    let record = await res.next()
-    while(record) {
-      collectData.push(record)
-      record = await res.next()
-    }
-
-    return collectData
-  }
 }
 
 function processData<T extends {
@@ -133,10 +123,7 @@ function processData<T extends {
   create_time?: string 
   update_time?: string
   is_delete?: boolean
-} | null>(data: T) {
-  if (!data) {
-    return
-  }
+}>(data: T) {
   // deno-lint-ignore no-unused-vars
   const { _id, is_delete, create_time, update_time, ...rest } = data
   const res: Record<string, unknown> = rest

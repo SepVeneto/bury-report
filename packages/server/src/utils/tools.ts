@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import { Context } from "@oak/oak";
 
 export function normalizeQuery(ctx: Context) {
@@ -15,4 +16,17 @@ export function normalize(objOrArr: object | Array<[string, string]>) {
     all[key] = value
     return all
   }, {})
+}
+
+export function getRecentDays(limit: number, offset?: number) {
+  const time = dayjs().subtract(limit, 'day')
+  if (!offset) {
+    return time.toDate()
+  }
+  if (offset > 0) {
+    time.add(offset, 'hour')
+  } else {
+    time.subtract(Math.abs(offset), 'hour')
+  }
+  return time.toDate()
 }
