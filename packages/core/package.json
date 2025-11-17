@@ -49,7 +49,6 @@
   },
   "dependencies": {
     "@babel/parser": "^7.23.6",
-    "@rrweb/record": "2.0.0-alpha.18",
     "core-js": "^3.39.0",
     "local-pkg": "^0.5.0",
     "recast": "^0.23.4",
@@ -57,6 +56,7 @@
     "unplugin": "^1.5.1"
   },
   "devDependencies": {
+    "@rrweb/record": "2.0.0-alpha.18",
     "@dcloudio/types": "^3.4.3",
     "@sepveneto/eslint-config": "^0.9.1",
     "@swc/core": "^1.7.3",
