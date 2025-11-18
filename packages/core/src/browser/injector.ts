@@ -30,8 +30,9 @@ function init(options: Options) {
 
 function loadScript(reportUrl: string, entry = 'index.global.js') {
   const script = document.createElement('script')
-  const versionPefix = process.env.DEFINE_VERSION?.split('.').slice(0, -1).join('.')
-  const coreUrl = `${reportUrl.replace('record', '')}sdk/${versionPefix}/${entry}`
+  const versionPefix = process.env.DEFINE_VERSION?.replace(/^(\d+\.\d+)\.\d+(-.+)$/, '$1$2')
+  const url = new URL(reportUrl)
+  const coreUrl = `${url.origin}/sdk/${versionPefix}/${entry}`
   script.src = coreUrl
   script.crossOrigin = 'anonymous'
   return new Promise((resolve, reject) => {
