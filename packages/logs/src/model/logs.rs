@@ -1,12 +1,7 @@
 use std::fmt::Debug;
-use log::error;
 
-use futures_util::StreamExt;
-use mongodb::{
-    bson::{doc, DateTime, Document, from_document},
-    Database,
-};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use mongodb::bson::{doc, DateTime};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use super::{
     logs_error,
@@ -15,11 +10,8 @@ use super::{
     serialize_time,
     BaseModel,
     CreateModel,
-    DeleteModel,
-    EditModel,
     PaginationModel,
     QueryModel,
-    QueryResult,
 };
 
 pub const NAME: &str = "records_log";
@@ -176,29 +168,3 @@ impl BaseModel for Model {
 impl PaginationModel for Model {}
 impl QueryModel for Model {}
 impl CreateModel for Model {}
-impl DeleteModel for Model {}
-impl EditModel for Model {}
-
-impl Model { 
-    pub async fn find_from_aggregrate<T>(
-        db: &Database,
-        pipeline: Vec<Document>
-    ) -> QueryResult<Vec<T>>
-    where
-        T: DeserializeOwned
-    {
-        let mut res = <Self as QueryModel>::col(db).aggregate(pipeline, None).await?;
-        let mut collect_data = vec![];
-
-        while let Some(record) = res.next().await {
-            let record = record?;
-            // match
-            if let Ok(record) = from_document(record.clone()) {
-                collect_data.push(record);
-            } else {
-                error!("from document failed: {:?}", record.clone());
-            }
-        }
-        Ok(collect_data)
-    }
-}

@@ -2,7 +2,6 @@ use super::{
     serialize_time,
     BaseModel,
     CreateModel,
-    DeleteModel,
     PaginationModel
 };
 use serde::{Deserialize, Serialize};
@@ -28,5 +27,4 @@ impl BaseModel for Model {
     type Model = Model;
 }
 impl CreateModel for Model {}
-impl DeleteModel for Model {}
 impl PaginationModel for Model {}

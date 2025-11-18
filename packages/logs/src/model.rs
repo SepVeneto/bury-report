@@ -3,11 +3,11 @@ use std::{str::FromStr, time::SystemTime};
 use anyhow::{anyhow, Error};
 use bson::{oid, DateTime};
 use chrono::FixedOffset;
-use log::{debug, error, info};
+use log::{debug, error};
 use mongodb::{
     bson::{self, doc, oid::ObjectId, Document},
     options::FindOptions,
-    results::{InsertManyResult, InsertOneResult, UpdateResult},
+    results::{InsertManyResult, InsertOneResult},
     Collection,
 };
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
@@ -16,20 +16,11 @@ use mongodb::Database;
 use futures_util::{join, StreamExt};
 
 pub mod logs;
-pub mod captcha;
-pub mod users;
-pub mod apps;
-pub mod source;
-pub mod projects;
-pub mod charts;
-pub mod statistics;
 pub mod device;
 pub mod logs_network;
 pub mod logs_error;
 pub mod logs_track;
-pub mod config;
-pub mod trigger;
-pub mod task;
+pub mod apps;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
@@ -52,11 +43,6 @@ pub trait BaseModel {
 
 pub type QueryResult<T> = anyhow::Result<T, ModelError>;
 
-#[derive(Deserialize, Serialize, Clone)]
-pub struct QueryPayload {
-    pub page: u64,
-    pub size: u64,
-}
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct QueryBase<T> {
@@ -95,10 +81,6 @@ impl PaginationOptions {
     }
     pub fn projection(mut self, projection: Document) -> Self {
         self.projection = Some(projection);
-        self
-    }
-    pub fn sort(mut self, sort: Document) -> Self {
-        self.sort = Some(sort);
         self
     }
     pub fn build(self) -> Option<Self> {
@@ -243,19 +225,6 @@ pub trait QueryModel: BaseModel {
         Ok(res)
     }
 
-    async fn find_all(
-        db: &Database,
-        filter: impl Into<Option<Document>>,
-    ) -> QueryResult<Vec<QueryBase<Self::Model>>> {
-        let col = Self::col(db);
-        let mut list: Vec<QueryBase<Self::Model>> = vec![];
-        let mut cursor = col.find(filter, None).await?;
-        while let Some(res) = cursor.next().await {
-            list.push(res?);
-        }
-
-        Ok(list)
-    }
 }
 pub trait CreateModel: BaseModel
 {
@@ -307,90 +276,6 @@ pub trait CreateModel: BaseModel
         Ok(res)
     }
 }
-
-pub trait EditModel: BaseModel + QueryModel {
-    fn col(db: &Database) -> Collection<Document> {
-        let col_name = Self::NAME;
-        db.collection(col_name)
-    }
-    async fn update_one(
-        db: &Database,
-        id: &str,
-        data: &Self::Model,
-    ) -> QueryResult<UpdateResult> {
-        let col = <Self as EditModel>::col(db);
-        let oid = ObjectId::from_str(id)?;
-        let res = Self::find_by_id(db, id).await?;
-        if let Some(_) = res {
-            let mut res = bson::to_document(data)?;
-            res.insert("update_time", DateTime::now());
-            let new_doc = doc! {
-                "$set": res,
-            };
-            let res = col.update_one(
-                doc! {"_id": oid},
-                new_doc,
-                None
-            ).await?;
-            Ok(res)
-        } else {
-            Err(anyhow!("exist").into())
-        }
-    }
-}
-
-pub trait DeleteModel: BaseModel {
-    fn col(db: &Database) -> Collection<Self::Model> {
-        let col_name = Self::NAME;
-        db.collection(col_name)
-    }
-    async fn delete_one(
-        db: &Database,
-        id: &str,
-    ) -> QueryResult<()> {
-        let col = Self::col(db);
-        let oid = ObjectId::from_str(id)?;
-        let res = col.find_one_and_delete(doc! { "_id": oid }, None).await?;
-        if let None = res {
-            Err(anyhow!("记录不存在").into())
-        } else {
-            Ok(())
-        }
-    }
-    async fn _delete_all(
-        db: &Database,
-    ) -> QueryResult<()> {
-        let col = Self::col(db);
-        col.drop(None).await?;
-        Ok(())
-    }
-    async fn delete_many(
-        db: &Database,
-        query: Document,
-    ) -> QueryResult<()> {
-        let col = Self::col(db);
-        let res = col.delete_many(query, None).await?;
-        info!("logs delete: {:?}", res);
-        Ok(())
-    }
-}
-
-// pub fn serialize_time<S>(time: &String, serializer: S) -> Result<S::Ok, S::Error>
-// where
-//     S: Serializer
-// {
-//     // JSON序列化
-//     if serializer.is_human_readable() {
-//         serializer.serialize_str(time)
-//     } else {
-//         // BSON序列化
-//         let naive = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").unwrap();
-//         let chrono_datetime = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
-//         let s = mongodb::bson::DateTime::from_chrono(chrono_datetime);
-//         s.serialize(serializer)
-//     }
-// }
-
 
 pub fn serialize_time<S>(time: &bson::DateTime, serializer: S) -> Result<S::Ok, S::Error>
 where

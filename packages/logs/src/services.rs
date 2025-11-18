@@ -12,17 +12,8 @@ use anyhow::{anyhow, Result};
 
 pub mod ws;
 pub mod actor;
-pub mod source;
-pub mod auth;
 pub mod record_logs;
-pub mod statistics;
-pub mod apps;
-pub mod config;
 pub mod device;
-pub mod project;
-pub mod trigger;
-pub mod task;
-pub mod track;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use log::{error, info };
+use log::error;
 use mongodb::{Client, Database};
 use serde::{Deserialize, Serialize};
 use crate::apis::get_appid;
@@ -9,7 +9,7 @@ use crate::model::logs::RecordPayload;
 use crate::model::{ignore_empty_string, convert_to_i32};
 
 use super::{ApiError, ApiResult, Query};
-use crate::services::{device, record_logs, track};
+use crate::services::{device, record_logs};
 use crate::services::{Response, actor::WsActor};
 
 pub fn init_service(config: &mut web::ServiceConfig) {
@@ -21,7 +21,6 @@ pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(get_network_detail);
   config.service(get_device);
   config.service(get_device_list);
-  config.service(get_track_list);
 //   config.service(get_record_log);
 }
 
@@ -212,19 +211,6 @@ async fn get_device(
     }
 }
 
-#[get("/device/{id}/track-list")]
-async fn get_track_list(
-    client: web::Data<Client>,
-    req: HttpRequest,
-    path: web::Path<String>
-) -> ApiResult {
-    let appid = get_appid(&req)?;
-    let db = db::DbApp::get_by_appid(&client, &appid);
-    let device_id = path.into_inner();
-    let res = track::get_track_list(&db, &device_id).await?;
-
-    Response::ok(res, None).to_json()
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DeviceFilter {

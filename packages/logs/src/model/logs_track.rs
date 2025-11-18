@@ -3,7 +3,6 @@ use super::{
     BaseModel,
     QueryModel,
     CreateModel,
-    DeleteModel,
     PaginationModel,
 };
 use serde::{Deserialize, Serialize};
@@ -30,5 +29,4 @@ impl BaseModel for Model {
 }
 impl QueryModel for Model {}
 impl CreateModel for Model {}
-impl DeleteModel for Model {}
 impl PaginationModel for Model {}

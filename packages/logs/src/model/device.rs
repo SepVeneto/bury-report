@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use crate::model::serialize_time;
 
-use super::{BaseModel, CreateModel, EditModel, PaginationModel, QueryBase, QueryModel, QueryResult};
+use super::{BaseModel, CreateModel, PaginationModel, QueryBase, QueryModel, QueryResult};
 
 pub type DeviceInfo = Map<String, Value>;
 #[derive(Serialize, Deserialize, Debug)]
@@ -32,5 +32,4 @@ impl BaseModel for Model {
 }
 impl CreateModel for Model {}
 impl QueryModel for Model {}
-impl EditModel for Model {}
 impl PaginationModel for Model {}
