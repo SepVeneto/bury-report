@@ -46,7 +46,12 @@ enum RecordList {
     TrackList(Vec<logs_track::Model>),
     CustomList(Vec<logs::Model>),
 }
-pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) -> ServiceResult<()> {
+pub async fn record(
+    client: &Client,
+    db: &Database,
+    data: &logs::RecordPayload,
+    ip: Option<String>,
+) -> ServiceResult<()> {
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {
@@ -56,7 +61,7 @@ pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) 
     match data {
         logs::RecordPayload::V1(v1) => {
             let db = &db::DbApp::get_by_appid(client, &appid);
-            match v1.normalize_from() {
+            match v1.normalize_from(ip) {
                 logs::RecordItem::Log(log) => {
                     logs::Model::insert_one(db, log).await?;
                 },
@@ -75,7 +80,7 @@ pub async fn record(client: &Client, db: &Database, data: &logs::RecordPayload) 
             }
         },
         logs::RecordPayload::V2(v2) => {
-            let group  = group_records(&v2.data);
+            let group  = group_records(&v2.data, ip);
             let appid = v2.appid.to_string();
 
             let db = &db::DbApp::get_by_appid(client, &appid);
@@ -125,14 +130,14 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
     }
     Ok(())
 }
-fn group_records<'a>(list: &'a Vec<logs::RecordV1>) -> HashMap<&'a str, RecordList> {
+fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashMap<&'a str, RecordList> {
     let mut list_collect = vec![];
     let mut list_network = vec![];
     let mut list_error = vec![];
     let mut list_track = vec![];
 
     list.iter().for_each(|item| {
-        match item.normalize_from() {
+        match item.normalize_from(ip.clone()) {
             logs::RecordItem::Log(log) => {
                 list_collect.push(log);
             },

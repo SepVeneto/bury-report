@@ -49,12 +49,18 @@ async fn record_ws(
 async fn record_log(
     client: web::Data<Client>,
     db: web::Data<Database>,
+    req: HttpRequest,
     svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
 ) -> ApiResult {
     // default size limit 256KB
     let json = payload_handler(json_body).await?;
-    record_logs::record(&client, &db, &json).await?;
+    let mut ip = None;
+    if let Some(val) = req.headers().get("X-Real-IP") {
+        ip = Some(val.to_str().unwrap().to_string());
+    }
+
+    record_logs::record(&client, &db, &json, ip).await?;
 
     record_logs::send_to_ws(&svr, &json)?;
 

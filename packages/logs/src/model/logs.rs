@@ -77,11 +77,12 @@ pub enum RecordItem {
     Custom(Model),
 }
 impl RecordV1 {
-    pub fn normalize_from(&self) -> RecordItem {
+    pub fn normalize_from(&self, ip: Option<String>) -> RecordItem {
         if self.r#type == TYPE_LOG {
             RecordItem::Log(Log {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
+                ip,
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
@@ -122,6 +123,7 @@ impl RecordV1 {
             RecordItem::Custom(Log {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
+                ip,
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
@@ -154,6 +156,7 @@ pub struct Model {
   pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,
+  pub ip: Option<String>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
   pub device_time: Option<String>,
