@@ -18,6 +18,10 @@ export function normalize(objOrArr: object | Array<[string, string]>) {
   }, {})
 }
 
+export function toDate(date: string) {
+  return dayjs(date).toDate()
+}
+
 export function getRecentDays(limit: number, offset?: number) {
   const time = dayjs().subtract(limit, 'day')
   if (!offset) {
@@ -29,4 +33,14 @@ export function getRecentDays(limit: number, offset?: number) {
     time.subtract(Math.abs(offset), 'hour')
   }
   return time.toDate()
+}
+
+export function escapeRegExp(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+export function createDebug(name: string) {
+  return (...args: unknown[]) => {
+    console.log(`[${name}]`, ...args)
+  }
 }

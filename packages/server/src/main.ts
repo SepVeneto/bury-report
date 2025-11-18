@@ -22,7 +22,7 @@ app.listen({ port: 8878 })
 initSched()
 
 function initSched() {
-  TaskManager.add('CYCLE_GC', new Cron('0 0 4 * * *', async () => {
+  const task = new Cron('0 0 4 * * *', async () => {
     const reporter = client.db('reporter')
     const config = new Config(reporter)
     const _config = (await config.find()) || { cycle_log: 7, cycle_api: 3, cycle_error: 30 };
@@ -38,7 +38,9 @@ function initSched() {
       clearError(appDb, _config.cycle_error)
       clearLog(appDb, _config.cycle_log)
     })
-  }))
+  })
+  task.name = 'CYCLE_GC'
+  TaskManager.add('CYCLE_GC', task)
 }
 
 async function clearLog(db: Db, limit: number) {

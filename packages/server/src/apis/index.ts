@@ -19,8 +19,11 @@ const whiteList = ['/login', '/register', '/record', '/captcha']
 
 router.use(async (ctx, next) => {
   ctx.db = client.db('reporter')
-  ctx.db = client.db('reporter')
   ctx.request.query = normalizeQuery(ctx)
+  await next()
+})
+
+router.use(async (ctx, next) => {
   if (whiteList.includes(ctx.request.url.pathname)) {
     await next()
     return

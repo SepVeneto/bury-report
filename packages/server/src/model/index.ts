@@ -1,22 +1,42 @@
 import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId } from "mongodb"
 import dayjs from 'dayjs'
+import { escapeRegExp } from "../utils/tools.ts";
 
 export type BaseType = {
   is_delete: boolean
 }
 
 export class Filter<M extends BaseType> {
-  public filter: MongoFilter<M>
+  public model: MongoFilter<M>
   constructor(filter: MongoFilter<M> = {}) {
-    this.filter = {
+    this.model = {
       ...filter,
       is_delete: {
         $ne: true
       }
     }
   }
+  rangeTime(key: string, from?: string, to?: string) {
+    if (!from && !to) return
+
+    Object.assign(this.model, { [key]: {} })
+    if (from) {
+      Object.assign(this.model[key], { $gte: dayjs(from).toDate() })
+    }
+    if (to) {
+      Object.assign(this.model[key], { $lte: dayjs(to).toDate() })
+    }
+  }
+  equal(key: string, value?: string) {
+    if (!value) return
+    Object.assign(this.model, { [key]: value })
+  }
+  like(key: string, value?: string) {
+    if (!value) return
+    Object.assign(this.model, { [key]: { $regex: escapeRegExp(value) }})
+  }
   build() {
-    return this.filter as Filter<M>
+    return this.model as Filter<M>
   }
 }
 
@@ -28,9 +48,8 @@ export class Model<M extends BaseType> {
     this.col = db.collection<M>(name)
   }
 
-  async findOne(filter = {}) {
-    const _filter = new Filter(filter)
-    const res = await this.col.findOne(_filter.build())
+  async findOne(filter: Filter<M>) {
+    const res = await this.col.findOne(filter.build())
     if (!res) return
 
     return processData(res)
@@ -59,15 +78,14 @@ export class Model<M extends BaseType> {
     return await this.col.insertOne({ ...data, is_delete: false, create_time: new Date() })
   }
 
-  async pagination(page: number, size: number, filter = {}) {
+  async pagination(page: number, size: number, filter: Filter<M> = new Filter()) {
     if (typeof size === 'string') {
       size = Number(size)
     }
     const skip = Math.max(0, (page - 1)) * size
-    const _filter = new Filter(filter)
 
     const list = (await this.col
-      .find(_filter.build())
+      .find(filter.build())
       .sort({ _id: -1 })
       .skip(skip)
       .limit(size)

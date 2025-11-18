@@ -4,6 +4,9 @@ import { TaskManager } from "../utils/index.ts";
 import { Cron } from "croner";
 import { v4 as uuidv4 } from 'uuid'
 import { Db } from "mongodb";
+import { createDebug } from "../utils/tools.ts";
+
+const log = createDebug('task')
 
 const router = new Router()
 
@@ -43,8 +46,8 @@ router.delete('/trigger/:triggerId', async (ctx) => {
 router.get('/trigger/list', async (ctx) => {
   const task = new Trigger(ctx.db)
 
-  const { page, size, ...query } = ctx.request.query
-  const res = await task.pagination(page, size, query)
+  const { page, size } = ctx.request.query
+  const res = await task.pagination(page, size)
   ctx.resBody = res
 })
 
@@ -98,13 +101,17 @@ router.put('/task/:taskId', async (ctx) => {
   if (data.immediate) {
     await task.updateOne({ ...data, id: taskId })
     await issue(ctx.db, taskId)
+    log('当前任务列表：',TaskManager.names)
   } else {
+    log('修改定时任务，job: ', data.job_id)
     data.job_id && TaskManager.remove(data.job_id)
-    // TODO: 时间校准
+    log('当前任务列表：',TaskManager.names)
     const cron = new Cron(data.execute_time, () => {
       issue(ctx.db, taskId)
     })
+    cron.name = jobId
     TaskManager.add(jobId, cron)
+    log('当前任务列表：',TaskManager.names)
     await task.updateOne({ ...data, id: taskId, job_id: jobId, status: TaskStatus.Pending })
   }
   ctx.resMsg = '修改成功'
@@ -132,8 +139,9 @@ router.post('/task/:taskId/trigger', async (ctx) => {
 router.get('/task/list', async (ctx) => {
   const task = new Task(ctx.db)
 
-  const { page, size, ...query } = ctx.request.query
-  const res = await task.pagination(page, size, query)
+  const { page, size } = ctx.request.query
+
+  const res = await task.pagination(page, size)
   ctx.resBody = res
 })
 
@@ -162,9 +170,9 @@ async function issue(
   }
 
   try {
-    await triggerWebhook(tri.webhook, { name }, )
+    await triggerWebhook(tri.webhook)
     if (notify) {
-      await triggerNotify(notify.webhook, { name }, TaskStatus.Success)
+      await triggerNotify(notify.webhook, { name: taskRes.name }, TaskStatus.Success)
     }
     task.updateOne({ id: taskId, job_id: undefined, status: TaskStatus.Success })
   } catch (e) {
@@ -178,21 +186,13 @@ async function issue(
 
 async function triggerWebhook(
   webhook: string,
-  task: { name: ITask['name'] },
 ) {
-  const data = {
-    "msgtype": "text",
-    "text": {
-        "content": task.name,
-    }
-  }
-
   await fetch(webhook, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify({}),
   }).catch(err => {
     throw err
   })
@@ -217,7 +217,7 @@ async function triggerNotify(
   }
 
 
-  const res = await fetch(webhook, {
+  await fetch(webhook, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -226,6 +226,5 @@ async function triggerNotify(
   }).catch(err => {
     throw err
   })
-  console.log(res)
 }
 
