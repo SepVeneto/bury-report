@@ -219,7 +219,7 @@ function filterBnIcon(bn: DeviceInfo['bn']) {
 }
 
 const deviceInfo = [
-  { label: '访问IP', prop: 'id' },
+  { label: '访问IP', prop: 'ip' },
   { label: '设备类型', prop: 'dt' },
   { label: '设备型号', prop: 'dm', filter: filterModel },
   { label: '设备方向', prop: 'do', filter: filterDo },

@@ -101,6 +101,7 @@ export function getAppChart(appid: string, chartType: string) {
 }
 
 type DeviceCommon = {
+  ip?: string
   /**
    * 设备类型
    */
