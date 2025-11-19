@@ -54,6 +54,7 @@ async fn record_log(
     json_body: web::Payload,
 ) -> ApiResult {
     // default size limit 256KB
+    // 10MB
     let json = payload_handler(json_body).await?;
     let mut ip = None;
     if let Some(val) = req.headers().get("X-Real-IP") {

@@ -36,6 +36,7 @@ async fn main() -> std::io::Result<()> {
   info!("starting HTTP server at http://localhost:8870");
   HttpServer::new(move || {
     App::new()
+      .app_data(web::PayloadConfig::new(10 * 1024 * 1024))
       .app_data(web::Data::new(client.clone()))
       .app_data(web::Data::new(db.clone()))
       .app_data(web::Data::new(server.clone()))
