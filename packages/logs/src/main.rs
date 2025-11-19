@@ -8,11 +8,16 @@ mod middleware;
 mod utils;
 
 
+use std::sync::Arc;
+use std::time::Duration;
+
 use crate::services::actor;
 
 use actix::Actor;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
-use log::info;
+use log::{info, error};
+use rdkafka::ClientConfig;
+use rdkafka::producer::{BaseProducer, Producer};
 
 #[post("/verify_ticket")]
 async fn ticket(req_body: String) -> impl Responder {
@@ -32,20 +37,47 @@ async fn main() -> std::io::Result<()> {
 
   let (client, db) = db::connect_db().await;
   let server = actor::WsActor::new().start();
+  let producer: BaseProducer = ClientConfig::new()
+    .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
+    .set("message.timeout.ms", "5000")
+    .create()
+    .expect("Producer creation error");
+  let producer_data = web::Data::new(Arc::new(producer));
+  let producer_for_shutdown = producer_data.get_ref().clone();
 
   info!("starting HTTP server at http://localhost:8870");
-  HttpServer::new(move || {
+  let server = HttpServer::new(move || {
     App::new()
       .app_data(web::PayloadConfig::new(10 * 1024 * 1024))
       .app_data(web::Data::new(client.clone()))
       .app_data(web::Data::new(db.clone()))
       .app_data(web::Data::new(server.clone()))
-      .wrap(middleware::Auth)
+      .app_data(producer_data.clone())
+    //   .wrap(middleware::Auth)
       .configure(routes::services)
   })
   .bind(("0.0.0.0", 8870))?
-  .run()
-  .await
+  .run();
+
+
+  let handle = server.handle();
+
+  actix_web::rt::spawn(async move {
+    if let Err(e) = tokio::signal::ctrl_c().await {
+        error!("Unable to listen for shutdown signal: {}", e);
+        return;
+    }
+
+    info!("Flushing Kafka producer...");
+    let _ = producer_for_shutdown.flush(Duration::from_secs(5));
+    info!("Kafka producer flushed, shutdown complete.");
+
+    info!("Shutdown signal received, stopping server...");
+    handle.stop(true).await;
+  });
+
+  info!("HTTP server running.");
+  server.await
 }
 
 fn init_log() {

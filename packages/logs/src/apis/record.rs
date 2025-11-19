@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
-use log::error;
+use log::{error, info};
 use mongodb::{Client, Database};
+use rdkafka::producer::BaseProducer;
 use serde::{Deserialize, Serialize};
 use crate::apis::get_appid;
 use crate::db;
@@ -50,9 +53,11 @@ async fn record_log(
     client: web::Data<Client>,
     db: web::Data<Database>,
     req: HttpRequest,
-    svr: web::Data<Addr<WsActor>>,
+    producer: web::Data<Arc<BaseProducer>>,
+    // svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
 ) -> ApiResult {
+    info!("Received log");
     // default size limit 256KB
     // 10MB
     let json = payload_handler(json_body).await?;
@@ -61,9 +66,10 @@ async fn record_log(
         ip = Some(val.to_str().unwrap().to_string());
     }
 
-    record_logs::record(&client, &db, &json, ip).await?;
+    record_logs::record(&client, &db, &json, &producer, ip).await?;
+    // record_logs::record(&client, &db, &json, ip).await?;
 
-    record_logs::send_to_ws(&svr, &json)?;
+    // record_logs::send_to_ws(&svr, &json)?;
 
     Response::ok("", None).to_json()
 }

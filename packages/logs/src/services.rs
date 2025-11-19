@@ -14,6 +14,7 @@ pub mod ws;
 pub mod actor;
 pub mod record_logs;
 pub mod device;
+pub mod task;
 
 #[derive(Debug, Error)]
 pub enum ServiceError {

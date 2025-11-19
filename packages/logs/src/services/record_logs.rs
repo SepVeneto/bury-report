@@ -7,24 +7,15 @@ use bson::doc;
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
+use rdkafka::producer::BaseProducer;
 
 use crate::{
-    apis::{record::{ErrorFilter, FilterNetwork, LogFilter}, Query},
+    apis::{Query, record::{ErrorFilter, FilterNetwork, LogFilter}},
     db,
     model::{
-        apps,
-        logs,
-        logs_error,
-        logs_track,
-        logs_network,
-        CreateModel,
-        PaginationModel,
-        PaginationOptions,
-        PaginationResult,
-        QueryBase,
-        QueryModel,
+        CreateModel, PaginationModel, PaginationOptions, PaginationResult, QueryBase, QueryModel, apps, logs, logs_error, logs_network, logs_track
     },
-    services::gen_timerange_doc
+    services::{gen_timerange_doc, task::{send_batch_to_kafka, send_to_kafka}}
 };
 
 use super::{actor::{LogMessage, WsActor}, ws::WebsocketConnect, ServiceError, ServiceResult};
@@ -39,7 +30,7 @@ pub async fn check_appid(db: &Database, appid: &str) -> ServiceResult<bool> {
 }
 
 #[derive(Clone)]
-enum RecordList {
+pub enum RecordList {
     LogList(Vec<logs::Model>),
     NetworkList(Vec<logs_network::Model>),
     ErrorList(Vec<logs_error::Model>),
@@ -50,6 +41,7 @@ pub async fn record(
     client: &Client,
     db: &Database,
     data: &logs::RecordPayload,
+    producer: &BaseProducer,
     ip: Option<String>,
 ) -> ServiceResult<()> {
     let appid = data.get_appid();
@@ -72,7 +64,7 @@ pub async fn record(
                     logs_error::Model::insert_one(db, err).await?;
                 },
                 logs::RecordItem::Track(track) => {
-                    logs_track::Model::insert_one(db, track).await?;
+                    send_to_kafka(producer, &track);
                 }
                 logs::RecordItem::Custom(data) => {
                     logs::Model::insert_one(db, data).await?;
@@ -84,9 +76,10 @@ pub async fn record(
             let appid = v2.appid.to_string();
 
             let db = &db::DbApp::get_by_appid(client, &appid);
+
+            send_batch_to_kafka(producer, &group["track"]);
             insert_group(db, &group["collect"]).await?;
             insert_group(db, &group["network"]).await?;
-            insert_group(db, &group["track"]).await?;
             insert_group(db, &group["error"]).await?;
         }
     }
@@ -165,7 +158,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
     }
 }
 
-pub fn send_to_ws(svr: &Addr<WsActor>, data: &logs::RecordPayload) -> ServiceResult<()> {
+pub fn _send_to_ws(svr: &Addr<WsActor>, data: &logs::RecordPayload) -> ServiceResult<()> {
     let text = match data.to_string() {
         Ok(res) => res,
         Err(err) => {
