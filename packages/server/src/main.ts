@@ -8,7 +8,7 @@ import { Config } from "./model/config.ts";
 import { App } from "./model/app.ts";
 import { Db } from "mongodb";
 import { RecordApi, RecordLog, RecordError } from "./model/record.ts";
-import { getRecentDays } from "./utils/tools.ts";
+import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Statistics } from "./model/statistics.ts";
 
 process.env.TZ = 'Asia/Shanghai'
@@ -22,7 +22,9 @@ app.listen({ port: 8878 })
 initSched()
 
 function initSched() {
+  const log = createDebug('gc')
   const task = new Cron('0 0 4 * * *', async () => {
+    log('start gc task...')
     const reporter = client.db('reporter')
     const config = new Config(reporter)
     const _config = (await config.find()) || { cycle_log: 7, cycle_api: 3, cycle_error: 30 };

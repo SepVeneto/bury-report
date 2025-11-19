@@ -34,7 +34,7 @@ router.get('/device/:deviceId', async (ctx) => {
 
     const logRes = await log.findOne(filter)
     if (logRes) {
-      ctx.resBody = logRes.data
+      ctx.resBody = { ...logRes.data, ip: logRes.ip }
     } else {
       ctx.resCode = 1
       ctx.resMsg = '设备不存在'

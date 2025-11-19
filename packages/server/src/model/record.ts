@@ -6,6 +6,7 @@ export interface IRecord extends BaseType {
   appid: string,
   data: object,
   uuid: string,
+  ip?: string,
   session?: string,
   time?: string,
 }
