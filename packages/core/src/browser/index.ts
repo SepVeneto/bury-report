@@ -1,7 +1,7 @@
 import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
-import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
+import { LIFECYCLE, REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
 import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/utils'
 import workerStr from './worker?raw'
 import { ErrorPlugin } from './plugins/error'
@@ -45,6 +45,15 @@ export class BuryReport implements BuryReportBase {
       }
     })
     this.triggerPlugin('init')
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        this.report?.(LIFECYCLE, { t: 'visibilitychange' }, true)
+      }
+    })
+    window.addEventListener('pagehide', (evt) => {
+      this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, true)
+    })
   }
 
   private triggerPlugin(lifecycle: 'init') {
