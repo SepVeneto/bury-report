@@ -9,3 +9,7 @@ env_logger = "0.10.1"
 qcos = "0.1"
 log = "0.4.20"
 tokio = "1.39.2"
+rdkafka = { version = "0.38", features = ["tokio", "cmake-build"] }
+futures = "0.3"
+chrono = "0.4.31"
+chrono-tz = "0.9.0"
