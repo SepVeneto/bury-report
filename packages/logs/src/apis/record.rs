@@ -63,7 +63,7 @@ async fn record_log(
     let json = payload_handler(json_body).await?;
     let mut ip = None;
     if let Some(val) = req.headers().get("X-Real-IP") {
-        ip = Some(val.to_str().unwrap().to_string());
+        ip = Some(val.to_str().unwrap_or("").to_string());
     }
 
     record_logs::record(&client, &db, &json, &producer, ip).await?;
