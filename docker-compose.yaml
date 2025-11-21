@@ -112,6 +112,14 @@ services:
     depends_on:
       - redpanda-0
 
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - redpanda_network
+  
 networks:
   redpanda_network:
     driver: bridge

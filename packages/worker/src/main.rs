@@ -8,6 +8,8 @@ use qcos::request::ErrNo;
 use rdkafka::{ClientConfig, Message};
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use futures::StreamExt;
+use redis::AsyncCommands;
+use redis::aio::MultiplexedConnection;
 
 
 
@@ -17,6 +19,8 @@ async fn main() {
 
   info!("Worker started");
     dotenv::from_filename(".env.local").ok();
+
+    let conn = init_redis().await.unwrap();
 
     let brokers = std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS");
     let consumer: StreamConsumer = ClientConfig::new()
@@ -40,6 +44,7 @@ async fn main() {
           let payload = match m.payload_view::<str>() {
             Some(Ok(s)) => {
               // TODO
+              conn.set("test", s).await.unwrap();
             },
             Some(Err(e)) => {
               info!("Error while decoding payload: {}", e);
@@ -117,3 +122,9 @@ fn init_log() {
   info!("env_logger initialized.");
 }
 
+async fn init_redis() -> redis::RedisResult<MultiplexedConnection> {
+  let client = redis::Client::open("redis://redis:6379")?;
+  let conn = client.get_multiplexed_async_connection().await?;
+
+  Ok(conn)
+}
