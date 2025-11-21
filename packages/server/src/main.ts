@@ -9,7 +9,7 @@ import { App } from "./model/app.ts";
 import { Db } from "mongodb";
 import { RecordApi, RecordLog, RecordError } from "./model/record.ts";
 import { createDebug, getRecentDays } from "./utils/tools.ts";
-import { Statistics } from "./model/statistics.ts";
+import { Device } from "./model/device.ts";
 
 process.env.TZ = 'Asia/Shanghai'
 
@@ -79,8 +79,8 @@ async function clearApi(db: Db, limit: number) {
 }
 
 async function collectDevices(db: Db, limit: number) {
-  const statistics = new Statistics(db)
-  await statistics.aggregateDevices(db, limit)
+  const device = new Device(db)
+  await device.aggregateDevices(db, limit)
 }
 
 async function clearInfo(db: Db, limit: number) {
