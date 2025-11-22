@@ -56,12 +56,13 @@
     "unplugin": "^1.5.1"
   },
   "devDependencies": {
-    "@rrweb/record": "2.0.0-alpha.18",
     "@dcloudio/types": "^3.4.3",
+    "@rrweb/record": "2.0.0-alpha.18",
     "@sepveneto/eslint-config": "^0.9.1",
     "@swc/core": "^1.7.3",
     "@types/debug": "^4.1.12",
     "@types/node": "^20.10.5",
+    "@types/pako": "^2.0.4",
     "chalk": "^5.3.0",
     "debug": "^4.3.4",
     "esbuild": "^0.25.3",

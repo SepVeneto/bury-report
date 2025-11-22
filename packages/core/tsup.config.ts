@@ -4,6 +4,7 @@ import swc from '@swc/core'
 import { buildSync, transformSync } from 'esbuild'
 import path from 'node:path'
 import { version } from './package.json'
+import { InlineWorkerPlugin } from './lib/inline-worker'
 
 const browser: Options = {
   entry: [
@@ -13,38 +14,40 @@ const browser: Options = {
   clean: true,
   format: ['iife'],
   platform: 'browser',
+  splitting: false,
   minify: 'terser',
   esbuildPlugins: [
-    {
-      name: 'ts-raw-import',
-      setup(build) {
-        build.onResolve({ filter: /\?raw$/ }, (args) => {
-          return {
-            path: args.path,
-            pluginData: path.resolve(args.resolveDir, args.path).replace(/\?raw$/, ''),
-            namespace: 'ts-raw',
-          }
-        })
+    // {
+    //   name: 'ts-raw-import',
+    //   setup(build) {
+    //     build.onResolve({ filter: /\?raw$/ }, (args) => {
+    //       return {
+    //         path: args.path,
+    //         pluginData: path.resolve(args.resolveDir, args.path).replace(/\?raw$/, ''),
+    //         namespace: 'ts-raw',
+    //       }
+    //     })
 
-        build.onLoad({ filter: /\?raw$/ }, async (args) => {
-          const filepath = args.pluginData + '.ts'
+    //     build.onLoad({ filter: /\?raw$/ }, async (args) => {
+    //       const filepath = args.pluginData + '.ts'
 
-          const tsCode = fs.readFileSync(filepath, 'utf-8')
+    //       const tsCode = fs.readFileSync(filepath, 'utf-8')
 
-          const result = transformSync(tsCode, {
-            loader: 'ts',
-            format: 'esm',
-            target: 'chrome68',
-            minify: true,
-          })
+    //       const result = transformSync(tsCode, {
+    //         loader: 'ts',
+    //         format: 'iife',
+    //         target: 'chrome68',
+    //       })
 
-          return {
-            contents: `export default ${JSON.stringify(result.code)}`,
-            loader: 'js',
-          }
-        })
-      },
-    },
+    //       return {
+    //         contents: `export default ${JSON.stringify(result.code)}`,
+    //         loader: 'js',
+    //         resolveDir: path.dirname(args.path),
+    //       }
+    //     })
+    //   },
+    // },
+    InlineWorkerPlugin(),
   ],
 }
 

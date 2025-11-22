@@ -158,6 +158,8 @@ export function storageReport(
   type: string,
   data: Record<string, any>,
   store = true,
+  cache?: any,
+  stamp?: number,
 ) {
   const uuid = getUuid()
   const sessionId = getSessionId()
@@ -167,10 +169,12 @@ export function storageReport(
     type,
     data,
     time: new Date().toLocaleString(),
+    stamp,
   }
 
   if (!store) {
-    return record
+    cache.push(store)
+    return
   }
 
   const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]') as Array<any>

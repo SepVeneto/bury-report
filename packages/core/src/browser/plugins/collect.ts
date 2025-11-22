@@ -9,7 +9,7 @@ export class CollectPlugin implements BuryReportPlugin {
   init(ctx: BuryReport) {
     const stat = this.getSystemInfo()
 
-    ctx.report?.(COLLECT_INFO, stat, true)
+    ctx.report?.(COLLECT_INFO, stat, true, false)
   }
 
   getSystemInfo() {

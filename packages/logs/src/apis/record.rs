@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use actix_web::{get, post, web, HttpRequest};
 use actix::Addr;
+use flate2::read::GzDecoder;
 use log::{error, info};
 use mongodb::{Client, Database};
 use rdkafka::producer::BaseProducer;
@@ -14,6 +15,7 @@ use crate::model::{ignore_empty_string, convert_to_i32};
 use super::{ApiError, ApiResult, Query};
 use crate::services::{device, record_logs};
 use crate::services::{Response, actor::WsActor};
+use std::io::Read;
 
 pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_log);
@@ -57,10 +59,19 @@ async fn record_log(
     // svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
 ) -> ApiResult {
-    info!("Received log");
     // default size limit 256KB
     // 10MB
-    let json = payload_handler(json_body).await?;
+    let is_gzip = if let Some(enc) = req.headers().get("Content-Encoding") {
+        if enc.to_str().unwrap_or("") == "gzip" {
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+    let json = payload_handler(json_body, true).await?;
+    info!("Received log {:?}", json);
     let mut ip = None;
     if let Some(val) = req.headers().get("X-Real-IP") {
         ip = Some(val.to_str().unwrap_or("").to_string());
@@ -126,7 +137,7 @@ async fn get_error(
     Response::ok(res, None).to_json()
 }
 
-async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload, ApiError> {
+async fn payload_handler(payload: web::Payload, is_gzip: bool) -> anyhow::Result<RecordPayload, ApiError> {
     let res = match payload.to_bytes().await {
         Ok(res) => res,
         Err(err) => { return Err(ApiError::ValidateError {
@@ -137,7 +148,20 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
         }); }
     };
 
-    let json = serde_json::from_slice::<RecordPayload>(&res);
+    let bytes = if let Some((is_gzip, bytes)) = res.split_first() {
+        if *is_gzip == 1 {
+            let mut decoder = GzDecoder::new(&bytes[..]);
+            let mut decompressed: Vec<u8> = Vec::new();
+            let _ = decoder.read_to_end(&mut decompressed);
+            decompressed
+        } else {
+            res.to_vec()
+        }
+    } else {
+        res.to_vec()
+    };
+
+    let json = serde_json::from_slice::<RecordPayload>(&bytes);
 
     match json {
         Ok(json) => Ok(json),

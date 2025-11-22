@@ -62,6 +62,7 @@ pub struct RecordV1 {
   pub uuid: String,
   pub session: Option<String>,
   pub time: Option<String>,
+  pub stamp: Option<f64>,
 }
 const TYPE_LOG: &'static str = "__BR_COLLECT_INFO__";
 const TYPE_NETWORK: &'static str = "__BR_API__";
