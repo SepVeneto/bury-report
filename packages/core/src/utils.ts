@@ -173,7 +173,7 @@ export function storageReport(
   }
 
   if (!store) {
-    cache.push(store)
+    cache.push(record)
     return
   }
 

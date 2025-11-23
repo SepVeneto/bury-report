@@ -5,6 +5,9 @@ self.onmessage = (evt) => {
     case 'report': {
       const { store, cache, appid } = evt.data
       const data = [...store, ...cache].map(item => ({ ...item, appid })).sort((a: any, b: any) => a.stamp - b.stamp)
+      console.log('report', data, evt.data)
+      if (!data.length) return
+
       degradationReport({ appid, data }).finally(() => {
         self.postMessage('finish')
       })

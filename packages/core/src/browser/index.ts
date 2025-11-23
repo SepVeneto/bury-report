@@ -96,8 +96,6 @@ function createProxy(options: Options) {
       if (record) {
         list.push(record)
       }
-      if (!list.length) return
-
       // const body = JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) })
 
       window.__BR_WORKER__ && window.__BR_WORKER__.postMessage({

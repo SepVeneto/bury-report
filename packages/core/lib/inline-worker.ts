@@ -1,8 +1,8 @@
-import fs from 'fs'
 import path from 'path'
 import esbuild from 'esbuild'
+import type { EsbuildPlugin } from 'unplugin'
 
-export function InlineWorkerPlugin() {
+export function InlineWorkerPlugin(): EsbuildPlugin {
   return {
     name: 'inline-worker',
     setup(build) {
