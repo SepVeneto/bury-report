@@ -4,6 +4,7 @@ use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use bson::doc;
+use log::info;
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
@@ -44,12 +45,14 @@ pub async fn record(
     producer: &BaseProducer,
     ip: Option<String>,
 ) -> ServiceResult<()> {
+    info!("record log");
     let appid = data.get_appid();
     let app = apps::Model::find_by_id(db, &appid).await?;
     if let None = app {
         return Err(anyhow!("没有对应的应用").into());
     }
 
+    info!("record log {:?}", data);
     match data {
         logs::RecordPayload::V1(v1) => {
             let db = &db::DbApp::get_by_appid(client, &appid);
@@ -141,6 +144,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
                 list_error.push(err);
             },
             logs::RecordItem::Track(track) => {
+                info!("track: {:?}", track);
                 list_track.push(track)
             }
             logs::RecordItem::Custom(log) => {

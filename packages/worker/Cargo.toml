@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-redis = { version = "0.25", features = ["tokio-comp"] }
+redis = { version = "0.32", features = ["tokio-comp"] }
 dotenv = "0.15.0"
 env_logger = "0.10.1"
 qcos = "0.1"

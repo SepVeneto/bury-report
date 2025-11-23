@@ -119,6 +119,8 @@ services:
       - "6379:6379"
     networks:
       - redpanda_network
+    command: ["redis-server", "--notify-keyspace-events", "Ex"]
+
   
 networks:
   redpanda_network:

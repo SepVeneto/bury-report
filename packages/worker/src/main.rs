@@ -8,8 +8,9 @@ use qcos::request::ErrNo;
 use rdkafka::{ClientConfig, Message};
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use futures::StreamExt;
-use redis::AsyncCommands;
+use redis::{AsyncCommands, Expiry, PubSub, RedisError};
 use redis::aio::MultiplexedConnection;
+
 
 
 
@@ -20,7 +21,7 @@ async fn main() {
   info!("Worker started");
     dotenv::from_filename(".env.local").ok();
 
-    let conn = init_redis().await.unwrap();
+    let mut conn = init_redis().await.unwrap();
 
     let brokers = std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS");
     let consumer: StreamConsumer = ClientConfig::new()
@@ -41,20 +42,22 @@ async fn main() {
     while let Some(message) = message_stream.next().await {
       match message {
         Ok(m) => {
-          let payload = match m.payload_view::<str>() {
-            Some(Ok(s)) => {
-              // TODO
-              conn.set("test", s).await.unwrap();
-            },
-            Some(Err(e)) => {
-              info!("Error while decoding payload: {}", e);
-            },
-            None => {
-              info!("Message payload is null");
-            }
-          };
-
-          info!("Received message: {:?} with {:?}", m.key(), payload);
+          if let Some(session) = m.key() {
+            let session = String::from_utf8_lossy(session).to_string();
+            match m.payload_view::<str>() {
+              Some(Ok(s)) => {
+                let _: Result<String, RedisError> = conn.rpush(&session, s).await;
+                // TODO: 会话数据永不过期，另外存一份set，定时扫描
+                let _: Result<(), RedisError> = conn.expire(&session, 10).await;
+              },
+              Some(Err(e)) => {
+                info!("Error while decoding payload: {}", e);
+              },
+              None => {
+                info!("Message payload is null");
+              }
+            };
+          }
         },
         Err(e) => {
           info!("Error while receiving message: {}", e);
@@ -123,8 +126,29 @@ fn init_log() {
 }
 
 async fn init_redis() -> redis::RedisResult<MultiplexedConnection> {
-  let client = redis::Client::open("redis://redis:6379")?;
-  let conn = client.get_multiplexed_async_connection().await?;
+  let client = redis::Client::open("redis://localhost:6379")?;
+  let conn = client.get_multiplexed_tokio_connection().await?;
+
+  let mut pubsub_conn = client.get_async_pubsub().await?;
+  pubsub_conn.psubscribe("__keyevent@0__:expired").await?;
+
+  let mut conn_clone = conn.clone();
+
+  tokio::spawn(async move {
+    let mut msg_stream = pubsub_conn.on_message();
+    while let Some(msg) = msg_stream.next().await {
+      match msg.get_payload::<String>() {
+        Ok(key) => {
+          let res: Vec<String> = conn_clone.lrange(&key, 0, -1).await.unwrap();
+          info!("key expired: {}, {:?}", key, res);
+        },
+        Err(e) => {
+          info!("Error while receiving message: {}", e);
+
+        }
+      }
+    }
+  });
 
   Ok(conn)
 }
