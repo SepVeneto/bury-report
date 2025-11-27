@@ -39,6 +39,7 @@ async fn main() -> std::io::Result<()> {
   let server = actor::WsActor::new().start();
   let producer: BaseProducer = ClientConfig::new()
     .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
+    .set("compression.type", "gzip")
     .set("message.timeout.ms", "5000")
     .create()
     .expect("Producer creation error");
