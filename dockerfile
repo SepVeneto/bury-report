@@ -1,5 +1,5 @@
 # *************************************
-FROM rust:1.90.0 as log-server
+FROM rust:1.90.0 AS log-server
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN cargo build --release
 EXPOSE "8870"
 
 
-FROM debian:stable-slim as log-deploy
+FROM debian:stable-slim AS log-deploy
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ COPY --from=log-server /app/target/release/bury-report-logs ./
 CMD ["/app/bury-report-logs"]
 
 # *************************************
-FROM denoland/deno:2.5.6 as server
+FROM denoland/deno:2.5.6 AS server
 
 WORKDIR /app
 
@@ -44,7 +44,7 @@ EXPOSE 8878
 
 CMD ["deno", "task", "start"]
 
-FROM node:20.9.0 as build
+FROM node:20.9.0 AS build
 
 WORKDIR /app
 
@@ -65,7 +65,7 @@ COPY ./packages/web/public ./packages/web/public
 WORKDIR /app/packages/web
 RUN pnpm build
 
-FROM nginx as nginx
+FROM nginx AS nginx
 
 COPY --from=build app/packages/web/dist /var/www/dist
 COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
@@ -73,7 +73,7 @@ COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
 
 # *************************************
-FROM rust:1.90.0 as worker-server
+FROM rust:1.90.0 AS worker-server
 
 WORKDIR /app
 
@@ -88,7 +88,7 @@ COPY ./packages/worker/src ./src
 RUN cargo build --release
 
 
-FROM debian:stable-slim as worker-deploy
+FROM debian:stable-slim AS worker-deploy
 
 WORKDIR /app
 
