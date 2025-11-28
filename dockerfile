@@ -1,5 +1,5 @@
 # *************************************
-FROM rust:1.79.0 as log-server
+FROM rust:1.90.0 as log-server
 
 WORKDIR /app
 
@@ -73,7 +73,7 @@ COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
 
 # *************************************
-FROM rust:1.79.0 as worker-server
+FROM rust:1.90.0 as worker-server
 
 WORKDIR /app
 
