@@ -10,11 +10,14 @@ pub fn send_to_kafka(
     payload: &logs_track::Model
 ) {
     let session = payload.session.clone();
+    let appid: String = payload.appid.clone();
+    let uuid: String = payload.uuid.clone();
     let data = serde_json::to_string(payload).unwrap();
 
     if let Some(session) = session {
+        let key = format!("{}|{}|{}", appid, uuid, session);
         let record = BaseRecord::to("rrweb")
-            .key(&session)
+            .key(&key)
             .payload(&data);
         let send_res = producer.send(record);
 

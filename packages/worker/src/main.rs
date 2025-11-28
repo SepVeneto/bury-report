@@ -174,7 +174,10 @@ async fn process_message(
       Ok(key) => {
         debug!("expired key: {}", key);
         if let Some(session) = extract_session(&key) {
-          upload_session(&mut conn, &cos, session).await;
+          if let Some(info) = parse_session(&session) {
+            debug!("from appid: {}, uuid: {}, session: {}", info.appid, info.uuid, info.session);
+            upload_session(&mut conn, &cos, session).await;
+          }
         }
       },
       Err(e) => {
@@ -205,6 +208,25 @@ fn extract_session(key: &str) -> Option<String> {
   let parts: Vec<&str> = key.split(":").collect();
   match parts.as_slice() {
     ["session", session, "shadow"] => Some(session.to_string()),
+    _ => None
+  }
+}
+
+struct SessionInfo {
+  appid: String,
+  uuid: String,
+  session: String,
+}
+fn parse_session(session: &str) -> Option<SessionInfo> {
+  let parts: Vec<&str> = session.split("|").collect();
+  match parts.as_slice() {
+    [appid, uuid, session] => {
+        Some(SessionInfo {
+          appid: appid.to_string(),
+          uuid: uuid.to_string(),
+          session: session.to_string(),
+        })
+      }
     _ => None
   }
 }
