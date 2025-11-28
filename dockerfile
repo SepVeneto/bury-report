@@ -1,6 +1,14 @@
 # *************************************
 FROM rust:1.90.0 AS log-server
 
+RUN apt-get update && \
+    apt-get install -y \
+      cmake \
+      pkg-config \
+      libssl-dev \
+      && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 VOLUME "/usr/local/cache"
@@ -74,6 +82,14 @@ EXPOSE 8080
 
 # *************************************
 FROM rust:1.90.0 AS worker-server
+
+RUN apt-get update && \
+    apt-get install -y \
+      cmake \
+      pkg-config \
+      libssl-dev \
+      && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
