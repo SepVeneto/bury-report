@@ -1,5 +1,6 @@
 import { Router } from '@oak/oak'
 import { Project } from '../model/project.ts'
+import { Filter } from "../model/index.ts";
 
 const router = new Router()
 
@@ -22,7 +23,8 @@ router.post('/project', async (ctx) => {
   }
   const project = new Project(ctx.db)
 
-  const res = await project.findOne({ name })
+  const filter = new Filter({ name })
+  const res = await project.findOne(filter)
   if (res) {
     ctx.response.body = {
       code: 1,
