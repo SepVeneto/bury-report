@@ -142,7 +142,9 @@ fn init_log() {
 }
 
 async fn init_redis(cos: &Client) -> redis::RedisResult<MultiplexedConnection> {
-  let client = redis::Client::open("redis://localhost:6379")?;
+  let redis= std::env::var("REDIS").expect("enviroment missing REDIS");
+  let redis_url = format!("redis://{}", redis);
+  let client = redis::Client::open(redis_url)?;
   let conn = client.get_multiplexed_tokio_connection().await?;
 
   let mut pubsub_conn: redis::aio::PubSub = client.get_async_pubsub().await?;
