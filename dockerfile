@@ -71,3 +71,29 @@ COPY --from=build app/packages/web/dist /var/www/dist
 COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
+
+# *************************************
+FROM rust:1.79.0 as worker-server
+
+WORKDIR /app
+
+VOLUME "/usr/local/cache"
+
+COPY ./packages/worker/Cargo.lock ./packages/worker/Cargo.toml ./
+
+RUN cargo fetch --target x86_64-unknown-linux-gnu
+
+COPY ./packages/worker/src ./src
+
+RUN cargo build --release
+
+
+FROM debian:stable-slim as worker-deploy
+
+WORKDIR /app
+
+# RUN apt-get update && apt-get install -y curl
+
+COPY --from=worker-server /app/target/release/bury-report-worker ./
+
+CMD ["/app/bury-report-worker"]
