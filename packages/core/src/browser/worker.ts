@@ -5,7 +5,6 @@ self.onmessage = (evt) => {
     case 'report': {
       const { store, cache, appid } = evt.data
       const data = [...store, ...cache].map(item => ({ ...item, appid })).sort((a: any, b: any) => a.stamp - b.stamp)
-      console.log('report', data, evt.data)
       if (!data.length) return
 
       degradationReport({ appid, data }).finally(() => {
@@ -32,6 +31,7 @@ function degradationReport(body: any) {
 
   return self.fetch('BR_URL', {
     method: 'post',
+    mode: 'no-cors',
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
     },

@@ -66,8 +66,8 @@ services:
       - --mode dev-container
       - --node-id 0 # 禁用集群
       - --overprovisioned
-      - --smp 1                   # 使用 2 核 CPU
-      - --memory 128M               # Redpanda 最大可用内存
+      - --smp 2                   # 使用 2 核 CPU
+      - --memory  3500M              # Redpanda 最大可用内存
       - --reserve-memory 0M
       - --default-log-level=info
       - --check=false
@@ -81,10 +81,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'    # Docker 限制最多 2 核
-          memory: 128m   # Docker 限制最多 4G
-    mem_limit: 128m
-    cpus: 1
+          cpus: '2'    # Docker 限制最多 2 核
+          memory: 4g   # Docker 限制最多 4G
+    mem_limit: 4g
+    cpus: 2
     volumes:
       - redpanda-0:/root/lib/redpanda/data
 

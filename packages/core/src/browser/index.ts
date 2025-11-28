@@ -18,8 +18,8 @@ export class BuryReport implements BuryReportBase {
   public static cache: any[] = []
 
   constructor(config: Options) {
-    // const url = config.url
-    const url = 'http://localhost:8870/record'
+    const url = config.url
+    // const url = 'http://localhost:8870/record'
     const worker = WorkerFactory({ url })
     window.__BR_WORKER__ = worker
 

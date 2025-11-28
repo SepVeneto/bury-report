@@ -1,5 +1,11 @@
 # 埋点上报
 
+## redpanda
+```shell
+docker exec -it redpanda-0 bash
+rpk topic create rrweb
+```
+
 ## 服务端
 
 ### 管理服务
