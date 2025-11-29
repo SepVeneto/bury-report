@@ -1,4 +1,5 @@
 use std::{str::FromStr, time::SystemTime};
+use log::info;
 
 use anyhow::{anyhow, Error};
 use bson::{oid, DateTime};
@@ -21,6 +22,7 @@ pub mod logs_network;
 pub mod logs_error;
 pub mod logs_track;
 pub mod apps;
+pub mod session;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
@@ -232,12 +234,28 @@ pub trait CreateModel: BaseModel
         let col_name = Self::NAME;
         db.collection(col_name)
     }
+    async fn insert_unique(
+        db: &Database,
+        data: &Self::Model,
+        unique: Document,
+    )
+    -> QueryResult<Option<InsertOneResult>>
+    where
+        Self: QueryModel,
+    {
+        if let None = Self::find_one(db, unique.clone()).await? {
+            info!("insert unique: {:?}", unique);
+            Ok(Some(Self::insert_one(db, data).await?))
+        } else {
+            Ok(None)
+        }
+    }
     async fn insert_one(
         db: &Database,
-        data: Self::Model
+        data: &Self::Model
     ) -> QueryResult<InsertOneResult> {
-        let col = Self::col(db);
-        let new_doc = bson::to_document(&data);
+        let col = <Self as CreateModel>::col(db);
+        let new_doc = bson::to_document(data);
         match new_doc {
             Ok(mut doc) => {
                 let now = DateTime::now();
@@ -256,7 +274,7 @@ pub trait CreateModel: BaseModel
         db: &Database,
         data: &Vec<Self::Model>
     ) -> QueryResult<InsertManyResult> {
-        let col = Self::col(db);
+        let col = <Self as CreateModel>::col(db);
         let mut list = vec![];
         for item in data.iter() {
             let new_doc = bson::to_document(item);

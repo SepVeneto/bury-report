@@ -4,6 +4,7 @@ use actix::Addr;
 use actix_web::{web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
 use bson::doc;
+use futures_util::future::join_all;
 use log::info;
 use maplit::hashmap;
 use mongodb::{Database, Client};
@@ -32,6 +33,7 @@ pub async fn check_appid(db: &Database, appid: &str) -> ServiceResult<bool> {
 
 #[derive(Clone)]
 pub enum RecordList {
+    DeviceList(Vec<logs::Device>),
     LogList(Vec<logs::Model>),
     NetworkList(Vec<logs_network::Model>),
     ErrorList(Vec<logs_error::Model>),
@@ -52,25 +54,37 @@ pub async fn record(
         return Err(anyhow!("没有对应的应用").into());
     }
 
-    info!("record log {:?}", data);
     match data {
         logs::RecordPayload::V1(v1) => {
             let db = &db::DbApp::get_by_appid(client, &appid);
             match v1.normalize_from(ip) {
-                logs::RecordItem::Log(log) => {
-                    logs::Model::insert_one(db, log).await?;
+                logs::RecordItem::Device(device) => {
+                    let uuid = &device.uuid;
+                    let session = &device.session;
+                    if let Some(session) = session {
+                        let data = logs::Session {
+                            uuid: uuid.to_string(),
+                            session: session.to_string(),
+                        };
+                        let filter = doc! {"session": session};
+                        logs::Session::insert_unique(db, &data, filter).await?;
+                    }
+                    logs::Device::insert_unique(db, &device, doc! {"uuid": uuid}).await?;
                 },
+                // logs::RecordItem::Log(log) => {
+                //     logs::Model::insert_one(db, log).await?;
+                // },
                 logs::RecordItem::Network(net) => {
-                    logs_network::Model::insert_one(db, net).await?;
+                    logs_network::Model::insert_one(db, &net).await?;
                 },
                 logs::RecordItem::Error(err) => {
-                    logs_error::Model::insert_one(db, err).await?;
+                    logs_error::Model::insert_one(db, &err).await?;
                 },
                 logs::RecordItem::Track(track) => {
                     send_to_kafka(producer, &track);
                 }
                 logs::RecordItem::Custom(data) => {
-                    logs::Model::insert_one(db, data).await?;
+                    logs::Model::insert_one(db, &data).await?;
                 }
             }
         },
@@ -80,10 +94,15 @@ pub async fn record(
 
             let db = &db::DbApp::get_by_appid(client, &appid);
 
+            let futures = vec![
+                insert_group(db, &group["collect"]),
+                insert_group(db, &group["network"]),
+                insert_group(db, &group["error"]),
+                insert_group(db, &group["device"]),
+            ];
+
+            join_all(futures).await.into_iter().collect::<anyhow::Result<(), ServiceError>>()?;
             send_batch_to_kafka(producer, &group["track"]);
-            insert_group(db, &group["collect"]).await?;
-            insert_group(db, &group["network"]).await?;
-            insert_group(db, &group["error"]).await?;
         }
     }
 
@@ -93,6 +112,23 @@ pub async fn record(
 
 async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), ServiceError>{
     match list {
+        RecordList::DeviceList(data) => {
+            if data.len() == 0 {
+                return Ok(());
+            }
+            for device in data.iter() {
+                let uuid = &device.uuid;
+                let session = &device.session;
+                if let Some(session) = session {
+                    let data = logs::Session {
+                        uuid: uuid.to_string(),
+                        session: session.to_string(),
+                    };
+                    logs::Session::insert_unique(db, &data, doc! { "session": session }).await?;
+                }
+                logs::Device::insert_unique(db, device, doc! {"uuid": uuid}).await?;
+            }
+        },
         RecordList::LogList(data) => {
             if data.len() == 0 {
                 return Ok(());
@@ -127,6 +163,7 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
     Ok(())
 }
 fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashMap<&'a str, RecordList> {
+    let mut list_device = vec![];
     let mut list_collect = vec![];
     let mut list_network = vec![];
     let mut list_error = vec![];
@@ -134,9 +171,12 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
 
     list.iter().for_each(|item| {
         match item.normalize_from(ip.clone()) {
-            logs::RecordItem::Log(log) => {
-                list_collect.push(log);
+            logs::RecordItem::Device(log) => {
+                list_device.push(log);
             },
+            // logs::RecordItem::Log(log) => {
+            //     list_collect.push(log);
+            // },
             logs::RecordItem::Network(net) => {
                 list_network.push(net);
             },
@@ -154,6 +194,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
     });
 
     hashmap! {
+        "device" => RecordList::DeviceList(list_device),
         "collect" => RecordList::LogList(list_collect),
         "network" => RecordList::NetworkList(list_network),
         "error" => RecordList::ErrorList(list_error),

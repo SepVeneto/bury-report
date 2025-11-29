@@ -1,21 +1,24 @@
+mod db;
+
 use std::env::VarError;
 use std::io::Write;
 use std::str::FromStr;
 use std::io::Read;
 use http::{HeaderMap, HeaderValue};
 
-use log::{info, debug};
+use log::{info, debug, error};
 use qcos::objects::mime::Mime;
 use qcos::client::Client;
 use qcos::request::ErrNo;
 use rdkafka::{ClientConfig, Message};
 use rdkafka::consumer::{Consumer, StreamConsumer};
 use futures::StreamExt;
-use redis::{AsyncCommands, RedisError};
+use redis::{AsyncCommands, RedisError, RedisResult};
 use redis::aio::MultiplexedConnection;
 
-const REDIS_ZSET: &str = "session:index";
+use crate::db::{connect_db, link_db, update_event};
 
+const REDIS_ZSET: &str = "session:index";
 
 #[tokio::main]
 async fn main() -> redis::RedisResult<()> {
@@ -26,8 +29,9 @@ async fn main() -> redis::RedisResult<()> {
     dotenv::from_filename(".env.local").ok();
 
     let cos = init_cos().unwrap();
+    let (client, _db) = connect_db().await;
 
-    let mut conn = init_redis(&cos).await.unwrap();
+    let mut conn = init_redis(&cos, &client).await.unwrap();
     let now = chrono::Local::now().timestamp();
     info!("scanning expired sessions at {}", now);
     let expired_sessions: Vec<String> = conn
@@ -35,7 +39,7 @@ async fn main() -> redis::RedisResult<()> {
       .await?;
 
     info!("expired sessions: {:?}", expired_sessions);
-    compensate_sessions(&mut conn, &cos, expired_sessions).await?;
+    compensate_sessions(&mut conn, &cos, client, expired_sessions).await?;
 
     let brokers = std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS");
     let consumer: StreamConsumer = ClientConfig::new()
@@ -61,7 +65,7 @@ async fn main() -> redis::RedisResult<()> {
             let session = String::from_utf8_lossy(session).to_string();
             match m.payload_view::<str>() {
               Some(Ok(s)) => {
-                debug!("enter?");
+                debug!("enter?, {}", s);
                 let session_key = gen_key(&session);
                 let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
                 let _ = encoder.write_all(s.as_bytes()).expect("gzip encoder write fail");
@@ -141,7 +145,7 @@ fn init_log() {
   info!("env_logger initialized.");
 }
 
-async fn init_redis(cos: &Client) -> redis::RedisResult<MultiplexedConnection> {
+async fn init_redis(cos: &Client, db_client: &mongodb::Client) -> redis::RedisResult<MultiplexedConnection> {
   let redis= std::env::var("REDIS").expect("enviroment missing REDIS");
   let redis_url = format!("redis://{}", redis);
   let client = redis::Client::open(redis_url)?;
@@ -153,8 +157,9 @@ async fn init_redis(cos: &Client) -> redis::RedisResult<MultiplexedConnection> {
   let conn_clone = conn.clone();
   let cos_clone = cos.clone();
 
+  let db_client = db_client.clone();
   tokio::spawn(async move {
-    if let Err(e) = process_message(pubsub_conn, conn_clone, &cos_clone).await {
+    if let Err(e) = process_message(pubsub_conn, conn_clone, &cos_clone, db_client).await {
         eprintln!("Error in task: {}", e);
     };
   });
@@ -166,6 +171,7 @@ async fn process_message(
   mut pubsub: redis::aio::PubSub,
   mut conn: MultiplexedConnection,
   cos: &Client,
+  client: mongodb::Client,
 ) -> Result<(), Box<dyn std::error::Error>> {
   let mut msg_stream = pubsub.on_message();
   debug!("redis pubsub started");
@@ -174,9 +180,14 @@ async fn process_message(
       Ok(key) => {
         debug!("expired key: {}", key);
         if let Some(session) = extract_session(&key) {
-          if let Some(info) = parse_session(&session) {
-            debug!("from appid: {}, uuid: {}, session: {}", info.appid, info.uuid, info.session);
-            upload_session(&mut conn, &cos, session).await;
+          match upload_session(&mut conn, &cos, &client, &session).await {
+            Ok(store_key) => {
+              let _: Result<(), RedisError> = conn.zrem(REDIS_ZSET, &session).await;
+              let _: Result<(), RedisError> = conn.del(&store_key).await;
+            },
+            Err(e) => {
+              info!("Error while uploading session: {}", e);
+            }
           }
         }
       },
@@ -212,25 +223,6 @@ fn extract_session(key: &str) -> Option<String> {
   }
 }
 
-struct SessionInfo {
-  appid: String,
-  uuid: String,
-  session: String,
-}
-fn parse_session(session: &str) -> Option<SessionInfo> {
-  let parts: Vec<&str> = session.split("|").collect();
-  match parts.as_slice() {
-    [appid, uuid, session] => {
-        Some(SessionInfo {
-          appid: appid.to_string(),
-          uuid: uuid.to_string(),
-          session: session.to_string(),
-        })
-      }
-    _ => None
-  }
-}
-
 fn decompress_gzip(data: &[u8]) -> Result<String, std::io::Error> {
   let mut decoder = flate2::read::GzDecoder::new(data);
   let mut decompressed_data = String::new();
@@ -247,6 +239,7 @@ fn compress_gzip(data: &[u8]) -> Result<Vec<u8>, std::io::Error> {
 async fn compensate_sessions(
   conn: &mut MultiplexedConnection,
   cos: &Client,
+  client: mongodb::Client,
   expired_sessions: Vec<String>
 ) -> redis::RedisResult<()> {
   for session in expired_sessions {
@@ -257,7 +250,15 @@ async fn compensate_sessions(
 
     info!("Compensating session: {}", session);
 
-    upload_session(conn, cos, session).await;
+    match upload_session(conn, cos, &client, &session).await {
+      Ok(store_key) => {
+        let _: Result<(), RedisError> = conn.zrem(REDIS_ZSET, &session).await;
+        let _: Result<(), RedisError> = conn.del(&store_key).await;
+      },
+      Err(e) => {
+        error!("Error while compensating session: {}", e);
+      }
+    }
   }
 
   Ok(())
@@ -266,48 +267,66 @@ async fn compensate_sessions(
 async fn upload_session(
   conn: &mut MultiplexedConnection,
   cos: &Client,
-  session: String
-) {
+  client: &mongodb::Client,
+  session: &str,
+) -> RedisResult<String> {
   let store_key = gen_key(&session);
   let res: Vec<Vec<u8>> = conn.lrange(&store_key, 0, -1).await.unwrap();
-  let _: Result<(), RedisError> = conn.zrem(REDIS_ZSET, &session).await;
+  if let Some((appid, session)) = parse_key(&session) {
+    let now = chrono::Local::now().timestamp_millis();
+    let path = format!("/session/{appid}/{session}-{stamp}.json.gz", appid=&appid, session=&session, stamp=now);
+    let url = cos.get_full_url_from_path(&path);
+    info!("uploading to: {}", url);
+    // let joined = format!("[{}]", res.join(","));
 
-  let path = format!("session/{}.json.gz", &session);
-  // let joined = format!("[{}]", res.join(","));
-
-  let cos_clone = cos.clone();
-  tokio::spawn(async move {
-    let mut decompressed_list = Vec::new();
-    for batch in res {
-      match decompress_gzip(&batch) {
-        Ok(decompressed) => {
-          decompressed_list.push(decompressed);
-        }
-        Err(e) => {
-          info!("Error while decompressing payload: {}", e);
+    let cos_clone = cos.clone();
+    let db = link_db(&client, &appid);
+    tokio::spawn(async move {
+      let mut decompressed_list = Vec::new();
+      for batch in res {
+        match decompress_gzip(&batch) {
+          Ok(decompressed) => {
+            decompressed_list.push(decompressed);
+          }
+          Err(e) => {
+            info!("Error while decompressing payload: {}", e);
+          }
         }
       }
-    }
-    let joined = format!("[{}]", decompressed_list.join(","));
-    let bytes = joined.as_bytes();
-    match compress_gzip(bytes) {
-      Ok(res) => {
+      let joined = format!("[{}]", decompressed_list.join(","));
+      let bytes = joined.as_bytes();
+      match compress_gzip(bytes) {
+        Ok(res) => {
                 
-        let res = cos_clone.put_object_binary(
-          res,
-          &path,
-          Some(Mime::from_str("application/gzip").expect("mime failed")),
-          None,
-        ).await;
-        if res.error_no == ErrNo::SUCCESS {
-          println!("put object success");
-        } else {
-          println!("put object failed, [{}]: {}", res.error_no, res.error_message);
+          let res = cos_clone.put_object_binary(
+            res,
+            &path,
+            Some(Mime::from_str("application/gzip").expect("mime failed")),
+            None,
+          ).await;
+          if res.error_no == ErrNo::SUCCESS {
+            info!("Upload to: {:?}", url);
+            if let Err(err) = update_event(&db, &session, &url).await {
+              error!("Error while updating event: {}", err);
+            }
+            println!("put object success");
+          } else {
+            println!("put object failed, [{}]: {}", res.error_no, res.error_message);
+          }
+        },
+        Err(e) => {
+          info!("Error while compressing payload: {}", e);
         }
-      },
-      Err(e) => {
-        info!("Error while compressing payload: {}", e);
       }
-    }
-  });
+    });
+  }
+  Ok(store_key)
+}
+
+fn parse_key(session: &str) -> Option<(String, String)> {
+  let parts: Vec<&str> = session.split("/").collect();
+  match parts.as_slice() {
+    [appid, session] => Some((appid.to_string(), session.to_string())),
+    _ => None
+  }
 }

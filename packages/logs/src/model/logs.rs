@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 
-use mongodb::bson::{doc, DateTime};
+use mongodb::bson::{DateTime, doc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+
 use super::{
     logs_error,
     logs_network,
@@ -29,29 +30,9 @@ impl RecordPayload {
             RecordPayload::V2(v2) => v2.appid.to_owned(),
         }
     }
-    // pub fn normalize(&self) -> Vec<Log> {
-    //     match self {
-    //         RecordPayload::V1(v1) => vec![Self::normalize_from(v1.clone())],
-    //         RecordPayload::V2(v2) => {
-    //             let data = v2.data.clone();
-    //             let res = data.into_iter().map(|item| Self::normalize_from(item));
-    //             res.collect()
-    //         }
-    //     }
-    // }
     pub fn to_string(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
-    // pub fn normalize_from(record: RecordV1) -> Log {
-    //     Log {
-    //         r#type: record.r#type,
-    //         uuid: record.uuid,
-    //         appid: record.appid,
-    //         data: record.data,
-    //         create_time: DateTime::now(),
-    //         device_time: record.time,
-    //     }
-    // }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -71,7 +52,8 @@ const TYPE_TRACK: &'static str = "__BR_TRACK__";
 
 #[derive(Clone, Debug)]
 pub enum RecordItem {
-    Log(Model),
+    Device(Device),
+    // Log(Model),
     Network(logs_network::Model),
     Error(logs_error::Model),
     Track(logs_track::Model),
@@ -80,8 +62,7 @@ pub enum RecordItem {
 impl RecordV1 {
     pub fn normalize_from(&self, ip: Option<String>) -> RecordItem {
         if self.r#type == TYPE_LOG {
-            RecordItem::Log(Log {
-                r#type: self.r#type.to_string(),
+            RecordItem::Device(Device {
                 uuid: self.uuid.to_string(),
                 ip,
                 session: self.session.clone(),
@@ -124,7 +105,6 @@ impl RecordV1 {
             RecordItem::Custom(Log {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
-                ip,
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
@@ -157,7 +137,6 @@ pub struct Model {
   pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,
-  pub ip: Option<String>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
   pub device_time: Option<String>,
@@ -172,3 +151,36 @@ impl BaseModel for Model {
 impl PaginationModel for Model {}
 impl QueryModel for Model {}
 impl CreateModel for Model {}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct Device {
+  pub appid: String,
+  pub data: Map<String, Value>,
+  pub uuid: String,
+  pub session: Option<String>,
+  pub ip: Option<String>,
+  #[serde(serialize_with = "serialize_time")]
+  pub create_time: DateTime,
+  pub device_time: Option<String>,
+}
+impl BaseModel for Device {
+    const NAME: &'static str = "records_device";
+    type Model = Device;
+}
+impl QueryModel for Device {}
+impl CreateModel for Device {}
+
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct Session {
+  pub uuid: String,
+  pub session: String,
+//   #[serde(serialize_with = "serialize_time")]
+//   pub create_time: DateTime,
+}
+impl BaseModel for Session {
+    const NAME: &'static str = "records_session";
+    type Model = Session;
+}
+impl CreateModel for Session {}
+impl QueryModel for Session {}
