@@ -78,6 +78,7 @@ impl RecordV1 {
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
+                stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
             })
@@ -88,6 +89,7 @@ impl RecordV1 {
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
+                stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
             })
@@ -98,6 +100,7 @@ impl RecordV1 {
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
+                stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
             })
@@ -108,6 +111,7 @@ impl RecordV1 {
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
+                stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
             })
@@ -137,6 +141,7 @@ pub struct Model {
   pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,
+  pub stamp: Option<f64>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
   pub device_time: Option<String>,
