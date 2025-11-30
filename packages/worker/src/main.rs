@@ -7,6 +7,7 @@ use std::io::Read;
 use http::{HeaderMap, HeaderValue};
 
 use log::{info, debug, error};
+use qcos::acl::AclHeader;
 use qcos::objects::mime::Mime;
 use qcos::client::Client;
 use qcos::request::ErrNo;
@@ -298,11 +299,13 @@ async fn upload_session(
       match compress_gzip(bytes) {
         Ok(res) => {
                 
+          let mut acl_header = AclHeader::new();
+          acl_header.insert_object_x_cos_acl(qcos::acl::ObjectAcl::PRIVATE);
           let res = cos_clone.put_object_binary(
             res,
             &path,
             Some(Mime::from_str("application/gzip").expect("mime failed")),
-            None,
+            Some(acl_header),
           ).await;
           if res.error_no == ErrNo::SUCCESS {
             info!("Upload to: {:?}", url);
