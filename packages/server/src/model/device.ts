@@ -5,6 +5,7 @@ import { RecordLog } from "./record.ts";
 
 export interface IDevice extends BaseType {
   uuid: string,
+  ip?: string,
   data: object,
   last_open: Date,
   total_open: number,
@@ -65,5 +66,21 @@ export class Device extends Model<IDevice> {
 
       this.col.updateOne(filter, update, { upsert: true })
     })
+  }
+}
+
+export class DeviceLog extends Model<IDevice> {
+  constructor(db: Db) {
+    super(db, 'records_device')
+  }
+}
+
+export interface ISession extends BaseType {
+  event_urls?: string[],
+}
+
+export class Session extends Model<ISession> {
+  constructor(db: Db) {
+    super(db, 'records_session')
   }
 }

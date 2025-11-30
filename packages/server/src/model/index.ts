@@ -59,9 +59,8 @@ export class Model<M extends BaseType> {
     const _filter = new Filter({ _id }).build()
     return await this.col.findOne(_filter)
   }
-  async getAll(filter = {}) {
-    const _filter = new Filter(filter)
-    return (await this.col.find(_filter.build()).toArray()).map(processData)
+  async getAll(filter: Filter<M> = new Filter()) {
+    return (await this.col.find(filter.build()).toArray()).map(processData)
   }
   async updateOne(update: {id: string } & Partial<Omit<M, 'id' | '_id' | 'is_delete'>>) {
     const { id, ...rest } = update
@@ -84,13 +83,14 @@ export class Model<M extends BaseType> {
     }
     const skip = Math.max(0, (page - 1)) * size
 
+    const _filter = filter.build()
     const list = (await this.col
-      .find(filter.build())
+      .find(_filter)
       .sort({ _id: -1 })
       .skip(skip)
       .limit(size)
       .toArray()).map(processData)
-    const total = await this.col.countDocuments(filter)
+    const total = await this.col.countDocuments(_filter)
 
     return {
       list,

@@ -1,12 +1,14 @@
 import { Router } from '@oak/oak'
 import { Source } from "../model/source.ts";
+import { Filter } from "../model/index.ts";
 
 const router = new Router()
 
 router.get('/source/options', async (ctx) => {
   const source = new Source(ctx.db)
 
-  const options = await source.getAll({ pid: null })
+  const filter = new Filter({ pid: null })
+  const options = await source.getAll(filter)
   ctx.resBody = options
 })
 
@@ -44,7 +46,8 @@ router.delete('/source/:sourceId', async (ctx) => {
 router.get('/source/:sourceId/children', async (ctx) => {
   const source = new Source(ctx.db)
   const sourceId = ctx.params.sourceId
-  const res = await source.getAll({ pid: sourceId })
+  const filter = new Filter({ pid: sourceId })
+  const res = await source.getAll(filter)
   ctx.resBody = res
 })
 
