@@ -126,12 +126,13 @@
       label="会话记录"
       name="session"
     >
-      <div ref="player" />
+      <DeviceSession />
     </ElTabPane>
   </ElTabs>
 </template>
 
 <script lang="ts" setup>
+import DeviceSession from './DeviceDetail.session.vue'
 import IconPad from './assets/pad.svg'
 import IconPc from './assets/pc.svg'
 import IconPhone from './assets/phone.svg'
@@ -150,29 +151,10 @@ import DeviceScreen from './components/DeviceScreen.vue'
 
 import type { DeviceInfo } from '@/apis'
 import { getAppDevice } from '@/apis'
-import { nextTick, ref, useTemplateRef, watchEffect } from 'vue'
+import { ref } from 'vue'
 import { useRoute } from 'vue-router'
-import RrwebPlayer from 'rrweb-player'
-import 'rrweb-player/dist/style.css'
 
 const active = ref('device')
-const playerRef = useTemplateRef('player')
-
-watchEffect(() => {
-  if (active.value === 'session') {
-    nextTick().then(() => {
-      if (!playerRef.value) return
-
-      const player = new RrwebPlayer({
-        target: playerRef.value,
-        props: {
-          events: [],
-        },
-      })
-      console.log(player)
-    })
-  }
-})
 
 function filterModel(dm: DeviceInfo['dm']) {
   if (info.value?.db) {
@@ -252,7 +234,9 @@ const deviceId = route.params.id as string | undefined
 
 const info = ref<DeviceInfo>()
 
-deviceId && getAppDevice(deviceId).then(res => {
-  info.value = res
-})
+if (deviceId) {
+  getAppDevice(deviceId).then(res => {
+    info.value = res
+  })
+}
 </script>

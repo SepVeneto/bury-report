@@ -229,6 +229,33 @@ export function getAppDevice(deviceId: string) {
   })
 }
 
+export function getSessionList(deviceId: string, params: { page: number, size: number, timerange?: string[]}) {
+  const _params = new Query(params).build()
+  return request({
+    url: `/device/${deviceId}/session/list`,
+    params: _params,
+    raw: 'data',
+  })
+}
+
+export async function getSessionDetail(urls: string[]) {
+  const futures = urls.map(url => request({ url }))
+  const list: object[] = []
+  await Promise.all(futures).then(res => {
+    res.forEach(item => {
+      list.push(...JSON.parse(item))
+    })
+  })
+  return list
+}
+
+export async function getSessionEvents(sessionId: string) {
+  const list = await request<string[]>({
+    url: `/session/${sessionId}/events`,
+  })
+  return await getSessionDetail(list)
+}
+
 export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {
   const _params = new Query(params).build()
   return request({
