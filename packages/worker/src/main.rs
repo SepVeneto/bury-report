@@ -28,6 +28,8 @@ async fn main() -> redis::RedisResult<()> {
     debug!("start with debug");
     info!("Worker started");
     dotenv::from_filename(".env.local").ok();
+    let expire_time_str = std::env::var("EXPIRE_TIME").unwrap_or("600".to_string());
+    let expire_time: u64 = expire_time_str.parse().expect("expire_time must be unsigned number");
 
     let cos = init_cos().unwrap();
     let (client, _db) = connect_db().await;
@@ -72,10 +74,10 @@ async fn main() -> redis::RedisResult<()> {
                 let _ = encoder.write_all(s.as_bytes()).expect("gzip encoder write fail");
                 let compressed = encoder.finish().expect("gzip failed");
                 let _: Result<String, RedisError> = conn.rpush(&session_key, compressed).await;
-                // TODO: 环境变量控制，防止死数据
-                let _: Result<(), RedisError> = conn.expire(&session_key, 15 * 60).await;
-                let _: Result<(), RedisError> = conn.set_ex(gen_shadow_key(&session), "",  10).await;
-                let _: Result<(), RedisError> = conn.zadd(REDIS_ZSET, &session, get_expire_time()).await;
+                // 会话数据的过期时间是shadow key的两倍，默认是20分钟
+                let _: Result<(), RedisError> = conn.expire(&session_key, expire_time as i64 * 2).await;
+                let _: Result<(), RedisError> = conn.set_ex(gen_shadow_key(&session), "",  expire_time).await;
+                let _: Result<(), RedisError> = conn.zadd(REDIS_ZSET, &session, get_expire_time(expire_time)).await;
               },
               Some(Err(e)) => {
                 info!("Error while decoding payload: {}", e);
@@ -210,9 +212,9 @@ fn gen_shadow_key(session: &str) -> String {
   key
 }
 
-fn get_expire_time() -> i64 {
+fn get_expire_time(expire_time: u64) -> i64 {
   let now = chrono::Local::now();
-  let expire_time = now + chrono::Duration::seconds(10);
+  let expire_time = now + chrono::Duration::seconds(expire_time as i64);
   expire_time.timestamp()
 }
 
