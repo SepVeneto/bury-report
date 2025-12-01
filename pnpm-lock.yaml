@@ -206,6 +206,9 @@ importers:
 
   packages/server:
     dependencies:
+      cos-nodejs-sdk-v5:
+        specifier: ^2.15.4
+        version: 2.15.4
       dayjs:
         specifier: ^1.11.19
         version: 1.11.19
@@ -237,6 +240,9 @@ importers:
       '@imengyu/vue3-context-menu':
         specifier: ^1.4.1
         version: 1.5.1
+      '@rrweb/replay':
+        specifier: 2.0.0-alpha.18
+        version: 2.0.0-alpha.18
       '@rx-frontend/php-sign':
         specifier: ^0.3.2
         version: 0.3.2
@@ -279,6 +285,9 @@ importers:
       pixi.js:
         specifier: 6.2.1
         version: 6.2.1
+      rrweb:
+        specifier: 2.0.0-alpha.4
+        version: 2.0.0-alpha.4
       rrweb-player:
         specifier: 1.0.0-alpha.4
         version: 1.0.0-alpha.4
@@ -3031,6 +3040,9 @@ packages:
   '@rrweb/record@2.0.0-alpha.18':
     resolution: {integrity: sha512-WbzcybTEqT+cKkOnzYiyaAYvNzAIxTK9f8qNLNOG9lOqWsmi+qu/W7CEdxHmfjlfgXGw/f7bxGZggAWVaizKqg==}
 
+  '@rrweb/replay@2.0.0-alpha.18':
+    resolution: {integrity: sha512-EGCdydiQHCEbh1j+EF7OupwRHD1/EnAYYF4ENBz4CReoH+jGsLKu0LT2962CWPnQttMvpxwzhmD5gFGf63Gm0g==}
+
   '@rrweb/types@2.0.0-alpha.18':
     resolution: {integrity: sha512-iMH3amHthJZ9x3gGmBPmdfim7wLGygC2GciIkw2A6SO8giSn8PHYtRT8OKNH4V+k3SZ6RSnYHcTQxBA7pSWZ3Q==}
 
@@ -4492,8 +4504,8 @@ packages:
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
 
-  cos-nodejs-sdk-v5@2.15.1:
-    resolution: {integrity: sha512-eBfqnuffe1qlIHbCep8eQgXa6Fq44cDjgCv6A2pyB/DAnKxY15DE6vU92Zc55v2t60EGcDapaTQY6DWVauGMRQ==}
+  cos-nodejs-sdk-v5@2.15.4:
+    resolution: {integrity: sha512-TP/iYTvKKKhRK89on9SRfSMGEw/9SFAAU8EC1kdT5Fmpx7dAwaCNM2+R2H1TSYoQt+03rwOs8QEfNkX8GOHjHQ==}
     engines: {node: '>= 6'}
 
   cross-env@7.0.3:
@@ -5272,6 +5284,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.4.8:
+    resolution: {integrity: sha512-FJqqoDBR00Mdj9ppamLa/Y7vxm+PRmNWA67N846RvsoYVMKB4q3y/de5PA7gUmRMYK/8CMz2GDZQmCRN1wBcWA==}
 
   file-entry-cache@6.0.1:
     resolution: {integrity: sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg==}
@@ -7613,6 +7628,9 @@ packages:
     engines: {node: '>=18.0.0', npm: '>=8.0.0'}
     hasBin: true
 
+  rrdom@0.1.7:
+    resolution: {integrity: sha512-ZLd8f14z9pUy2Hk9y636cNv5Y2BMnNEY99wxzW9tD2BLDfe1xFxtLjB4q/xCBYo6HRe0wofzKzjm4JojmpBfFw==}
+
   rrdom@2.0.0-alpha.18:
     resolution: {integrity: sha512-fSFzFFxbqAViITyYVA4Z0o5G6p1nEqEr/N8vdgSKie9Rn0FJxDSNJgjV0yiCIzcDs0QR+hpvgFhpbdZ6JIr5Nw==}
 
@@ -7624,6 +7642,9 @@ packages:
 
   rrweb@2.0.0-alpha.18:
     resolution: {integrity: sha512-1mjZcB+LVoGSx1+i9E2ZdAP90fS3MghYVix2wvGlZvrgRuLCbTCCOZMztFCkKpgp7/EeCdYM4nIHJkKX5J1Nmg==}
+
+  rrweb@2.0.0-alpha.4:
+    resolution: {integrity: sha512-wEHUILbxDPcNwkM3m4qgPgXAiBJyqCbbOHyVoNEVBJzHszWEFYyTbrZqUdeb1EfmTRC2PsumCIkVcomJ/xcOzA==}
 
   run-applescript@5.0.0:
     resolution: {integrity: sha512-XcT5rBksx1QdIhlFOCtgZkB99ZEouFZ1E2Kc2LHqNW13U3/74YGdkQRmThTwxy4QIyookibDKYZOPqX//6BlAg==}
@@ -12341,7 +12362,7 @@ snapshots:
       object-assign: 4.1.1
       promise-polyfill: 8.3.0
 
-  '@pixi/prepare@6.2.1(xgvzj6jdr4mmr5fgeolnlcrn5i)':
+  '@pixi/prepare@6.2.1(11c7adcd0089bf90f8ed3f7b32fef91d)':
     dependencies:
       '@pixi/core': 6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/display': 6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
@@ -12387,7 +12408,7 @@ snapshots:
       '@pixi/math': 6.2.1
       '@pixi/utils': 6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)
 
-  '@pixi/text-bitmap@6.2.1(iq7aakwbuggxwzdjddutnkpqse)':
+  '@pixi/text-bitmap@6.2.1(101f20fa7a81e07779f0cc71493ddb65)':
     dependencies:
       '@pixi/constants': 6.2.1
       '@pixi/core': 6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
@@ -12501,6 +12522,11 @@ snapshots:
     optional: true
 
   '@rrweb/record@2.0.0-alpha.18':
+    dependencies:
+      '@rrweb/types': 2.0.0-alpha.18
+      rrweb: 2.0.0-alpha.18
+
+  '@rrweb/replay@2.0.0-alpha.18':
     dependencies:
       '@rrweb/types': 2.0.0-alpha.18
       rrweb: 2.0.0-alpha.18
@@ -14580,7 +14606,7 @@ snapshots:
 
   core-util-is@1.0.3: {}
 
-  cos-nodejs-sdk-v5@2.15.1:
+  cos-nodejs-sdk-v5@2.15.4:
     dependencies:
       conf: 9.0.2
       fast-xml-parser: 4.2.5
@@ -15627,6 +15653,8 @@ snapshots:
   fdir@6.4.6(picomatch@4.0.2):
     optionalDependencies:
       picomatch: 4.0.2
+
+  fflate@0.4.8: {}
 
   file-entry-cache@6.0.1:
     dependencies:
@@ -17175,7 +17203,7 @@ snapshots:
       babel-preset-es2015: 6.24.1
       babel-preset-stage-0: 6.24.1
       chokidar: 3.6.0
-      cos-nodejs-sdk-v5: 2.15.1
+      cos-nodejs-sdk-v5: 2.15.4
       cssnano: 5.1.15(postcss@8.5.6)
       eventemitter3: 4.0.7
       fs-extra: 8.1.0
@@ -17664,7 +17692,7 @@ snapshots:
       '@pixi/mixin-get-global-position': 6.2.1(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)
       '@pixi/particle-container': 6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/polyfill': 6.2.1
-      '@pixi/prepare': 6.2.1(xgvzj6jdr4mmr5fgeolnlcrn5i)
+      '@pixi/prepare': 6.2.1(11c7adcd0089bf90f8ed3f7b32fef91d)
       '@pixi/runner': 6.2.1
       '@pixi/settings': 6.2.1
       '@pixi/sprite': 6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
@@ -17672,7 +17700,7 @@ snapshots:
       '@pixi/sprite-tiling': 6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/sprite@6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/spritesheet': 6.2.1(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/loaders@6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/text': 6.2.1(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/sprite@6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
-      '@pixi/text-bitmap': 6.2.1(iq7aakwbuggxwzdjddutnkpqse)
+      '@pixi/text-bitmap': 6.2.1(101f20fa7a81e07779f0cc71493ddb65)
       '@pixi/ticker': 6.2.1(@pixi/settings@6.2.1)
       '@pixi/utils': 6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)
 
@@ -18335,6 +18363,10 @@ snapshots:
       '@rollup/rollup-win32-x64-msvc': 4.44.2
       fsevents: 2.3.3
 
+  rrdom@0.1.7:
+    dependencies:
+      rrweb-snapshot: 2.0.0-alpha.18
+
   rrdom@2.0.0-alpha.18:
     dependencies:
       rrweb-snapshot: 2.0.0-alpha.18
@@ -18342,7 +18374,7 @@ snapshots:
   rrweb-player@1.0.0-alpha.4:
     dependencies:
       '@tsconfig/svelte': 1.0.13
-      rrweb: 2.0.0-alpha.18
+      rrweb: 2.0.0-alpha.4
 
   rrweb-snapshot@2.0.0-alpha.18:
     dependencies:
@@ -18357,6 +18389,17 @@ snapshots:
       base64-arraybuffer: 1.0.2
       mitt: 3.0.1
       rrdom: 2.0.0-alpha.18
+      rrweb-snapshot: 2.0.0-alpha.18
+
+  rrweb@2.0.0-alpha.4:
+    dependencies:
+      '@rrweb/types': 2.0.0-alpha.18
+      '@types/css-font-loading-module': 0.0.7
+      '@xstate/fsm': 1.6.5
+      base64-arraybuffer: 1.0.2
+      fflate: 0.4.8
+      mitt: 3.0.1
+      rrdom: 0.1.7
       rrweb-snapshot: 2.0.0-alpha.18
 
   run-applescript@5.0.0:

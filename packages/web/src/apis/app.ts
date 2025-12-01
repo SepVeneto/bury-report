@@ -238,22 +238,24 @@ export function getSessionList(deviceId: string, params: { page: number, size: n
   })
 }
 
-export async function getSessionDetail(urls: string[]) {
-  const futures = urls.map(url => request({ url }))
+async function getSessionEvents(urls: string[]) {
+  const futures = urls.map(url => fetch(url).then(response => response.text()))
   const list: object[] = []
   await Promise.all(futures).then(res => {
     res.forEach(item => {
-      list.push(...JSON.parse(item))
+      const records = JSON.parse(item) as any[]
+      const events = records.map(item => item.data.events).flat()
+      list.push(...events)
     })
   })
   return list
 }
 
-export async function getSessionEvents(sessionId: string) {
-  const list = await request<string[]>({
-    url: `/session/${sessionId}/events`,
+export async function getSessionDetail(sessionId: string) {
+  const res = await request<string[]>({
+    url: `/session/${sessionId}`,
   })
-  return await getSessionDetail(list)
+  console.log(res)
 }
 
 export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {

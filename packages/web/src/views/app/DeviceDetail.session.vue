@@ -18,15 +18,14 @@
   <ElDrawer
     v-model="show"
     size="80%"
-    @opened="onOpened"
   >
     <div ref="player" />
   </ElDrawer>
 </template>
 
 <script lang="ts" setup>
-import { getSessionDetail, getSessionEvents, getSessionList } from '@/apis'
-import { ref, shallowRef, useTemplateRef } from 'vue'
+import { getSessionDetail, getSessionList } from '@/apis'
+import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
@@ -51,8 +50,13 @@ function getList() {
 const events = shallowRef([])
 function handleOpen(row) {
   show.value = true
-  getSessionEvents(row.id).then(res => {
-    console.log(res)
+  getSessionDetail(row.id).then(res => {
+    events.value = res
+
+    // nextTick().then(() => {
+    //   console.log(res)
+    //   onOpened()
+    // })
   })
 }
 
@@ -63,8 +67,11 @@ function onOpened() {
   const player = new RrwebPlayer({
     target: playerRef.value,
     props: {
-      events: [],
+      events: events.value,
     },
+  })
+  player.addEventListener('ui-update-current-time', (evt) => {
+    console.log('ui-update-current-time', evt)
   })
 }
 </script>

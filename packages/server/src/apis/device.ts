@@ -1,5 +1,6 @@
 import { Router } from '@oak/oak'
-import { Device, Session, DeviceLog } from "../model/device.ts";
+import { Session, DeviceLog } from "../model/device.ts";
+import { RecordApi, RecordError } from '../model/record.ts'
 import { RecordLog } from "../model/record.ts";
 import { Filter } from "../model/index.ts";
 import COS from 'npm:cos-nodejs-sdk-v5'
@@ -68,8 +69,12 @@ router.get('/device/:deviceId/session/list', async (ctx) => {
   ctx.resBody = list
 })
 
-router.get('/session/:sessionId/events', async ctx => {
+router.get('/session/:sessionId', async ctx => {
+  const networkLog = new RecordApi(ctx.db)
+  const errorLog = new RecordError(ctx.db)
   const session = new Session(ctx.db)
+  const filter = new Filter()
+  filter.equal('session', ctx.params.sessionId)
   const detail = await session.findById(ctx.params.sessionId)
   if (!detail) {
     ctx.resCode = 1
@@ -81,14 +86,23 @@ router.get('/session/:sessionId/events', async ctx => {
     ctx.resMsg = '当前会话没有记录'
     return
   }
-  const futures = detail.event_urls.map(url => {
+  const eventFutures = detail.event_urls.map(url => {
     return cos.getObjectUrl({
       Bucket: BUCKET,
       Region: REGION,
       Key: url.replace(`https://${BUCKET}.cos.${REGION}.myqcloud.com/`, ''),
     })
   })
-  ctx.resBody = await Promise.all(futures)
+  const eventUrls = await Promise.all(eventFutures)
+  const net = await networkLog.getAll(filter)
+  const err = errorLog.getAll(filter)
+
+  ctx.resBody = {
+    event_urls: eventUrls,
+    net: net,
+    err: err,
+  }
+
 })
 
 export default router
