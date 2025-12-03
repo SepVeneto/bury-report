@@ -16,7 +16,7 @@ export default defineConfig({
     Inspect(),
     Unplugin({
       url: 'http://127.0.0.1:5500/record',
-      appid: '69119314cc2f061317f91078',
+      appid: '691022da9e50b4b5c2317af3',
       entry: 'main.ts',
       collect: true,
       report: true,

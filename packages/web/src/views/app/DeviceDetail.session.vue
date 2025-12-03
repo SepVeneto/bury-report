@@ -15,16 +15,51 @@
     </template>
   </BcTable>
 
-  <ElDrawer
+  <ElDialog
     v-model="show"
-    size="80%"
     destroy-on-close
+    style="min-height: 700px;"
+    @closed="onClosed"
   >
-    <div ref="player" />
-  </ElDrawer>
+    <section style="display: flex;">
+      <div ref="refPlayer" />
+      <ElScrollbar
+        height="700px"
+        style="flex: 1;"
+      >
+        <ElCollapse>
+          <ElCollapseItem
+            v-for="(api, index) in apis"
+            :key="index"
+          >
+            <template #title>
+              <div
+                class="api-item"
+                :class="[isActiveApi(api) && 'active']"
+              >
+                [{{ timeFormat(api.stamp) }}] {{ simpleUrl(api) }}
+              </div>
+            </template>
+            <ElDescriptions :column="1">
+              <ElDescriptionsItem label="请求URL">
+                {{ api.data.url }}
+              </ElDescriptionsItem>
+              <ElDescriptionsItem label="状态">
+                {{ api.data.status }}
+              </ElDescriptionsItem>
+              <ElDescriptionsItem label="耗时">
+                {{ api.data.duration.toFixed(2) }}ms
+              </ElDescriptionsItem>
+            </ElDescriptions>
+          </ElCollapseItem>
+        </ElCollapse>
+      </ElScrollbar>
+    </section>
+  </ElDialog>
 </template>
 
 <script lang="ts" setup>
+import type { SessionApi } from '@/apis'
 import { getSessionDetail, getSessionEvents, getSessionList } from '@/apis'
 import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
@@ -33,7 +68,7 @@ import 'rrweb-player/dist/style.css'
 import type { eventWithTime } from '@rrweb/types'
 
 const route = useRoute()
-const playerRef = useTemplateRef('player')
+const playerRef = useTemplateRef('refPlayer')
 
 const deviceId = route.params.id as string
 const params = ref({
@@ -50,28 +85,70 @@ function getList() {
   return getSessionList(deviceId, params.value)
 }
 const events = shallowRef<eventWithTime[]>([])
+const apis = shallowRef<SessionApi[]>([])
 async function handleOpen(row: any) {
   show.value = true
   const res = await getSessionDetail(row.session)
   events.value = await getSessionEvents(res.event_urls)
+  apis.value = res.net
 
   nextTick().then(() => {
     onOpened()
   })
 }
 
+const player = shallowRef<RrwebPlayer>()
+const currentStamp = ref(0)
 function onOpened() {
   if (!playerRef.value) {
     return
   }
-  const player = new RrwebPlayer({
+  player.value = new RrwebPlayer({
     target: playerRef.value,
     props: {
+      width: 500,
+      height: 500,
       events: events.value,
     },
   })
-  player.addEventListener('ui-update-current-time', (evt) => {
-    console.log('ui-update-current-time', evt)
+  player.value.addEventListener('ui-update-current-time', (evt) => {
+    currentStamp.value = evt.payload
   })
 }
+
+function onClosed() {
+  player.value?.getReplayer().destroy()
+}
+
+function simpleUrl(api: SessionApi) {
+  const url = new URL(api.data.url)
+  return url.pathname
+}
+
+function timeFormat(stamp: number) {
+  const seconds = Math.floor(stamp / 1000)
+  const minutes = Math.floor(seconds / 60)
+
+  return `${addZero(minutes)}:${addZero(seconds % 60)}`
+}
+
+function addZero(num: number) {
+  return num < 10 ? `0${num}` : num
+}
+
+function isActiveApi(api: SessionApi) {
+  return currentStamp.value >= api.stamp
+}
 </script>
+
+<style lang="scss" scoped>
+:global(.rr-player) {
+  box-shadow: none;
+}
+.api-item {
+  color: gray;
+  &.active {
+    color: black;
+  }
+}
+</style>

@@ -252,8 +252,25 @@ export async function getSessionEvents(urls: string[]) {
   return list
 }
 
+export type SessionApi = {
+  appid: string,
+  data: {
+    type: string
+    url: string
+    method: string
+    body: string
+    status: number
+    page: string
+    responseHeader: string
+    response: string
+    duration: number
+  },
+  session: string
+  stamp: number
+  uuid: string
+}
 export async function getSessionDetail(sessionId: string) {
-  const res = await request<{ event_urls: string[], net: any[], err: any[] }>({
+  const res = await request<{ event_urls: string[], net: SessionApi[], err: any[] }>({
     url: `/session/${sessionId}`,
   })
   return res
