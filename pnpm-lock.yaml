@@ -45,9 +45,6 @@ importers:
       '@swc/core':
         specifier: ^1.7.3
         version: 1.12.9
-      '@types/debug':
-        specifier: ^4.1.12
-        version: 4.1.12
       '@types/node':
         specifier: ^20.10.5
         version: 20.19.4
@@ -58,8 +55,8 @@ importers:
         specifier: ^5.3.0
         version: 5.4.1
       debug:
-        specifier: ^4.3.4
-        version: 4.4.1
+        specifier: ^3
+        version: 3.2.7
       esbuild:
         specifier: ^0.25.3
         version: 0.25.5
@@ -3216,9 +3213,6 @@ packages:
   '@types/css-font-loading-module@0.0.7':
     resolution: {integrity: sha512-nl09VhutdjINdWyXxHWN/w9zlNCfr60JUqJbd24YXUuCwgeL0TpFSdElCwb6cxfB6ybE19Gjj4g0jsgkXxKv1Q==}
 
-  '@types/debug@4.1.12':
-    resolution: {integrity: sha512-vIChWdVG3LG1SMxEvI/AK+FWJthlrqlTu7fbrlywTkkaONwk/UAGaULXRlf8vkzFBLVm0zkMdCquhL5aOjhXPQ==}
-
   '@types/earcut@2.1.4':
     resolution: {integrity: sha512-qp3m9PPz4gULB9MhjGID7wpo3gJ4bTGXm7ltNDsmOvsPduTeHp8wSW9YckBj3mljeOh4F0m2z/0JKAALRKbmLQ==}
 
@@ -3263,9 +3257,6 @@ packages:
 
   '@types/mockjs@1.0.10':
     resolution: {integrity: sha512-SXgrhajHG7boLv6oU93CcmdDm0HYRiceuz6b+7z+/2lCJPTWDv0V5YiwFHT2ejE4bQqgSXQiVPQYPWv7LGsK1g==}
-
-  '@types/ms@2.1.0':
-    resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
   '@types/node@17.0.45':
     resolution: {integrity: sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==}
@@ -12362,7 +12353,7 @@ snapshots:
       object-assign: 4.1.1
       promise-polyfill: 8.3.0
 
-  '@pixi/prepare@6.2.1(11c7adcd0089bf90f8ed3f7b32fef91d)':
+  '@pixi/prepare@6.2.1(xgvzj6jdr4mmr5fgeolnlcrn5i)':
     dependencies:
       '@pixi/core': 6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/display': 6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
@@ -12408,7 +12399,7 @@ snapshots:
       '@pixi/math': 6.2.1
       '@pixi/utils': 6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)
 
-  '@pixi/text-bitmap@6.2.1(101f20fa7a81e07779f0cc71493ddb65)':
+  '@pixi/text-bitmap@6.2.1(iq7aakwbuggxwzdjddutnkpqse)':
     dependencies:
       '@pixi/constants': 6.2.1
       '@pixi/core': 6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
@@ -12734,10 +12725,6 @@ snapshots:
 
   '@types/css-font-loading-module@0.0.7': {}
 
-  '@types/debug@4.1.12':
-    dependencies:
-      '@types/ms': 2.1.0
-
   '@types/earcut@2.1.4': {}
 
   '@types/eslint-scope@3.7.7':
@@ -12781,8 +12768,6 @@ snapshots:
   '@types/lodash@4.17.20': {}
 
   '@types/mockjs@1.0.10': {}
-
-  '@types/ms@2.1.0': {}
 
   '@types/node@17.0.45': {}
 
@@ -17692,7 +17677,7 @@ snapshots:
       '@pixi/mixin-get-global-position': 6.2.1(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)
       '@pixi/particle-container': 6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/polyfill': 6.2.1
-      '@pixi/prepare': 6.2.1(11c7adcd0089bf90f8ed3f7b32fef91d)
+      '@pixi/prepare': 6.2.1(xgvzj6jdr4mmr5fgeolnlcrn5i)
       '@pixi/runner': 6.2.1
       '@pixi/settings': 6.2.1
       '@pixi/sprite': 6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
@@ -17700,7 +17685,7 @@ snapshots:
       '@pixi/sprite-tiling': 6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/sprite@6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/spritesheet': 6.2.1(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/loaders@6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
       '@pixi/text': 6.2.1(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/sprite@6.2.1(@pixi/constants@6.2.1)(@pixi/core@6.2.1(@pixi/constants@6.2.1)(@pixi/math@6.2.1)(@pixi/runner@6.2.1)(@pixi/settings@6.2.1)(@pixi/ticker@6.2.1(@pixi/settings@6.2.1))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/display@6.2.1(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/math@6.2.1)(@pixi/settings@6.2.1)(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)))(@pixi/utils@6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1))
-      '@pixi/text-bitmap': 6.2.1(101f20fa7a81e07779f0cc71493ddb65)
+      '@pixi/text-bitmap': 6.2.1(iq7aakwbuggxwzdjddutnkpqse)
       '@pixi/ticker': 6.2.1(@pixi/settings@6.2.1)
       '@pixi/utils': 6.2.1(@pixi/constants@6.2.1)(@pixi/settings@6.2.1)
 

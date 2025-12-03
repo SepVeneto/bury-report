@@ -2,6 +2,7 @@ import { reportRequest as request } from '@/util/request'
 import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
 import { Query } from '.'
+import type { eventWithTime } from '@rrweb/types'
 
 export type App = {
   id: string
@@ -238,9 +239,9 @@ export function getSessionList(deviceId: string, params: { page: number, size: n
   })
 }
 
-async function getSessionEvents(urls: string[]) {
+export async function getSessionEvents(urls: string[]) {
   const futures = urls.map(url => fetch(url).then(response => response.text()))
-  const list: object[] = []
+  const list: eventWithTime[] = []
   await Promise.all(futures).then(res => {
     res.forEach(item => {
       const records = JSON.parse(item) as any[]
@@ -252,10 +253,10 @@ async function getSessionEvents(urls: string[]) {
 }
 
 export async function getSessionDetail(sessionId: string) {
-  const res = await request<string[]>({
+  const res = await request<{ event_urls: string[], net: any[], err: any[] }>({
     url: `/session/${sessionId}`,
   })
-  console.log(res)
+  return res
 }
 
 export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {

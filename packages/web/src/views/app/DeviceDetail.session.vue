@@ -18,17 +18,19 @@
   <ElDrawer
     v-model="show"
     size="80%"
+    destroy-on-close
   >
     <div ref="player" />
   </ElDrawer>
 </template>
 
 <script lang="ts" setup>
-import { getSessionDetail, getSessionList } from '@/apis'
+import { getSessionDetail, getSessionEvents, getSessionList } from '@/apis'
 import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
+import type { eventWithTime } from '@rrweb/types'
 
 const route = useRoute()
 const playerRef = useTemplateRef('player')
@@ -47,16 +49,14 @@ const show = ref(false)
 function getList() {
   return getSessionList(deviceId, params.value)
 }
-const events = shallowRef([])
-function handleOpen(row) {
+const events = shallowRef<eventWithTime[]>([])
+async function handleOpen(row: any) {
   show.value = true
-  getSessionDetail(row.id).then(res => {
-    events.value = res
+  const res = await getSessionDetail(row.session)
+  events.value = await getSessionEvents(res.event_urls)
 
-    // nextTick().then(() => {
-    //   console.log(res)
-    //   onOpened()
-    // })
+  nextTick().then(() => {
+    onOpened()
   })
 }
 

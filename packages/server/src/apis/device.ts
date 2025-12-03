@@ -75,7 +75,9 @@ router.get('/session/:sessionId', async ctx => {
   const session = new Session(ctx.db)
   const filter = new Filter()
   filter.equal('session', ctx.params.sessionId)
-  const detail = await session.findById(ctx.params.sessionId)
+  const sessionFilter = new Filter()
+  sessionFilter.equal('session', ctx.params.sessionId)
+  const detail = await session.findOne(sessionFilter)
   if (!detail) {
     ctx.resCode = 1
     ctx.resMsg = '没有找到指定的会话'
