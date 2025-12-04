@@ -2,7 +2,7 @@ use bson::doc;
 use mongodb::Database;
 
 use crate::{
-    apis::{record::DeviceFilter, Query},
+    apis::Query,
     model::{device::{self, DeviceInfo, Model}, logs, PaginationModel, PaginationOptions, PaginationResultTotal, QueryModel}
 };
 
@@ -24,26 +24,26 @@ pub async fn get_device_by_uuid(db: &Database, device_id: &str) -> ServiceResult
     Ok(device_info)
 }
 
-pub async fn get_device_pagination(
-    db: &Database,
-    query: Query<DeviceFilter>
-) -> ServiceResult<PaginationResultTotal<device::Model>> {
-    let Query { page, size, query } = query;
-    let mut doc = doc! {};
+// pub async fn get_device_pagination(
+//     db: &Database,
+//     query: Query<DeviceFilter>
+// ) -> ServiceResult<PaginationResultTotal<device::Model>> {
+//     let Query { page, size, query } = query;
+//     let mut doc = doc! {};
 
-    if let Some(uuid) = query.uuid {
-        doc.insert("uuid", uuid);
-    }
-    if let (Some(start_time), Some(end_time)) = (query.start_time, query.end_time) {
-        let time_doc = gen_timerange_doc(start_time, end_time)?;
-        doc.insert("last_open", time_doc);
-    }
+//     if let Some(uuid) = query.uuid {
+//         doc.insert("uuid", uuid);
+//     }
+//     if let (Some(start_time), Some(end_time)) = (query.start_time, query.end_time) {
+//         let time_doc = gen_timerange_doc(start_time, end_time)?;
+//         doc.insert("last_open", time_doc);
+//     }
 
-    let res = device::Model::pagination_with_total(
-        db,
-        page,
-        size,
-        PaginationOptions::new().query(doc).build(),
-    ).await?;
-    Ok(res)
-}
+//     let res = device::Model::pagination_with_total(
+//         db,
+//         page,
+//         size,
+//         PaginationOptions::new().query(doc).build(),
+//     ).await?;
+//     Ok(res)
+// }

@@ -11,7 +11,7 @@ mod utils;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::services::actor;
+// use crate::services::actor;
 
 use actix::Actor;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
@@ -36,7 +36,7 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let (client, db) = db::connect_db().await;
-  let server = actor::WsActor::new().start();
+//   let server = actor::WsActor::new().start();
   let producer: BaseProducer = ClientConfig::new()
     .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
     .set("compression.type", "gzip")
@@ -52,7 +52,7 @@ async fn main() -> std::io::Result<()> {
       .app_data(web::PayloadConfig::new(10 * 1024 * 1024))
       .app_data(web::Data::new(client.clone()))
       .app_data(web::Data::new(db.clone()))
-      .app_data(web::Data::new(server.clone()))
+    //   .app_data(web::Data::new(server.clone()))
       .app_data(producer_data.clone())
     //   .wrap(middleware::Auth)
       .configure(routes::services)

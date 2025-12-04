@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use log::{info, error};
+use log::{debug, error};
 use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 
 use crate::{model::logs_track, services::record_logs::RecordList};
@@ -22,11 +22,11 @@ pub fn send_to_kafka(
 
         match send_res {
             Ok(_) => {
-                info!("Message sent");
+                debug!("Message sent");
             }
             Err((kafka_err, join_err)) => {
-                info!("Message failed to send: {}", kafka_err);
-                info!("Error joining send task: {:?}", join_err);
+                error!("Message failed to send: {}", kafka_err);
+                error!("Error joining send task: {:?}", join_err);
             }
         }
     }
@@ -38,7 +38,7 @@ pub fn send_batch_to_kafka(
 ) {
     match payloads {
         RecordList::TrackList(list) => {
-            info!("start send track list");
+            debug!("start send track list");
             for payload in list {
                 send_to_kafka(producer, payload);
             }
@@ -48,7 +48,7 @@ pub fn send_batch_to_kafka(
             }
         }
         _ => {
-            info!("Not support batch send");
+            error!("Not support batch send");
         }
     }
 
