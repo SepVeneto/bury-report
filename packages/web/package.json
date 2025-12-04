@@ -1,6 +1,6 @@
 {
   "name": "web",
-  "version": "0.4.4",
+  "version": "0.5.0-beta.1",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",
     "@imengyu/vue3-context-menu": "^1.4.1",
+    "@rrweb/replay": "2.0.0-alpha.18",
     "@rx-frontend/php-sign": "^0.3.2",
     "@sepveneto/basic-comp": "^0.9.2",
     "@sepveneto/free-dom": "0.12.0-beta.0",
@@ -26,6 +27,8 @@
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
     "pixi.js": "6.2.1",
+    "rrweb": "2.0.0-alpha.4",
+    "rrweb-player": "1.0.0-alpha.4",
     "sass": "^1.69.5",
     "vue": "^3.3.7",
     "vue-router": "^4.2.5",

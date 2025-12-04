@@ -1,5 +1,5 @@
 use super::{
-    serialize_time, BaseModel, CreateModel, DeleteModel, PaginationModel, QueryModel
+    serialize_time, BaseModel, CreateModel, PaginationModel, QueryModel
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -13,6 +13,7 @@ pub struct Model {
   pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,
+  pub stamp: Option<f64>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: bson::DateTime,
   pub device_time: Option<String>,
@@ -24,5 +25,4 @@ impl BaseModel for Model {
 }
 impl QueryModel for Model {}
 impl CreateModel for Model {}
-impl DeleteModel for Model {}
 impl PaginationModel for Model {}

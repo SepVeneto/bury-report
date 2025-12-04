@@ -1,16 +1,15 @@
 import safeAreaInsets from 'safe-area-insets'
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_INFO } from '@/constant'
-import { getUuid, resetSessionId } from '@/utils'
+import { getUuid } from '@/utils'
 
 export class CollectPlugin implements BuryReportPlugin {
   public name = 'collectPlugin'
 
   init(ctx: BuryReport) {
-    resetSessionId()
     const stat = this.getSystemInfo()
 
-    ctx.report?.(COLLECT_INFO, stat, true)
+    ctx.report?.(COLLECT_INFO, stat, true, false)
   }
 
   getSystemInfo() {

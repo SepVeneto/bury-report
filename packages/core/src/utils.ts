@@ -85,20 +85,27 @@ export function getUuid() {
   return uuid
 }
 
+// 仅小程序需要手动重置
 export function resetSessionId() {
   try {
     removeLocalStorage(SESSIONID_KEY)
   } catch {}
 }
+// web端依赖browser session
+// 小程序端依赖localStorage手动实现
 export function getSessionId() {
   let sessionId
   try {
-    sessionId = getLocalStorage(SESSIONID_KEY)
+    sessionId = 'window' in globalThis
+      ? window.sessionStorage.getItem(SESSIONID_KEY)
+      : getLocalStorage(SESSIONID_KEY)
   } catch {}
   if (!sessionId) {
     sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 10)
     try {
-      setLocalStorage(SESSIONID_KEY, sessionId)
+      'window' in globalThis
+        ? window.sessionStorage.setItem(SESSIONID_KEY, sessionId)
+        : setLocalStorage(SESSIONID_KEY, sessionId)
     } catch {}
   }
   return sessionId
@@ -151,6 +158,8 @@ export function storageReport(
   type: string,
   data: Record<string, any>,
   store = true,
+  cache?: any,
+  stamp?: number,
 ) {
   const uuid = getUuid()
   const sessionId = getSessionId()
@@ -160,10 +169,12 @@ export function storageReport(
     type,
     data,
     time: new Date().toLocaleString(),
+    stamp,
   }
 
   if (!store) {
-    return record
+    cache.push(record)
+    return
   }
 
   const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]') as Array<any>

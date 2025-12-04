@@ -1,6 +1,9 @@
 <template>
-  <ElTabs>
-    <ElTabPane label="设备信息">
+  <ElTabs v-model="active">
+    <ElTabPane
+      label="设备信息"
+      name="device"
+    >
       <div style="position: relative;">
         <ElSkeleton
           :loading="!info"
@@ -119,11 +122,17 @@
       </div>
     </ElTabPane>
 
-    <ElTabPane label="会话记录" />
+    <ElTabPane
+      label="会话记录"
+      name="session"
+    >
+      <DeviceSession />
+    </ElTabPane>
   </ElTabs>
 </template>
 
 <script lang="ts" setup>
+import DeviceSession from './DeviceDetail.session.vue'
 import IconPad from './assets/pad.svg'
 import IconPc from './assets/pc.svg'
 import IconPhone from './assets/phone.svg'
@@ -144,6 +153,8 @@ import type { DeviceInfo } from '@/apis'
 import { getAppDevice } from '@/apis'
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
+
+const active = ref('device')
 
 function filterModel(dm: DeviceInfo['dm']) {
   if (info.value?.db) {
@@ -190,6 +201,7 @@ function filterBnIcon(bn: DeviceInfo['bn']) {
 }
 
 const deviceInfo = [
+  { label: '访问IP', prop: 'ip' },
   { label: '设备类型', prop: 'dt' },
   { label: '设备型号', prop: 'dm', filter: filterModel },
   { label: '设备方向', prop: 'do', filter: filterDo },
@@ -222,7 +234,9 @@ const deviceId = route.params.id as string | undefined
 
 const info = ref<DeviceInfo>()
 
-deviceId && getAppDevice(deviceId).then(res => {
-  info.value = res
-})
+if (deviceId) {
+  getAppDevice(deviceId).then(res => {
+    info.value = res
+  })
+}
 </script>

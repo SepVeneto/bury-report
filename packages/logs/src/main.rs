@@ -8,13 +8,16 @@ mod middleware;
 mod utils;
 
 
-use crate::services::actor;
+use std::sync::Arc;
+use std::time::Duration;
+
+// use crate::services::actor;
 
 use actix::Actor;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
-use db::init_db;
 use log::{info, error};
-use tokio_cron_scheduler::{JobScheduler, Job};
+use rdkafka::ClientConfig;
+use rdkafka::producer::{BaseProducer, Producer};
 
 #[post("/verify_ticket")]
 async fn ticket(req_body: String) -> impl Responder {
@@ -33,58 +36,51 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let (client, db) = db::connect_db().await;
-  init_db(&db).await;
-  let sched = init_sched().await;
-  let server = actor::WsActor::new().start();
+//   let server = actor::WsActor::new().start();
+  let producer: BaseProducer = ClientConfig::new()
+    .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
+    .set("compression.type", "gzip")
+    .set("message.timeout.ms", "5000")
+    .create()
+    .expect("Producer creation error");
+  let producer_data = web::Data::new(Arc::new(producer));
+  let producer_for_shutdown = producer_data.get_ref().clone();
 
   info!("starting HTTP server at http://localhost:8870");
-  HttpServer::new(move || {
+  let server = HttpServer::new(move || {
     App::new()
+      .app_data(web::PayloadConfig::new(10 * 1024 * 1024))
       .app_data(web::Data::new(client.clone()))
       .app_data(web::Data::new(db.clone()))
-      .app_data(web::Data::new(server.clone()))
-      .app_data(web::Data::new(sched.clone()))
-      .wrap(middleware::Auth)
+    //   .app_data(web::Data::new(server.clone()))
+      .app_data(producer_data.clone())
+    //   .wrap(middleware::Auth)
       .configure(routes::services)
   })
   .bind(("0.0.0.0", 8870))?
-  .run()
-  .await
+  .run();
+
+
+  let handle = server.handle();
+
+  actix_web::rt::spawn(async move {
+    if let Err(e) = tokio::signal::ctrl_c().await {
+        error!("Unable to listen for shutdown signal: {}", e);
+        return;
+    }
+
+    info!("Flushing Kafka producer...");
+    let _ = producer_for_shutdown.flush(Duration::from_secs(5));
+    info!("Kafka producer flushed, shutdown complete.");
+
+    info!("Shutdown signal received, stopping server...");
+    handle.stop(true).await;
+  });
+
+  info!("HTTP server running.");
+  server.await
 }
 
-async fn init_sched() -> JobScheduler {
-    let sched = JobScheduler::new().await.unwrap();
-    sched.add(
-        // 每天分别清理最近3天的请求日志，30天的错误日志，7天的常规上报日志
-        // 每天收集并清理用户的设备信息
-        // 系统默认协调时间时，比北京晚8个小时
-        Job::new_async("0 0 16 1/1 * *", |_uuid, _l|{
-        // Job::new_async("0 1/1 * * * *", |_uuid, _l|{
-            info!("starting gc...");
-            Box::pin(async move {
-                let (client, _) = crate::db::connect_db().await;
-                
-                let db = client.database("reporter");
-                let config = crate::services::config::get_config(&db).await.unwrap_or_default();
-                info!("set config: {:?}", config);
-                if let Err(err) = services::apps::gc_info(&client, 1).await {
-                    error!("{}", err.to_string());
-                }
-                if let Err(err) = services::apps::gc_networks(&client, config.cycle_api).await {
-                    error!("{}", err.to_string());
-                }
-                if let Err(err) = services::apps::gc_errors(&client, config.cycle_log).await {
-                    error!("{}", err.to_string());
-                }
-                if let Err(err) = services::apps::gc_logs(&client, config.cycle_log).await {
-                    error!("{}", err.to_string());
-                }
-            })
-        }).unwrap()
-    ).await.unwrap();
-    sched.start().await.unwrap();
-    sched
-}
 fn init_log() {
   use std::io::Write;
   use chrono::Local;

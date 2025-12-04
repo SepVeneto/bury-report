@@ -3,7 +3,6 @@ use super::{
     BaseModel,
     QueryModel,
     CreateModel,
-    DeleteModel,
     PaginationModel,
 };
 use serde::{Deserialize, Serialize};
@@ -19,6 +18,7 @@ pub struct Model {
   pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,
+  pub stamp: Option<f64>,
   #[serde(serialize_with = "serialize_time")]
   pub create_time: DateTime,
   pub device_time: Option<String>,
@@ -30,5 +30,4 @@ impl BaseModel for Model {
 }
 impl QueryModel for Model {}
 impl CreateModel for Model {}
-impl DeleteModel for Model {}
 impl PaginationModel for Model {}

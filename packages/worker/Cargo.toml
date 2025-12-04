@@ -1,0 +1,27 @@
+[package]
+name = "worker"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "bury-report-worker"
+path = "src/main.rs"
+
+[dependencies]
+redis = { version = "0.32", features = ["tokio-comp"] }
+dotenv = "0.15.0"
+env_logger = "0.10.1"
+qcos = { git = "https://github.com/SepVeneto/qcos.git", branch = "feature/custom-header" }
+log = "0.4.20"
+tokio = "1.39.2"
+rdkafka = { version = "0.38", features = ["tokio", "cmake-build"] }
+futures = "0.3"
+chrono = "0.4.31"
+chrono-tz = "0.9.0"
+flate2 = "1.1.5"
+http = "1.4.0"
+
+[dependencies.mongodb]
+version = "2.8.2"
+default-features = false
+features = ["async-std-runtime"]

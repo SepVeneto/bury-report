@@ -2,6 +2,7 @@ import { reportRequest as request } from '@/util/request'
 import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
 import { Query } from '.'
+import type { eventWithTime } from '@rrweb/types'
 
 export type App = {
   id: string
@@ -101,6 +102,7 @@ export function getAppChart(appid: string, chartType: string) {
 }
 
 type DeviceCommon = {
+  ip?: string
   /**
    * 设备类型
    */
@@ -226,6 +228,52 @@ export function getAppDevice(deviceId: string) {
   return request<DeviceInfo>({
     url: `/device/${deviceId}`,
   })
+}
+
+export function getSessionList(deviceId: string, params: { page: number, size: number, timerange?: string[]}) {
+  const _params = new Query(params).build()
+  return request({
+    url: `/device/${deviceId}/session/list`,
+    params: _params,
+    raw: 'data',
+  })
+}
+
+export async function getSessionEvents(urls: string[]) {
+  const futures = urls.map(url => fetch(url).then(response => response.text()))
+  const list: eventWithTime[] = []
+  await Promise.all(futures).then(res => {
+    res.forEach(item => {
+      const records = JSON.parse(item) as any[]
+      const events = records.map(item => item.data.events).flat()
+      list.push(...events)
+    })
+  })
+  return list
+}
+
+export type SessionApi = {
+  appid: string,
+  data: {
+    type: string
+    url: string
+    method: string
+    body: string
+    status: number
+    page: string
+    responseHeader: string
+    response: string
+    duration: number
+  },
+  session: string
+  stamp: number
+  uuid: string
+}
+export async function getSessionDetail(sessionId: string) {
+  const res = await request<{ event_urls: string[], net: SessionApi[], err: any[] }>({
+    url: `/session/${sessionId}`,
+  })
+  return res
 }
 
 export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {

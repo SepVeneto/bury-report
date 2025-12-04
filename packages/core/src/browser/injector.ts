@@ -6,14 +6,17 @@ function init(options: Options) {
     const plugin = new ErrorPlugin()
     plugin.init(options.appid)
 
-    Promise.all([
+    Promise.allSettled([
       loadScript(options.url),
       loadScript(options.url, 'plugins/operationRecord.global.js'),
     ]).then(() => {
+      console.log('foo?')
       plugin.resetListener()
 
       if ('BuryReport' in window) {
-        window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
+        if ('OperationRecordPlugin' in window) {
+          window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
+        }
         // eslint-disable-next-line no-new
         new window.BuryReport(options)
       } else {
@@ -27,12 +30,15 @@ function init(options: Options) {
 
 function loadScript(reportUrl: string, entry = 'index.global.js') {
   const script = document.createElement('script')
-  const versionPefix = process.env.DEFINE_VERSION?.split('.').slice(0, -1).join('.')
-  const coreUrl = `${reportUrl.replace('record', '')}sdk/${versionPefix}/${entry}`
-  script.src = coreUrl
+  const versionPefix = process.env.DEFINE_VERSION?.replace(/^(\d+\.\d+)\.\d+(-.+)$/, '$1$2')
+  const url = new URL(reportUrl)
+  const coreUrl = `${url.origin}/sdk/${versionPefix}/${entry}`
+  script.src = process.env.LOG_DEBUG ? `/public/${entry}` : coreUrl
+  // script.src = `/public/${entry}`
   script.crossOrigin = 'anonymous'
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     script.onload = resolve
+    script.onerror = reject
     document.body.appendChild(script)
   })
 }

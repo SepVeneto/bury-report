@@ -1,13 +1,14 @@
 {
   "name": "server",
-  "version": "0.3.3",
+  "version": "0.4.0-beta.9",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
     "bootstrap": "wasm-pack build ../sign --target nodejs --out-dir ../sign/pkg-server --mode no-install --scope server",
     "dev": "cross-env REPORT_DB_URL=10.7.12.26:27017 node ./src/main.js",
-    "dev:local": "cross-env REPORT_DB_URL=localhost:27017 node ./src/main.js",
+    "dev:local": "DEBUG=true && deno --allow-env --allow-sys --allow-net --allow-ffi --allow-read --env-file=.env.local ./src/main.ts",
+    "start": "deno --allow-env --allow-sys --allow-net --allow-ffi --allow-read ./src/main.ts",
     "release": "bumpp --tag server@",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -15,15 +16,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@koa/router": "^12.0.1",
-    "canvas": "^2.11.2",
-    "dayjs": "^1.11.10",
-    "jsonwebtoken": "^9.0.2",
-    "koa": "^2.14.2",
-    "koa-body": "^6.0.1",
-    "md5": "^2.3.0",
+    "cos-nodejs-sdk-v5": "^2.15.4",
+    "dayjs": "^1.11.19",
+    "debug": "^4.4.3",
     "mongodb": "^6.3.0",
-    "ws": "^8.16.0"
+    "jsonwebtoken": "^9.0.2",
+    "md5": "^2.3.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "cross-env": "^7.0.3"
