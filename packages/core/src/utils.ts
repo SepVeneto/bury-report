@@ -178,8 +178,7 @@ export function storageReport(
   }
 
   const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]') as Array<any>
-  // 仅微信小程序环境下限制本地缓存大小
-  if ('wx' in globalThis && list.length > MAX_CACHE_REQUEST) {
+  if (list.length > MAX_CACHE_REQUEST) {
     list.shift()
   }
   list.push(record)
