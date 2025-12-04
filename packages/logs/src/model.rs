@@ -247,6 +247,12 @@ pub trait CreateModel: BaseModel
             info!("insert unique: {:?}", unique);
             Ok(Some(Self::insert_one(db, data).await?))
         } else {
+            let col = <Self as CreateModel>::col(db);
+            let _ = col.update_one(unique.clone(), doc! {
+                "$set": {
+                    "update_time": DateTime::now(),
+                }
+            }, None).await?;
             Ok(None)
         }
     }

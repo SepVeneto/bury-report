@@ -1,4 +1,4 @@
-use mongodb::{Client, Database, bson::{Document, doc}, results::UpdateResult};
+use mongodb::{Client, Database, bson::{DateTime, Document, doc}, results::UpdateResult};
 
 pub async fn connect_db() -> (Client, Database) {
   let db_url = std::env::var("REPORT_DB_URL").expect("enviroment missing REPORT_DB_URL");
@@ -30,6 +30,9 @@ pub async fn update_event (
     doc! {
       "$push": {
         "event_urls": event_url
+      },
+      "$set": {
+        "update_time": DateTime::now(),
       }
     },
     None
