@@ -16,6 +16,8 @@ class OperationRecordPlugin implements BuryReportPlugin {
       emit: (event) => {
         this.events.push(event)
       },
+      // 每10秒重建快照
+      checkoutEveryNms: 10 * 1000,
       plugins: [enhancedPlugin()],
     })
 
