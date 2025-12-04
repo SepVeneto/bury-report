@@ -40,8 +40,7 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '设备ID', prop: 'uuid' },
-  { label: '总计打开次数', prop: 'total_open' },
-  { label: '最后打开时间', prop: 'last_open' },
+  { label: '最后打开时间', prop: 'update_time' },
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },

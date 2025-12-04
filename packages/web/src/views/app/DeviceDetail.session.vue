@@ -65,7 +65,7 @@ import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
-import type { eventWithTime } from '@rrweb/types'
+import { EventType, type eventWithTime } from '@rrweb/types'
 
 const route = useRoute()
 const playerRef = useTemplateRef('refPlayer')
@@ -86,10 +86,14 @@ function getList() {
 }
 const events = shallowRef<eventWithTime[]>([])
 const apis = shallowRef<SessionApi[]>([])
+let startTime = 0
+
 async function handleOpen(row: any) {
   show.value = true
   const res = await getSessionDetail(row.session)
   events.value = await getSessionEvents(res.event_urls)
+  console.log(events.value)
+  startTime = events.value[0].timestamp
   apis.value = res.net
 
   nextTick().then(() => {
@@ -109,7 +113,28 @@ function onOpened() {
       width: 500,
       height: 500,
       events: events.value,
+      // plugins: [{
+      //   handler(event, isSync, context) {
+      //     if (event.type === '')
+      //   }
+      // }]
     },
+  })
+  player.value.addEventListener('custom-event', (evt) => {
+    console.log('custom', evt)
+  })
+  player.value.addEventListener('event-cast', (evt) => {
+    switch (evt.type) {
+      case EventType.Plugin: {
+        if (evt.data.plugin === '@sepveneto/enhanced') {
+          switch (evt.data.payload.event) {
+            case 'visibilitychange': {
+              console.log(evt.data.payload.action)
+            }
+          }
+        }
+      }
+    }
   })
   player.value.addEventListener('ui-update-current-time', (evt) => {
     currentStamp.value = evt.payload
@@ -126,7 +151,8 @@ function simpleUrl(api: SessionApi) {
 }
 
 function timeFormat(stamp: number) {
-  const seconds = Math.floor(stamp / 1000)
+  const offset = stamp - startTime
+  const seconds = Math.floor(offset / 1000)
   const minutes = Math.floor(seconds / 60)
 
   return `${addZero(minutes)}:${addZero(seconds % 60)}`
@@ -137,7 +163,8 @@ function addZero(num: number) {
 }
 
 function isActiveApi(api: SessionApi) {
-  return currentStamp.value >= api.stamp
+  const offset = api.stamp - startTime
+  return currentStamp.value >= offset
 }
 </script>
 
