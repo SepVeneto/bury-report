@@ -80,16 +80,16 @@ async fn main() -> redis::RedisResult<()> {
                 let _: Result<(), RedisError> = conn.zadd(REDIS_ZSET, &session, get_expire_time(expire_time)).await;
               },
               Some(Err(e)) => {
-                info!("Error while decoding payload: {}", e);
+                error!("Error while decoding payload: {}", e);
               },
               None => {
-                info!("Message payload is null");
+                error!("Message payload is null");
               }
             };
           }
         },
         Err(e) => {
-          info!("Error while receiving message: {}", e);
+          error!("Error while receiving message: {}", e);
         }
       }
     }
@@ -116,7 +116,7 @@ fn init_cos() -> Result<Client, VarError> {
         headers.insert("Content-Encoding", val);
       },
       Err(e) => {
-        info!("Error while setting Content-Encoding header: {}", e);
+        error!("Error while setting Content-Encoding header: {}", e);
       }
     }
     client.with_custom_headers(headers);
@@ -189,13 +189,13 @@ async fn process_message(
               let _: Result<(), RedisError> = conn.del(&store_key).await;
             },
             Err(e) => {
-              info!("Error while uploading session: {}", e);
+              error!("Error while uploading session: {}", e);
             }
           }
         }
       },
       Err(e) => {
-        info!("Error while receiving message: {}", e);
+        error!("Error while receiving message: {}", e);
       }
     }
   }
@@ -251,7 +251,7 @@ async fn compensate_sessions(
       continue;
     }
 
-    info!("Compensating session: {}", session);
+    debug!("Compensating session: {}", session);
 
     match upload_session(conn, cos, &client, &session).await {
       Ok(store_key) => {
@@ -279,7 +279,7 @@ async fn upload_session(
     let now = chrono::Local::now().timestamp_millis();
     let path = format!("/session/{appid}/{session}-{stamp}.json.gz", appid=&appid, session=&session, stamp=now);
     let url = cos.get_full_url_from_path(&path);
-    info!("uploading to: {}", url);
+    debug!("uploading to: {}", url);
     // let joined = format!("[{}]", res.join(","));
 
     let cos_clone = cos.clone();
@@ -292,7 +292,7 @@ async fn upload_session(
             decompressed_list.push(decompressed);
           }
           Err(e) => {
-            info!("Error while decompressing payload: {}", e);
+            error!("Error while decompressing payload: {}", e);
           }
         }
       }
@@ -310,7 +310,7 @@ async fn upload_session(
             Some(acl_header),
           ).await;
           if res.error_no == ErrNo::SUCCESS {
-            info!("Upload to: {:?}", url);
+            debug!("Upload to: {:?}", url);
             if let Err(err) = update_event(&db, &session, &url).await {
               error!("Error while updating event: {}", err);
             }
@@ -320,7 +320,7 @@ async fn upload_session(
           }
         },
         Err(e) => {
-          info!("Error while compressing payload: {}", e);
+          error!("Error while compressing payload: {}", e);
         }
       }
     });
