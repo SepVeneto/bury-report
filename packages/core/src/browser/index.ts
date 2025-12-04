@@ -19,8 +19,7 @@ export class BuryReport implements BuryReportBase {
 
   constructor(config: Options) {
     const url = config.url
-    // const url = 'http://localhost:8870/record'
-    const worker = WorkerFactory({ url })
+    const worker = WorkerFactory({ url: process.env.LOG_DEBUG ? 'http://localhost:8870/record' : url })
     window.__BR_WORKER__ = worker
 
     this.options = withDefault(config)
@@ -55,10 +54,18 @@ export class BuryReport implements BuryReportBase {
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
+        const operation: any = BuryReport.pluginsOrder.find(item => item.name === 'OperationRecordPlugin')
+        if (operation && operation.collect) {
+          operation.collect()
+        }
         this.report?.(LIFECYCLE, { t: 'visibilitychange' }, true)
       }
     })
     window.addEventListener('pagehide', (evt) => {
+      const operation: any = BuryReport.pluginsOrder.find(item => item.name === 'OperationRecordPlugin')
+      if (operation && operation.collect) {
+        operation.collect()
+      }
       this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, true)
     })
   }
@@ -116,7 +123,7 @@ function createProxy(options: Options) {
     }
 
     // TODO: 网络日志是否需要区分发起时间和响应时间
-    const record = storageReport(type, data, cache, BuryReport.cache, performance.now())
+    const record = storageReport(type, data, cache, BuryReport.cache, Date.now())
     if (immediate) {
       sendRequest(record)
     } else {

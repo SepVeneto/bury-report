@@ -1,7 +1,7 @@
 import type { Options } from 'tsup'
 import * as fs from 'node:fs'
 import swc from '@swc/core'
-import { buildSync, transformSync } from 'esbuild'
+import { buildSync } from 'esbuild'
 import path from 'node:path'
 import { version } from './package.json'
 import { InlineWorkerPlugin } from './lib/inline-worker'
@@ -16,37 +16,11 @@ const browser: Options = {
   platform: 'browser',
   splitting: false,
   minify: 'terser',
+  outDir: process.env.LOG_DEBUG ? './playground/browser/public' : 'dist',
+  define: {
+    'process.env.LOG_DEBUG': process.env.LOG_DEBUG || "''",
+  },
   esbuildPlugins: [
-    // {
-    //   name: 'ts-raw-import',
-    //   setup(build) {
-    //     build.onResolve({ filter: /\?raw$/ }, (args) => {
-    //       return {
-    //         path: args.path,
-    //         pluginData: path.resolve(args.resolveDir, args.path).replace(/\?raw$/, ''),
-    //         namespace: 'ts-raw',
-    //       }
-    //     })
-
-    //     build.onLoad({ filter: /\?raw$/ }, async (args) => {
-    //       const filepath = args.pluginData + '.ts'
-
-    //       const tsCode = fs.readFileSync(filepath, 'utf-8')
-
-    //       const result = transformSync(tsCode, {
-    //         loader: 'ts',
-    //         format: 'iife',
-    //         target: 'chrome68',
-    //       })
-
-    //       return {
-    //         contents: `export default ${JSON.stringify(result.code)}`,
-    //         loader: 'js',
-    //         resolveDir: path.dirname(args.path),
-    //       }
-    //     })
-    //   },
-    // },
     InlineWorkerPlugin(),
   ],
 }
@@ -63,6 +37,7 @@ const cli: Options = {
   treeshake: true,
   define: {
     'process.env.DEFINE_VERSION': `"${version}"`,
+    'process.env.LOG_DEBUG': process.env.LOG_DEBUG || "''",
   },
   esbuildPlugins: [
     {
@@ -90,6 +65,7 @@ const cli: Options = {
             bundle: true,
             define: {
               'process.env.DEFINE_VERSION': `'${version}'`,
+              'process.env.LOG_DEBUG': process.env.LOG_DEBUG || "''",
             },
           })
 
