@@ -1,4 +1,8 @@
-use mongodb::{Client, Database};
+use bson::{Document, doc};
+use mongodb::{Client, Database, IndexModel, error::Result};
+use log::error;
+
+use crate::model::{BaseModel, logs, logs_error, logs_network, apps};
 
 pub struct DbApp {}
 
@@ -22,4 +26,41 @@ pub async fn connect_db() -> (Client, Database) {
   let db = client.database("reporter");
 
   (client, db)
+}
+
+
+async fn init_db(client: &Client) -> Result<()>{
+    let cols = [
+        logs_error::Model::NAME,
+        logs_network::Model::NAME,
+        logs::Model::NAME,
+        logs::Session::NAME,
+        logs::Device::NAME
+    ];
+    let reporter = client.database("reporter");
+    let mut apps = reporter.collection::<apps::Model>("apps").find(doc! {
+        "is_delete": { "$ne": true }
+    }, None).await?;
+    while apps.advance().await? {
+        let app = apps.current();
+        match app.get_object_id("_id") {
+            Ok(id) => {
+                let db_name = format!("app_{}", id.to_string());
+                let db = client.database(&db_name);
+                for col in &cols {
+                    let session_index = IndexModel::builder().keys(doc! { "session": 1 }).build();
+                    let uuid_index = IndexModel::builder().keys(doc! {"uuid": 1}).build();
+                    db.collection::<Document>(col).create_index(session_index, None).await?;
+                    db.collection::<Document>(col).create_index(uuid_index, None).await?;
+                }
+            }
+            Err(err) => {
+                error!("{}", err)
+            }
+        }
+
+
+    }
+
+    Ok(())
 }

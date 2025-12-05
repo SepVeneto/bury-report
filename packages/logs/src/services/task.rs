@@ -3,11 +3,11 @@ use std::time::Duration;
 use log::{debug, error};
 use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 
-use crate::{model::logs_track, services::record_logs::RecordList};
+use crate::{model::logs, services::record_logs::RecordList};
 
 pub fn send_to_kafka(
     producer: &BaseProducer,
-    payload: &logs_track::Model
+    payload: &logs::Model
 ) {
     let session = payload.session.clone();
     let appid: String = payload.appid.clone();

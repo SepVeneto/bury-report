@@ -6,10 +6,7 @@ use bson::{oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error};
 use mongodb::{
-    bson::{self, doc, oid::ObjectId, Document},
-    options::FindOptions,
-    results::{InsertManyResult, InsertOneResult},
-    Collection,
+    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::FindOptions, results::{InsertManyResult, InsertOneResult}
 };
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
@@ -20,7 +17,6 @@ pub mod logs;
 pub mod device;
 pub mod logs_network;
 pub mod logs_error;
-pub mod logs_track;
 pub mod apps;
 pub mod session;
 
@@ -234,6 +230,20 @@ pub trait CreateModel: BaseModel
         let col_name = Self::NAME;
         db.collection(col_name)
     }
+
+    async fn init_indexs(db: &Database) -> QueryResult<()> {
+        let col = Self::col(db);
+        let uuid_index = IndexModel::builder()
+            .keys(doc! {"uuid" : 1})
+            .build();
+        let session_index = IndexModel::builder()
+            .keys(doc! {"session": 1})
+            .build();
+        col.create_index(uuid_index, None).await?;
+        col.create_index(session_index, None).await?;
+        Ok(())
+    }
+
     async fn insert_unique(
         db: &Database,
         data: &Self::Model,

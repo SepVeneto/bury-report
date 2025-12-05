@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 
-use actix::Addr;
-use actix_web::{web, HttpRequest, HttpResponse};
-use actix_web_actors::ws;
 use bson::doc;
 use futures_util::future::join_all;
 use log::{debug, error};
@@ -14,7 +11,7 @@ use rdkafka::producer::BaseProducer;
 use crate::{
     db,
     model::{
-        CreateModel, apps, logs, logs_error, logs_network, logs_track
+        CreateModel, apps, logs, logs_error, logs_network
     },
     services::task::{send_batch_to_kafka, send_to_kafka}
 };
@@ -37,7 +34,7 @@ pub enum RecordList {
     LogList(Vec<logs::Model>),
     NetworkList(Vec<logs_network::Model>),
     ErrorList(Vec<logs_error::Model>),
-    TrackList(Vec<logs_track::Model>),
+    TrackList(Vec<logs::Model>),
     CustomList(Vec<logs::Model>),
 }
 pub async fn record(
@@ -148,18 +145,13 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
             }
             logs_error::Model::insert_many(db, data).await?;
         },
-        RecordList::TrackList(data) => {
-            if data.len() == 0 {
-                return Ok(());
-            }
-            logs_track::Model::insert_many(db, data).await?;
-        }
         RecordList::CustomList(data) => {
             if data.len() == 0 {
                 return Ok(());
             }
             logs::Model::insert_many(db, data).await?;
         }
+        _ => {}
     }
     Ok(())
 }

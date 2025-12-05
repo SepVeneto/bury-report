@@ -15,8 +15,10 @@ pub struct Model {
     pub total_open: u32,
 }
 
+pub const NAME: &str = "records_session";
+
 impl BaseModel for Model {
-    const NAME: &'static str = "records_session";
+    const NAME: &'static str = NAME;
     type Model = Model;
 }
 impl CreateModel for Model {}

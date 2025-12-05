@@ -4,10 +4,11 @@ use mongodb::bson::{DateTime, doc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::model::logs;
+
 use super::{
     logs_error,
     logs_network,
-    logs_track,
     serialize_time,
     BaseModel,
     CreateModel,
@@ -56,7 +57,7 @@ pub enum RecordItem {
     // Log(Model),
     Network(logs_network::Model),
     Error(logs_error::Model),
-    Track(logs_track::Model),
+    Track(logs::Model),
     Custom(Model),
 }
 impl RecordV1 {
@@ -94,7 +95,7 @@ impl RecordV1 {
                 device_time: self.time.clone(),
             })
         } else if self.r#type == TYPE_TRACK {
-            RecordItem::Track(logs_track::Model {
+            RecordItem::Track(logs::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
@@ -168,14 +169,16 @@ pub struct Device {
   pub create_time: DateTime,
   pub device_time: Option<String>,
 }
+pub const DEVICE: &'static str = "records_device";
 impl BaseModel for Device {
-    const NAME: &'static str = "records_device";
+    const NAME: &'static str = DEVICE;
     type Model = Device;
 }
 impl QueryModel for Device {}
 impl CreateModel for Device {}
 
 
+pub const SESSION: &'static str = "records_session";
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Session {
   pub uuid: String,
@@ -184,7 +187,7 @@ pub struct Session {
 //   pub create_time: DateTime,
 }
 impl BaseModel for Session {
-    const NAME: &'static str = "records_session";
+    const NAME: &'static str = SESSION;
     type Model = Session;
 }
 impl CreateModel for Session {}

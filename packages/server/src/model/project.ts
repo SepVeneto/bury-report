@@ -13,7 +13,7 @@ export class Project extends Model<IProject> {
     super(db, 'projects')
   }
 
-  async insertApp(pid: string, app: IApp & { id: ObjectId }) {
+  async insertApp(pid: string, app: IApp & { id: string }) {
     const _id = ObjectId.createFromHexString(pid)
     await this.col.updateOne({ _id } as Filter<IProject>, {
       $addToSet: { apps: app }

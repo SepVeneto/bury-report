@@ -6,7 +6,26 @@ export const client = new MongoClient(`mongodb://${process.env.DB_NAME || 'root'
 
 
 const db = client.db('reporter')
-initDb()
+init()
+
+function init() {
+  initClient()
+  initDb()
+}
+
+async function initClient() {
+  const apps = await client.db().admin().listDatabases()
+  apps.databases.forEach(async db => {
+    if (db.name.startsWith('app_')) {
+      const app = client.db(db.name)
+      const cols = await app.listCollections().toArray()
+      cols.forEach(col => {
+        const inst = app.collection(col.name)
+        inst.createIndexes([{ key: { uuid: 1 }}, { key: { session: 1 }}])
+      })
+    }
+  })
+}
 
 async function initDb() {
   await client.connect()
@@ -18,7 +37,8 @@ async function initDb() {
   // createCollection('logs', collections)
   {
     const captcha = db.collection('captcha')
-    const exist = (await captcha.indexes()).find(index => index.name === 'create_time')
+    const indexs = await captcha.indexes()
+    const exist = indexs.find(index => index.name === 'create_time')
     if (!exist) {
       captcha.createIndex({ 'create_time': 1 }, { name: 'create_time', expireAfterSeconds: 10 * 60 })
     }
