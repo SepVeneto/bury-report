@@ -1,7 +1,9 @@
 import { OPERATION_TRACK } from '@/constant'
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import * as rrweb from '@rrweb/record'
-import type { RecordPlugin } from '@rrweb/types'
+import { EventType, type RecordPlugin } from '@rrweb/types'
+
+const TIMEOUT = 5 * 1000
 
 class OperationRecordPlugin implements BuryReportPlugin {
   public name = 'OperationRecordPlugin'
@@ -9,24 +11,39 @@ class OperationRecordPlugin implements BuryReportPlugin {
 
   private events: any[] = []
   private ctx?: BuryReport
+  private reportTimer?: number
 
   init(ctx: BuryReport) {
     this.ctx = ctx
     rrweb.record({
       emit: (event) => {
         this.events.push(event)
+        if (!this.reportTimer) {
+          this.reportTimer = setTimeout(() => {
+            this.collect()
+            this.reportTimer = undefined
+          }, TIMEOUT) as unknown as number
+        }
+        if (event.type === EventType.FullSnapshot) {
+          clearTimeout(this.reportTimer)
+          this.reportTimer = undefined
+          this.collect()
+        }
       },
-      // 每10秒重建快照
-      checkoutEveryNms: 10 * 1000,
+      // 每5秒重建快照
+      // checkoutEveryNms: TIMEOUT,
       plugins: [enhancedPlugin()],
+      sampling: {
+        mousemove: 200,
+        scroll: 300,
+        input: 'last',
+      },
     })
-
-    setInterval(() => {
-      this.collect()
-    }, 5 * 1000)
   }
 
   collect() {
+    if (!this.events.length) return
+
     this.ctx?.report?.(OPERATION_TRACK, { events: this.events })
     this.events = []
   }
