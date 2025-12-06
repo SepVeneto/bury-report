@@ -19,6 +19,7 @@
     "cos-nodejs-sdk-v5": "^2.15.4",
     "dayjs": "^1.11.19",
     "debug": "^4.4.3",
+    "ioredis": "^5.8.2",
     "mongodb": "^6.3.0",
     "jsonwebtoken": "^9.0.2",
     "md5": "^2.3.0",

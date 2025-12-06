@@ -293,3 +293,10 @@ export function getLogList(params: { page: number, size: number, timerange?: str
     raw: 'data',
   })
 }
+
+export function syncSession(session: string) {
+  return request({
+    url: `/session/${session}/sync`,
+    method: 'post',
+  }, true)
+}

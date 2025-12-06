@@ -15,6 +15,15 @@
         @click="handleOpen(row)"
       />
     </template>
+    <template #operate="{ row }">
+      <BcButton
+        text
+        type="primary"
+        @click="handleSync(row.session)"
+      >
+        同步
+      </BcButton>
+    </template>
   </BcTable>
 
   <ElDialog
@@ -24,7 +33,9 @@
     @closed="onClosed"
   >
     <section style="display: flex;">
-      <div ref="refPlayer" />
+      <div style="width: 500px;">
+        <div ref="refPlayer" />
+      </div>
       <ElScrollbar
         height="700px"
         style="flex: 1;"
@@ -62,7 +73,7 @@
 
 <script lang="ts" setup>
 import type { SessionApi } from '@/apis'
-import { getSessionDetail, getSessionEvents, getSessionList } from '@/apis'
+import { getSessionDetail, getSessionEvents, getSessionList, syncSession } from '@/apis'
 import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import RrwebPlayer from 'rrweb-player'
@@ -84,11 +95,16 @@ const searchConfig = shallowRef([
 const tableConfig = shallowRef([
   { label: '会话', prop: 'session' },
   { label: '时间', prop: 'create_time' },
+  { label: '操作', prop: 'operate' },
 ])
 const show = ref(false)
 
 if (route.query.session) {
   params.value.session = route.query.session as string
+}
+
+function handleSync(session: string) {
+  syncSession(session)
 }
 
 function getList() {

@@ -4,6 +4,7 @@ import { RecordApi, RecordError } from '../model/record.ts'
 import { RecordLog } from "../model/record.ts";
 import { Filter } from "../model/index.ts";
 import COS from 'cos-nodejs-sdk-v5'
+import { Redis } from 'ioredis'
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -105,6 +106,20 @@ router.get('/session/:sessionId', async ctx => {
     log: logs,
   }
 
+})
+
+router.post('/session/:sessionId/sync', async ctx => {
+  const session = ctx.params.sessionId
+  const appid = ctx.request.headers.get('appid')
+  const redisUrl = Deno.env.get('REDIS_HOST')
+  if (!redisUrl) {
+    throw new Error('REDIS_HOST is not set')
+  }
+  const [host, port] = redisUrl.split(':')
+  const redis = new Redis(Number(port), host)
+  // 提前过期，只有大于0才会触发ttl通知
+  await redis.expire(`session:${appid}/${session}:shadow`, 1)
+  ctx.resMsg = '下发成功'
 })
 
 export default router
