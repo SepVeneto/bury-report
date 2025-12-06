@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use actix_web::{get, post, web, HttpRequest};
+use actix_web::{HttpRequest, get, post, web};
 // use actix::Addr;
 use flate2::read::GzDecoder;
 use log::error;
@@ -150,6 +150,10 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
     } else {
         res.to_vec()
     };
+
+    if &bytes == b"" {
+        return Err(ApiError::InvalidError());
+    }
 
     let json = serde_json::from_slice::<RecordPayload>(&bytes);
 
