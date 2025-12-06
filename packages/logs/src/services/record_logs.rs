@@ -65,9 +65,14 @@ pub async fn record(
                             session: session.to_string(),
                         };
                         let filter = doc! {"session": session};
-                        logs::Session::insert_unique(db, &data, filter).await?;
+                        logs::Session::insert_unique(db, &data, filter, None).await?;
                     }
-                    logs::Device::insert_unique(db, &device, doc! {"uuid": uuid}).await?;
+                    logs::Device::insert_unique(
+                        db,
+                        &device,
+                        doc! {"uuid": uuid},
+                        doc! { "session": session },
+                    ).await?;
                 },
                 // logs::RecordItem::Log(log) => {
                 //     logs::Model::insert_one(db, log).await?;
@@ -122,9 +127,14 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
                         uuid: uuid.to_string(),
                         session: session.to_string(),
                     };
-                    logs::Session::insert_unique(db, &data, doc! { "session": session }).await?;
+                    logs::Session::insert_unique(db, &data, doc! { "session": session }, None).await?;
                 }
-                logs::Device::insert_unique(db, device, doc! {"uuid": uuid}).await?;
+                logs::Device::insert_unique(
+                    db,
+                    device,
+                    doc! {"uuid": uuid},
+                    doc! {"session": session}
+                ).await?;
             }
         },
         RecordList::LogList(data) => {

@@ -3,7 +3,7 @@ import { Session, DeviceLog } from "../model/device.ts";
 import { RecordApi, RecordError } from '../model/record.ts'
 import { RecordLog } from "../model/record.ts";
 import { Filter } from "../model/index.ts";
-import COS from 'npm:cos-nodejs-sdk-v5'
+import COS from 'cos-nodejs-sdk-v5'
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -60,11 +60,12 @@ router.get('/device/:deviceId', async (ctx) => {
 
 router.get('/device/:deviceId/session/list', async (ctx) => {
   const session = new Session(ctx.db)
-  const { page = 1, size = 10 } = ctx.request.query
+  const { page = 1, size = 10, ...query } = ctx.request.query
   // const { start_time, end_time } = query
   const uuid = ctx.params.deviceId
   const filter = new Filter()
   filter.equal('uuid', uuid)
+  filter.equal('session', query.session)
   const list = await session.pagination(page, size, filter)
   list.list.forEach(item => delete item.event_urls)
   ctx.resBody = list

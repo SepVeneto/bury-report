@@ -1,4 +1,9 @@
 <template>
+  <BcSearch
+    v-model="params"
+    :config="searchConfig"
+    @reset="params.session = undefined"
+  />
   <BcTable
     :config="tableConfig"
     :api="getList"
@@ -69,15 +74,22 @@ const route = useRoute()
 const playerRef = useTemplateRef('refPlayer')
 
 const deviceId = route.params.id as string
-const params = ref({
+const params = ref<{ session?: string, page: number, size: number }>({
   page: 1,
   size: 20,
 })
+const searchConfig = shallowRef([
+  { catalog: 'input', prop: 'session', name: '会话ID' },
+])
 const tableConfig = shallowRef([
   { label: '会话', prop: 'session' },
   { label: '时间', prop: 'create_time' },
 ])
 const show = ref(false)
+
+if (route.query.session) {
+  params.value.session = route.query.session as string
+}
 
 function getList() {
   return getSessionList(deviceId, params.value)

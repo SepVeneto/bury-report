@@ -248,6 +248,7 @@ pub trait CreateModel: BaseModel
         db: &Database,
         data: &Self::Model,
         unique: Document,
+        unique_data: impl Into<Option<Document>>,
     )
     -> QueryResult<Option<InsertOneResult>>
     where
@@ -258,10 +259,16 @@ pub trait CreateModel: BaseModel
             Ok(Some(Self::insert_one(db, data).await?))
         } else {
             let col = <Self as CreateModel>::col(db);
+            let mut set = doc! {
+                "update_time": DateTime::now(),
+            };
+
+            if let Some(data) = unique_data.into() {
+                set.extend(data);
+            }
+
             let _ = col.update_one(unique.clone(), doc! {
-                "$set": {
-                    "update_time": DateTime::now(),
-                }
+                "$set": set,
             }, None).await?;
             Ok(None)
         }

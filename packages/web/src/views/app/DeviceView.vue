@@ -18,6 +18,12 @@
           @click="handleLink(row.uuid)"
         />
       </template>
+      <template #session="{ row }">
+        <DeviceLink
+          :uuid="row.session"
+          @click="handleLink(row.uuid, row.session)"
+        />
+      </template>
     </bc-table>
   </section>
 </template>
@@ -39,6 +45,7 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '设备ID', prop: 'uuid' },
+  { label: '最近一次会话', prop: 'session' },
   { label: '最后打开时间', prop: 'update_time' },
 ])
 const searchConfig = shallowRef([
@@ -53,7 +60,7 @@ function handleSearch() {
   tableRef.value.getList()
 }
 const router = useRouter()
-function handleLink(id: string) {
-  router.push({ name: 'DeviceDetail', params: { id } })
+function handleLink(id: string, session?: string) {
+  router.push({ name: 'DeviceDetail', params: { id }, query: { session } })
 }
 </script>

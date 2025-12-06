@@ -10,20 +10,22 @@
 </template>
 
 <script lang="ts" setup>
+import type { PropType } from 'vue'
 import { computed } from 'vue'
 
 const props = defineProps({
+  simple: Boolean,
   url: {
-    type: [Array, String],
+    type: [Array, String] as PropType<string[] | string>,
     required: true,
   },
 })
 const normalizeUrl = computed(() => {
   // 兼容微信老数据
   if (Array.isArray(props.url)) {
-    return props.url.join(',')
+    return props.url.map(item => simpleUrl(item)).join(',')
   } else {
-    return props.url
+    return simpleUrl(props.url)
   }
 })
 const urlReg = /(?<suffix>https?:\/\/[a-zA-Z0-9][-a-zA-Z0-9]{0,62}(\.[a-zA-Z0-9][-a-zA-Z0-9]{0,62})+\.?)(?<api>.*)/
@@ -35,6 +37,22 @@ const blockApi = computed(() => {
     return [groups.suffix, groups.api]
   }
 })
+
+function simpleUrl(url: string) {
+  const path = new URL(url)
+  if (props.simple) {
+    if (path.hash) {
+      const [p] = path.hash.split('?')
+      path.hash = p
+      return String(path)
+    } else {
+      path.search = ''
+      return String(path)
+    }
+  } else {
+    return url
+  }
+}
 </script>
 
 <style scoped>

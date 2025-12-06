@@ -23,11 +23,26 @@
           @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
         />
       </template>
+      <template #session="{ row }">
+        <DeviceLink
+          :uuid="row.session"
+          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid }, query: { session: row.session } })"
+        />
+      </template>
       <template #url="{ row }">
         <UrlBlock :url="row.data.url" />
       </template>
+      <template #page-header>
+        <div style="display: flex; align-items: center;">
+          <span style="margin-right: 10px;">发起地址</span>
+          <IconTips content="已被简化，具体地址请查看请求头" />
+        </div>
+      </template>
       <template #page="{ row }">
-        <UrlBlock :url="row.data.page" />
+        <UrlBlock
+          :url="row.data.page"
+          simple
+        />
       </template>
       <template #responseStatus="{ row }">
         <StatusIcon
@@ -74,9 +89,9 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '上报时间', prop: 'create_time', width: 180 },
   { label: '发起时间', prop: 'device_time', width: 160 },
   { label: '设备ID', prop: 'uuid', width: 220 },
+  { label: '会话ID', prop: 'session', width: 180 },
   { label: '请求', prop: 'url' },
   { label: '方法', prop: 'data.method', width: 80 },
   { label: '发起地址', prop: 'page' },

@@ -230,6 +230,10 @@ const hostInfo = [
 
 const route = useRoute()
 
+if (route.query.session) {
+  active.value = 'session'
+}
+
 const deviceId = route.params.id as string | undefined
 
 const info = ref<DeviceInfo>()
