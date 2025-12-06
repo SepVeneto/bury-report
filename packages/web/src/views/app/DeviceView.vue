@@ -13,12 +13,10 @@
       :api="getList"
     >
       <template #uuid="{ row }">
-        <ElLink
-          type="primary"
+        <DeviceLink
+          :uuid="row.uuid"
           @click="handleLink(row.uuid)"
-        >
-          {{ row.uuid }}
-        </ElLink>
+        />
       </template>
     </bc-table>
   </section>
@@ -28,6 +26,7 @@
 import { getDeviceList } from '@/apis'
 import { ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
+import DeviceLink from './components/DeviceLink.vue'
 
 defineOptions({
   name: 'HistoryDevice',
@@ -44,6 +43,7 @@ const tableConfig = shallowRef([
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
+  { catalog: 'input', name: '会话ID', prop: 'session' },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
 function getList() {

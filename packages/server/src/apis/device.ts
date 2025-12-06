@@ -22,11 +22,12 @@ router.get('/device', async (ctx) => {
   const device = new DeviceLog(ctx.db)
 
   const { page, size, ...query } = ctx.request.query
-  const { uuid, start_time, end_time } = query
+  const { uuid, start_time, end_time, session } = query
 
   const filter = new Filter()
   filter.rangeTime('create_time', start_time, end_time)
   filter.equal('uuid', uuid)
+  filter.equal('session', session)
 
   const list = await device.pagination(page, size, filter)
   ctx.resBody = list
@@ -59,7 +60,7 @@ router.get('/device/:deviceId', async (ctx) => {
 
 router.get('/device/:deviceId/session/list', async (ctx) => {
   const session = new Session(ctx.db)
-  const { page = 1, size = 10, ...query } = ctx.request.query
+  const { page = 1, size = 10 } = ctx.request.query
   // const { start_time, end_time } = query
   const uuid = ctx.params.deviceId
   const filter = new Filter()
@@ -70,6 +71,7 @@ router.get('/device/:deviceId/session/list', async (ctx) => {
 })
 
 router.get('/session/:sessionId', async ctx => {
+  const log = new RecordLog(ctx.db)
   const networkLog = new RecordApi(ctx.db)
   const errorLog = new RecordError(ctx.db)
   const session = new Session(ctx.db)
@@ -83,26 +85,23 @@ router.get('/session/:sessionId', async ctx => {
     ctx.resMsg = '没有找到指定的会话'
     return
   }
-  if (!detail.event_urls) {
-    ctx.resCode = 1
-    ctx.resMsg = '当前会话没有记录'
-    return
-  }
-  const eventFutures = detail.event_urls.map(url => {
+  const eventFutures = detail.event_urls?.map(url => {
     return cos.getObjectUrl({
       Bucket: BUCKET,
       Region: REGION,
       Key: url.replace(`https://${BUCKET}.cos.${REGION}.myqcloud.com/`, ''),
     })
-  })
+  }) || []
   const eventUrls = await Promise.all(eventFutures)
   const net = await networkLog.getAll(filter)
-  const err = errorLog.getAll(filter)
+  const err = await errorLog.getAll(filter)
+  const logs = await log.getAll(filter)
 
   ctx.resBody = {
     event_urls: eventUrls,
     net: net,
     err: err,
+    log: logs,
   }
 
 })

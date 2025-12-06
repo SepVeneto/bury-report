@@ -5,13 +5,10 @@
     pagination
   >
     <template #session="{ row }">
-      <BcButton
-        text
-        type="primary"
+      <DeviceLink
+        :uuid="row.session"
         @click="handleOpen(row)"
-      >
-        {{ row.session }}
-      </BcButton>
+      />
     </template>
   </BcTable>
 
@@ -66,6 +63,7 @@ import { useRoute } from 'vue-router'
 import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
 import { EventType, type eventWithTime } from '@rrweb/types'
+import DeviceLink from './components/DeviceLink.vue'
 
 const route = useRoute()
 const playerRef = useTemplateRef('refPlayer')
