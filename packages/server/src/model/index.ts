@@ -1,4 +1,4 @@
-import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId } from "mongodb"
+import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId} from "mongodb"
 import dayjs from 'dayjs'
 import { escapeRegExp } from "../utils/tools.ts";
 
@@ -77,7 +77,11 @@ export class Model<M extends BaseType> {
     return await this.col.insertOne({ ...data, is_delete: false, create_time: new Date() })
   }
 
-  async pagination(page: number, size: number, filter: Filter<M> = new Filter()) {
+  async pagination(
+    page: number,
+    size: number,
+    filter: Filter<M> = new Filter(),
+  ) {
     if (typeof size === 'string') {
       size = Number(size)
     }

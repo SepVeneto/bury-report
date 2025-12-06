@@ -58,6 +58,10 @@ router.get('/record/networks', async (ctx) => {
   filter.equal('session', session)
 
   const res = await record.pagination(Number(page), Number(size), filter)
+  res.list.forEach(item => {
+    // @ts-expect-error: ignore
+    delete item.data
+  })
   ctx.resBody = res
 })
 
