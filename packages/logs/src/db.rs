@@ -1,6 +1,6 @@
 use bson::{Document, doc};
 use mongodb::{Client, Database, IndexModel, error::Result};
-use log::error;
+use log::{error, debug};
 
 use crate::model::{BaseModel, logs, logs_error, logs_network, apps};
 
@@ -25,6 +25,10 @@ pub async fn connect_db() -> (Client, Database) {
   let client = Client::with_uri_str(uri).await.expect("failed to connect to Mongo");
   let db = client.database("reporter");
 
+  if let Err(err) = init_db(&client).await {
+    error!("init db error: {}", err);
+  }
+
   (client, db)
 }
 
@@ -47,6 +51,7 @@ async fn init_db(client: &Client) -> Result<()>{
             Ok(id) => {
                 let db_name = format!("app_{}", id.to_string());
                 let db = client.database(&db_name);
+                debug!("create indexs for app {}", db.name());
                 for col in &cols {
                     let session_index = IndexModel::builder().keys(doc! { "session": 1 }).build();
                     let uuid_index = IndexModel::builder().keys(doc! {"uuid": 1}).build();
