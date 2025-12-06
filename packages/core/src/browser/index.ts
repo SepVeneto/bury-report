@@ -58,7 +58,7 @@ export class BuryReport implements BuryReportBase {
         if (operation && operation.collect) {
           operation.collect()
         }
-        this.report?.(LIFECYCLE, { t: 'visibilitychange' }, true)
+        this.report?.(LIFECYCLE, { t: 'visibilitychange' }, true, true, true)
       }
     })
     window.addEventListener('pagehide', (evt) => {
@@ -66,7 +66,7 @@ export class BuryReport implements BuryReportBase {
       if (operation && operation.collect) {
         operation.collect()
       }
-      this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, true)
+      this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, true, true, true)
     })
   }
 
@@ -97,8 +97,9 @@ function createProxy(options: Options) {
     data: Record<string, any>,
     immediate = false,
     cache = true,
+    keepalive = false,
   ) {
-    const sendRequest = (record?: any) => {
+    const sendRequest = (record?: any, keepalive = false) => {
       const list: any[] = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
       if (record) {
         list.push(record)
@@ -112,6 +113,7 @@ function createProxy(options: Options) {
         deviceid: getUuid(),
         store: list,
         cache: BuryReport.cache,
+        keepalive,
       })
 
       // 不管上报的成功与否，都需要清除定时器，保证新的上报流程正常执行
@@ -125,7 +127,7 @@ function createProxy(options: Options) {
     // TODO: 网络日志是否需要区分发起时间和响应时间
     const record = storageReport(type, data, cache, BuryReport.cache, Date.now())
     if (immediate) {
-      sendRequest(record)
+      sendRequest(record, keepalive)
     } else {
       if (!timer) {
         timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number

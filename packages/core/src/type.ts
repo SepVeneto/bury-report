@@ -115,6 +115,7 @@ export type ReportFn = (
   data: Record<string, any>,
   immediate?: boolean,
   cache?: boolean,
+  keepalive?: boolean,
 ) => void
 export abstract class BuryReportBase {
   public abstract report?: ReportFn

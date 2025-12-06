@@ -27,7 +27,7 @@ class OperationRecordPlugin implements BuryReportPlugin {
         if (event.type === EventType.FullSnapshot) {
           clearTimeout(this.reportTimer)
           this.reportTimer = undefined
-          this.collect()
+          this.collect(true)
         }
       },
       // 每5秒重建快照
@@ -41,10 +41,10 @@ class OperationRecordPlugin implements BuryReportPlugin {
     })
   }
 
-  collect() {
+  collect(immediate = false, keepalive = false) {
     if (!this.events.length) return
 
-    this.ctx?.report?.(OPERATION_TRACK, { events: this.events })
+    this.ctx?.report?.(OPERATION_TRACK, { events: this.events }, immediate, true, keepalive)
     this.events = []
   }
 }
