@@ -13,6 +13,22 @@ class OperationRecordPlugin implements BuryReportPlugin {
   private ctx?: BuryReport
   private reportTimer?: number
 
+  hook() {
+    const originalPush = window.history.pushState
+    const originalReplace = window.history.replaceState
+
+    window.history.pushState = function (...args) {
+      // @ts-expect-error: ignore
+      originalPush.apply(this, arguments)
+      rrweb.record.takeFullSnapshot()
+    }
+    window.history.replaceState = function (...args) {
+      // @ts-expect-error: ignore
+      originalReplace.apply(this, arguments)
+      rrweb.record.takeFullSnapshot()
+    }
+  }
+
   init(ctx: BuryReport) {
     this.ctx = ctx
     rrweb.record({
@@ -38,6 +54,9 @@ class OperationRecordPlugin implements BuryReportPlugin {
         scroll: 300,
         input: 'last',
       },
+    })
+    setTimeout(() => {
+      this.hook()
     })
   }
 

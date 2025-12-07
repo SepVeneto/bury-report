@@ -56,7 +56,7 @@ export class PerfPlugin implements BuryReportPlugin {
     })
 
     if (fcpEntry && fcpEntry.startTime < firstHidden.timestamp && fcpEntry.startTime < TIMING_MAXIMUM_DELAY) {
-      this.ctx!.report?.(PERF_INFO, { fcp: formatTime(fcpEntry.startTime) }, true)
+      this.ctx!.report?.(PERF_INFO, { fcp: formatTime(fcpEntry.startTime) })
       if (this.observer) {
         this.observer.disconnect()
         this.observer = undefined
