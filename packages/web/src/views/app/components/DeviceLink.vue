@@ -7,6 +7,7 @@
       {{ uuid }}
     </ElLink>
     <ElIcon
+      v-if="uuid"
       class="copy-btn"
       size="18"
       @click="handleCopy(uuid)"

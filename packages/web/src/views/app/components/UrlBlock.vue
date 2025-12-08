@@ -39,6 +39,10 @@ const blockApi = computed(() => {
 })
 
 function simpleUrl(url: string) {
+  if (!url.startsWith('http')) {
+    return url
+  }
+
   const path = new URL(url)
   if (props.simple) {
     if (path.hash) {

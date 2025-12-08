@@ -80,6 +80,7 @@ import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
 import { EventType, type eventWithTime } from '@rrweb/types'
 import DeviceLink from './components/DeviceLink.vue'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const playerRef = useTemplateRef('refPlayer')
@@ -118,7 +119,6 @@ async function handleOpen(row: any) {
   show.value = true
   const res = await getSessionDetail(row.session)
   events.value = await getSessionEvents(res.event_urls)
-  console.log(events.value)
   startTime = events.value[0].timestamp
   apis.value = res.net
 
@@ -131,6 +131,10 @@ const player = shallowRef<RrwebPlayer>()
 const currentStamp = ref(0)
 function onOpened() {
   if (!playerRef.value) {
+    return
+  }
+  if (events.value.length === 0) {
+    ElMessage.warning('缺少会话数据，请稍候重试或手动同步')
     return
   }
   player.value = new RrwebPlayer({
