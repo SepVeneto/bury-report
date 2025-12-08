@@ -12,19 +12,21 @@ class OperationRecordPlugin implements BuryReportPlugin {
   private events: any[] = []
   private ctx?: BuryReport
   private reportTimer?: number
+  private isHooked = false
 
   hook() {
+    if (this.isHooked) return
+    this.isHooked = true
+
     const originalPush = window.history.pushState
     const originalReplace = window.history.replaceState
 
     window.history.pushState = function (...args) {
-      // @ts-expect-error: ignore
-      originalPush.apply(this, arguments)
+      originalPush.apply(this, args)
       rrweb.record.takeFullSnapshot()
     }
     window.history.replaceState = function (...args) {
-      // @ts-expect-error: ignore
-      originalReplace.apply(this, arguments)
+      originalReplace.apply(this, args)
       rrweb.record.takeFullSnapshot()
     }
   }
@@ -41,6 +43,7 @@ class OperationRecordPlugin implements BuryReportPlugin {
           }, TIMEOUT) as unknown as number
         }
         if (event.type === EventType.FullSnapshot) {
+          this.hook()
           clearTimeout(this.reportTimer)
           this.reportTimer = undefined
           this.collect(true)
@@ -54,9 +57,6 @@ class OperationRecordPlugin implements BuryReportPlugin {
         scroll: 300,
         input: 'last',
       },
-    })
-    setTimeout(() => {
-      this.hook()
     })
   }
 
