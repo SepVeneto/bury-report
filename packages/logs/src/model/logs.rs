@@ -10,6 +10,7 @@ use super::{
     logs_error,
     logs_network,
     serialize_time,
+    deserialize_reocrd_data,
     BaseModel,
     CreateModel,
     PaginationModel,
@@ -40,6 +41,7 @@ impl RecordPayload {
 pub struct RecordV1 {
   pub r#type: String,
   pub appid: String,
+  #[serde(deserialize_with="deserialize_reocrd_data")]
   pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,

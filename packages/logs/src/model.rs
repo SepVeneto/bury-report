@@ -9,6 +9,7 @@ use mongodb::{
     Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::FindOptions, results::{InsertManyResult, InsertOneResult}
 };
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{Map, Value};
 use thiserror::Error;
 use mongodb::Database;
 use futures_util::{join, StreamExt};
@@ -315,6 +316,22 @@ pub trait CreateModel: BaseModel
         }
         let res = col.insert_many(list, None).await.unwrap();
         Ok(res)
+    }
+}
+
+pub fn deserialize_reocrd_data<'de, D>(deserializer: D) -> Result<Map<String, serde_json::Value>, D::Error>
+where 
+    D: Deserializer<'de>,
+{
+    let v = Value::deserialize(deserializer)?;
+
+    match v {
+        Value::Object(map) => Ok(map),
+        other => {
+            let mut m = Map::new();
+            m.insert("msg".into(), other);
+            Ok(m)
+        }
     }
 }
 
