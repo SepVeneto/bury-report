@@ -14,7 +14,7 @@
       <template #uuid="{ row }">
         <ElLink
           type="primary"
-          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
+          @click="handleDetail(row.uuid)"
         >
           {{ row.uuid }}
         </ElLink>
@@ -22,7 +22,7 @@
       <template #session="{ row }">
         <ElLink
           type="primary"
-          @click="$router.push({ name: 'DeviceDetail', params: { id: row.session } })"
+          @click="handleDetail(row.uuid, row.session)"
         >
           {{ row.session }}
         </ElLink>
@@ -46,6 +46,7 @@
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
+import { useRouter } from 'vue-router'
 
 const params = ref({
   page: 1,
@@ -65,6 +66,10 @@ const searchConfig = shallowRef([
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
 
+const router = useRouter()
+function handleDetail(id: string, session?: string) {
+  router.push({ name: 'DeviceDetail', params: { id }, query: { session } })
+}
 function getList() {
   return getAppErrors(params.value)
 }

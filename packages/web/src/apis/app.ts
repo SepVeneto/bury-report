@@ -269,8 +269,20 @@ export type SessionApi = {
   stamp: number
   uuid: string
 }
+export type SessionLog = {
+  appid: string,
+  data: any,
+  session: string
+  stamp: number
+  uuid: string
+}
 export async function getSessionDetail(sessionId: string) {
-  const res = await request<{ event_urls: string[], net: SessionApi[], err: any[] }>({
+  const res = await request<{
+    event_urls: string[],
+    net: SessionApi[],
+    err: SessionLog[],
+    log: SessionLog[],
+  }>({
     url: `/session/${sessionId}`,
   })
   return res

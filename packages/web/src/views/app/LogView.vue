@@ -14,13 +14,13 @@
       <template #uuid="{ row }">
         <DeviceLink
           :uuid="row.uuid"
-          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
+          @click="handleDetail(row.uuid)"
         />
       </template>
       <template #session="{ row }">
         <DeviceLink
           :uuid="row.session"
-          @click="$router.push({ name: 'DeviceDetail', params: { id: row.session } })"
+          @click="handleDetail(row.uuid, row.session)"
         />
       </template>
       <template #data="{ row }">
@@ -40,6 +40,7 @@ import { ref, shallowRef } from 'vue'
 import { getLogList } from '@/apis'
 import DeviceLink from './components/DeviceLink.vue'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
+import { useRouter } from 'vue-router'
 
 const params = ref({
   page: 1,
@@ -59,6 +60,11 @@ const searchConfig = shallowRef([
   { catalog: 'input', prop: 'uuid', name: '设备ID', style: 'width: 320px' },
   { catalog: 'input', prop: 'data', name: '上报数据', style: 'width: 320px' },
 ])
+
+const router = useRouter()
+function handleDetail(id: string, session?: string) {
+  router.push({ name: 'DeviceDetail', params: { id }, query: { session } })
+}
 function getList() {
   return getLogList(params.value)
 }

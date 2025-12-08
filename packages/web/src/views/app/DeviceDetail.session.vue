@@ -36,43 +36,101 @@
       <div style="width: 500px;">
         <div ref="refPlayer" />
       </div>
-      <ElScrollbar
-        height="700px"
-        style="flex: 1;"
+      <ElTabs
+        type="card"
+        model-value="net"
       >
-        <ElCollapse>
-          <ElCollapseItem
-            v-for="(api, index) in apis"
-            :key="index"
+        <ElTabPane
+          name="net"
+          label="网络"
+        >
+          <ElScrollbar
+            height="700px"
+            style="flex: 1;"
           >
-            <template #title>
+            <ElCollapse>
+              <ElCollapseItem
+                v-for="(api, index) in apis"
+                :key="index"
+              >
+                <template #title>
+                  <div
+                    class="api-item"
+                    :class="[isActiveApi(api) && 'active']"
+                  >
+                    [{{ timeFormat(api.stamp) }}] {{ simpleUrl(api) }}
+                  </div>
+                </template>
+                <ElDescriptions :column="1">
+                  <ElDescriptionsItem label="请求URL">
+                    {{ api.data.url }}
+                  </ElDescriptionsItem>
+                  <ElDescriptionsItem label="状态">
+                    {{ api.data.status }}
+                  </ElDescriptionsItem>
+                  <ElDescriptionsItem label="耗时">
+                    {{ api.data.duration.toFixed(2) }}ms
+                  </ElDescriptionsItem>
+                </ElDescriptions>
+              </ElCollapseItem>
+            </ElCollapse>
+          </ElScrollbar>
+        </ElTabPane>
+
+        <ElTabPane
+          name="log"
+          label="日志"
+        >
+          <ElScrollbar
+            height="700px"
+            style="flex: 1;"
+          >
+            <div
+              v-for="(log, index) in logs"
+              :key="index"
+            >
               <div
                 class="api-item"
-                :class="[isActiveApi(api) && 'active']"
+                :class="[isActiveApi(log) && 'active']"
               >
-                [{{ timeFormat(api.stamp) }}] {{ simpleUrl(api) }}
+                [{{ timeFormat(log.stamp) }}] {{ JSON.stringify(log.data) }}
               </div>
-            </template>
-            <ElDescriptions :column="1">
-              <ElDescriptionsItem label="请求URL">
-                {{ api.data.url }}
-              </ElDescriptionsItem>
-              <ElDescriptionsItem label="状态">
-                {{ api.data.status }}
-              </ElDescriptionsItem>
-              <ElDescriptionsItem label="耗时">
-                {{ api.data.duration.toFixed(2) }}ms
-              </ElDescriptionsItem>
-            </ElDescriptions>
-          </ElCollapseItem>
-        </ElCollapse>
-      </ElScrollbar>
+            </div>
+          </ElScrollbar>
+        </ElTabPane>
+
+        <ElTabPane
+          name="error"
+          label="错误"
+        >
+          <ElScrollbar
+            height="700px"
+            style="flex: 1;"
+          >
+            <ElCollapse>
+              <ElCollapseItem
+                v-for="(err, index) in errs"
+                :key="index"
+              >
+                <template #title>
+                  <div
+                    class="api-item"
+                    :class="[isActiveApi(err) && 'active']"
+                  >
+                    [{{ timeFormat(err.stamp) }}] {{ `${err.data.name}: ${JSON.stringify(err.data.message)}` }}
+                  </div>
+                </template>
+              </ElCollapseItem>
+            </ElCollapse>
+          </ElScrollbar>
+        </ElTabPane>
+      </ElTabs>
     </section>
   </ElDialog>
 </template>
 
 <script lang="ts" setup>
-import type { SessionApi } from '@/apis'
+import type { SessionApi, SessionLog } from '@/apis'
 import { getSessionDetail, getSessionEvents, getSessionList, syncSession } from '@/apis'
 import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
@@ -113,14 +171,20 @@ function getList() {
 }
 const events = shallowRef<eventWithTime[]>([])
 const apis = shallowRef<SessionApi[]>([])
+const logs = shallowRef<SessionLog[]>([])
+const errs = shallowRef<SessionLog[]>([])
 let startTime = 0
 
 async function handleOpen(row: any) {
   show.value = true
   const res = await getSessionDetail(row.session)
   events.value = await getSessionEvents(res.event_urls)
-  startTime = events.value[0].timestamp
   apis.value = res.net
+  logs.value = res.log
+  errs.value = res.err
+  apis.value.sort((a, b) => a.stamp - b.stamp)
+  logs.value.sort((a, b) => a.stamp - b.stamp)
+  errs.value.sort((a, b) => a.stamp - b.stamp)
 
   nextTick().then(() => {
     onOpened()
@@ -137,6 +201,7 @@ function onOpened() {
     ElMessage.warning('缺少会话数据，请稍候重试或手动同步')
     return
   }
+  startTime = events.value[0].timestamp
   player.value = new RrwebPlayer({
     target: playerRef.value,
     props: {
@@ -180,12 +245,15 @@ function simpleUrl(api: SessionApi) {
   return url.pathname
 }
 
-function timeFormat(stamp: number) {
-  const offset = stamp - startTime
+function timeFormat(stamp?: number) {
+  if (!stamp) return '--:--'
+
+  const flag = stamp > startTime
+  const offset = Math.abs(stamp - startTime)
   const seconds = Math.floor(offset / 1000)
   const minutes = Math.floor(seconds / 60)
 
-  return `${addZero(minutes)}:${addZero(seconds % 60)}`
+  return `${flag ? '' : '-'}${addZero(minutes)}:${addZero(seconds % 60)}`
 }
 
 function addZero(num: number) {

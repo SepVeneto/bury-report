@@ -20,13 +20,13 @@
       <template #uuid="{ row }">
         <DeviceLink
           :uuid="row.uuid"
-          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid } })"
+          @click="handleDetail(row.uuid)"
         />
       </template>
       <template #session="{ row }">
         <DeviceLink
           :uuid="row.session"
-          @click="$router.push({ name: 'DeviceDetail', params: { id: row.uuid }, query: { session: row.session } })"
+          @click="handleDetail(row.uuid, row.session)"
         />
       </template>
       <template #url="{ row }">
@@ -79,6 +79,7 @@ import { ref, shallowRef } from 'vue'
 import { getAppNetworks } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
+import { useRouter } from 'vue-router'
 
 defineOptions({ name: 'NetworkView' })
 
@@ -121,6 +122,11 @@ const searchConfig = shallowRef([
   },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
+
+const router = useRouter()
+function handleDetail(id: string, session?: string) {
+  router.push({ name: 'DeviceDetail', params: { id }, query: { session } })
+}
 
 function filterType(type: string) {
   switch (type) {
