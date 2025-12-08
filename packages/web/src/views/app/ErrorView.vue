@@ -48,6 +48,10 @@ import { getAppErrors } from '@/apis'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
 
+defineOptions({
+  name: 'ErrorView',
+})
+
 const params = ref({
   page: 1,
   size: 20,
