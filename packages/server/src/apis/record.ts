@@ -60,7 +60,11 @@ router.get('/record/networks', async (ctx) => {
   const res = await record.pagination(Number(page), Number(size), filter)
   res.list.forEach(item => {
     // @ts-expect-error: ignore
-    delete item.data
+    delete item.data.response
+    // @ts-expect-error: ignore
+    delete item.data.body
+    // @ts-expect-error: ignore
+    delete item.data.responseHeaders
   })
   ctx.resBody = res
 })
