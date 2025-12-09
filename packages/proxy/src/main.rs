@@ -26,24 +26,21 @@ async fn main() -> anyhow::Result<()> {
       };
 
       let raw_req = String::from_utf8_lossy(&buf[..n]);
-      let invalid = raw_req
-        .lines()
-        .find(|l| {
-          let str = l.to_ascii_lowercase();
-          let version = str.ends_with("http/1.0");
-          let length = str.starts_with("content-length");
+      let http_1_0 = raw_req.lines().find(|l| {
+        let line = l.to_ascii_lowercase();
+        line.ends_with("http/1.0")
+      });
 
-          !length && version
-        });
-
-      if invalid.is_some() {
-        log::info!("Raw Request:\n{}", raw_req);
+      if http_1_0.is_some() {
+        if let Some((header, _)) = parse_http_request_header(&buf[..n]) {
+          log::info!("Raw Header:\n{}", String::from_utf8_lossy(header));
+        } else {
+          log::error!("Invalid HTTP request")
+        }
       }
 
       if let Err(e) = handle(socket).await {
         log::error!("Error handling connection: {}", e);
-      } else {
-        log::info!("Connection send");
       }
     });
   }
@@ -54,4 +51,15 @@ async fn handle(mut inbound: TcpStream) -> anyhow::Result<()> {
 
   copy_bidirectional(&mut inbound, &mut outbound).await?;
   Ok(())
+}
+
+fn parse_http_request_header(raw: &[u8]) -> Option<(&[u8], usize)> {
+  // 查找 CRLF CRLF
+  if let Some(pos) = memchr::memmem::find(raw, b"\r\n\r\n") {
+    // header 结束位置 = pos + 4
+    let header_end = pos + 4;
+    Some((&raw[..header_end], header_end))
+  } else {
+    None // header 还没接收完
+  }
 }
