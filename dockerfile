@@ -113,3 +113,30 @@ WORKDIR /app
 COPY --from=worker-server /app/target/release/bury-report-worker ./
 
 CMD ["/app/bury-report-worker"]
+
+# *************************************
+FROM rust:1.90.0 AS proxy-build
+
+WORKDIR /app
+
+VOLUME "/usr/local/cache"
+
+COPY ./packages/proxy/Cargo.lock ./packages/proxy/Cargo.toml ./
+
+RUN cargo fetch --target x86_64-unknown-linux-gnu
+
+COPY ./packages/proxy/src ./src
+
+RUN cargo build --release
+
+
+FROM debian:stable-slim AS proxy-deploy
+
+WORKDIR /app
+
+# RUN apt-get update && apt-get install -y curl
+
+COPY --from=proxy-build /app/target/release/bury-report-proxy ./
+
+CMD ["/app/bury-report-proxy"]
+
