@@ -109,8 +109,8 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
     } catch (e) {
       console.warn(e)
     }
-    return _tempError
   }
+  return _tempError
 }
 
 function normalizeResourceError(evt: Event) {
@@ -203,6 +203,7 @@ function normalizeConsoleError(args: any[]) {
         extra = '[unserializable extra]'
       }
     }
+    console.log('foo')
 
     return {
       message,

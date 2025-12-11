@@ -21,6 +21,9 @@ export default defineConfig({
       collect: true,
       report: true,
       interval: 5,
+      operationRecord: {
+        enable: false,
+      },
       network: {
         enable: true,
       },

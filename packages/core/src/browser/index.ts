@@ -46,6 +46,8 @@ export class BuryReport implements BuryReportBase {
           return this.options?.collect
         case 'networkPlugin':
           return this.options?.network?.enable
+        case 'operationRecordPlugin':
+          return this.options.operationRecord?.enable
         default:
           return true
       }

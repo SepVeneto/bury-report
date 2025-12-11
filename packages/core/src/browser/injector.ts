@@ -8,7 +8,7 @@ function init(options: Options) {
 
     Promise.allSettled([
       loadScript(options.url),
-      loadScript(options.url, 'plugins/operationRecord.global.js'),
+      options.operationRecord?.enable && loadScript(options.url, 'plugins/operationRecord.global.js'),
     ]).then(() => {
       console.log('foo?')
       plugin.resetListener()
