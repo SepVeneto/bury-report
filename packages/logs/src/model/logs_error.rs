@@ -6,25 +6,16 @@ use super::{
 };
 use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use mongodb::bson::DateTime;
 
 pub const NAME: &'static str = "records_err";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct ErrorInfo {
-    pub name: String,
-    pub message: String,
-    pub stack: String,
-    pub extra: Option<Value>,
-    pub page: Option<Value>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
   pub r#type: String,
   pub appid: String,
-  pub data: ErrorInfo,
+  pub data: Map<String, Value>,
   pub uuid: String,
   pub session: Option<String>,
   pub stamp: Option<f64>,

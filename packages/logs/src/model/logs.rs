@@ -7,6 +7,7 @@ use serde_json::{Map, Value};
 use crate::model::logs;
 
 use super::{
+    history_error,
     logs_error,
     logs_network,
     serialize_time,
@@ -58,7 +59,7 @@ pub enum RecordItem {
     Device(Device),
     // Log(Model),
     Network(logs_network::Model),
-    Error(logs_error::Model),
+    Error((logs_error::Model, history_error::ErrorInfo)),
     Track(logs::Model),
     Custom(Model),
 }
@@ -86,10 +87,21 @@ impl RecordV1 {
                 device_time: self.time.clone(),
             })
         } else if self.r#type == TYPE_ERROR {
+            let raw = logs_error::Model {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                session: self.session.clone(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                stamp: self.stamp.clone(),
+                create_time: DateTime::now(),
+                device_time: self.time.clone(),
+                normalized_id: None,
+            };
             let page = self.data.get("page");
             let extra = self.data.get("extra");
 
-            let error_info = logs_error::ErrorInfo {
+            let error_info = history_error::ErrorInfo {
                 name: get_string(&self.data, "name"),
                 message: get_string(&self.data, "message"),
                 stack: get_string(&self.data, "stack"),
@@ -97,17 +109,7 @@ impl RecordV1 {
                 page: page.cloned(),
             };
 
-            RecordItem::Error(logs_error::Model {
-                r#type: self.r#type.to_string(),
-                uuid: self.uuid.to_string(),
-                session: self.session.clone(),
-                appid: self.appid.to_string(),
-                data: error_info,
-                stamp: self.stamp.clone(),
-                create_time: DateTime::now(),
-                device_time: self.time.clone(),
-                normalized_id: None,
-            })
+            RecordItem::Error((raw, error_info))
         } else if self.r#type == TYPE_TRACK {
             RecordItem::Track(logs::Model {
                 r#type: self.r#type.to_string(),

@@ -80,7 +80,7 @@ pub async fn record(
                 logs::RecordItem::Network(net) => {
                     logs_network::Model::insert_one(db, &net).await?;
                 },
-                logs::RecordItem::Error(err) => {
+                logs::RecordItem::Error((err, normalized)) => {
                     logs_error::Model::insert_one(db, &err).await?;
                 },
                 logs::RecordItem::Track(track) => {
@@ -183,7 +183,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
             logs::RecordItem::Network(net) => {
                 list_network.push(net);
             },
-            logs::RecordItem::Error(err) => {
+            logs::RecordItem::Error((err, normalized)) => {
                 list_error.push(err);
             },
             logs::RecordItem::Track(track) => {
