@@ -86,15 +86,27 @@ impl RecordV1 {
                 device_time: self.time.clone(),
             })
         } else if self.r#type == TYPE_ERROR {
+            let page = self.data.get("page");
+            let extra = self.data.get("extra");
+
+            let error_info = logs_error::ErrorInfo {
+                name: get_string(&self.data, "name"),
+                message: get_string(&self.data, "message"),
+                stack: get_string(&self.data, "stack"),
+                extra: extra.cloned(),
+                page: page.cloned(),
+            };
+
             RecordItem::Error(logs_error::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
-                data: self.data.clone(),
+                data: error_info,
                 stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
+                normalized_id: None,
             })
         } else if self.r#type == TYPE_TRACK {
             RecordItem::Track(logs::Model {
@@ -194,3 +206,10 @@ impl BaseModel for Session {
 }
 impl CreateModel for Session {}
 impl QueryModel for Session {}
+
+fn get_string(map: &Map<String, Value>, key: &str) -> String {
+    map.get(key)
+       .and_then(|v| v.as_str())
+       .unwrap_or_default()
+       .to_string()
+}

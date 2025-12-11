@@ -48,6 +48,7 @@ function sliceDataForKeepalive(data: any[]) {
 
 function degradationReport(body: any) {
   const str = JSON.stringify(body)
+  console.log(body)
   // const strSize = getStrSize(str)
   // console.log('origin', strSize)
   const data = pako.gzip(str)

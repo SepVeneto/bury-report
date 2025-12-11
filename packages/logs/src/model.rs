@@ -20,6 +20,7 @@ pub mod logs_network;
 pub mod logs_error;
 pub mod apps;
 pub mod session;
+pub mod history_error;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
