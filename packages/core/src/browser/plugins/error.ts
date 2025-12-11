@@ -1,8 +1,14 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
 import { storageReport } from '@/utils'
-// @ts-expect-error: ignore
-import globalThis from 'core-js/internals/global-this.js'
+
+type ResourceElemnt =
+  HTMLScriptElement |
+  HTMLLinkElement |
+  HTMLImageElement |
+  HTMLVideoElement |
+  HTMLAudioElement |
+  HTMLSourceElement
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
@@ -18,11 +24,10 @@ export class ErrorPlugin implements BuryReportPlugin {
     }
     this.originErrorLog = initErrorProxy((data) => this.reportError(data))
     this.onUncaughtError()
-    this.onResourceLoadError()
     this.onUnhandleRejectionError()
   }
 
-  public reportError(error: { name: string, message: string, stack?: string }) {
+  public reportError(error: { name: string, message: string, stack?: string, extra: any | null }) {
     const data = { ...error, page: window.location.href }
     // 白屏检测没有上下文，需要先放到缓存中
     if (this.ctx) {
@@ -35,37 +40,42 @@ export class ErrorPlugin implements BuryReportPlugin {
   resetListener() {
     console.error = this.originErrorLog
     window.removeEventListener('error', this.uncaughtErrorListener)
-    window.removeEventListener('error', this.resourceLoadErrorListener)
     window.removeEventListener('unhandledrejection', this.unhandleRejectionErrorListener)
   }
 
   public onUncaughtError() {
-    window.addEventListener('error', this.uncaughtErrorListener)
+    window.addEventListener('error', this.uncaughtErrorListener, true)
   }
 
   public uncaughtErrorListener = (evt: ErrorEvent) => {
-    if (!evt || !evt.error) return
+    if (evt.target && evt.target !== window) {
+      const error = normalizeResourceError(evt)
+
+      this.reportError({
+        name: 'ResourceError',
+        ...error,
+      })
+      return
+    }
+
+    let error
+    if (evt.error) {
+      error = normalizeError(evt.error)
+    } else {
+      error = normalizeError(evt.message || 'Unknown script error')
+    }
 
     this.reportError({
-      name: evt.error?.name || '[@sepveneto/report-core] unknown error',
-      message: evt.error?.message || evt.message,
-      stack: evt.error?.stack || `${evt.filename}:${evt.lineno},${evt.colno}`,
-    })
-  }
-
-  public onResourceLoadError() {
-    window.addEventListener('error', this.resourceLoadErrorListener)
-  }
-
-  public resourceLoadErrorListener = (evt: ErrorEvent) => {
-    if (evt instanceof ErrorEvent) return
-
-    const { target } = evt as any
-
-    this.reportError({
-      name: 'ResourceLoadFail',
-      message: target.src || target.href,
-      stack: target.baseURI,
+      name: 'ErrorEvent',
+      message: error.message,
+      stack: error.stack,
+      extra: {
+        filename: evt.filename,
+        lineno: evt.lineno,
+        colno: evt.colno,
+        rawMessage: evt.message,
+        normalizedExtra: error.extra,
+      },
     })
   }
 
@@ -74,56 +84,140 @@ export class ErrorPlugin implements BuryReportPlugin {
   }
 
   public unhandleRejectionErrorListener = (evt: PromiseRejectionEvent) => {
-    const error = evt.reason
+    const error = normalizeError(evt.reason)
 
     this.reportError({
       name: 'UnhandleRejection',
-      message: error?.message,
-      stack: error?.stack,
+      message: error.message,
+      stack: error.stack,
+      extra: error.extra,
     })
   }
 }
 
 function initErrorProxy(reportFn: (...args: any[]) => void) {
   const _tempError = console.error
-  try {
-    console.error = function (...args) {
-      for (const arg of args) {
-        if (typeof arg === 'string') {
-          const error = {
-            name: 'CustomError',
-            message: arg,
-            stack: '',
-          }
-          reportFn(error)
-          break
-        }
-        if (arg instanceof Error) {
-          const error = {
-            name: arg.name,
-            message: arg.message,
-            stack: arg.stack,
-          }
-          reportFn(error)
-          break
-        }
-        if (globalThis.PromiseRejectionEvent && arg instanceof PromiseRejectionEvent && arg.reason) {
-          const error = {
-            name: arg.reason.name,
-            message: arg.reason.message,
-            stack: arg.reason.stack,
-          }
-          reportFn(error)
-          break
-        } else {
-          console.warn(args)
-          console.warn(arg, typeof arg, Object.prototype.toString.call(arg))
-        }
-      }
+  console.error = function (...args) {
+    try {
+      const e = normalizeConsoleError(args)
+
+      reportFn({
+        name: 'CustomError',
+        ...e,
+      })
       _tempError.apply(this, args)
+    } catch (e) {
+      console.warn(e)
     }
-  } catch (err) {
-    console.warn(err)
+    return _tempError
   }
-  return _tempError
+}
+
+function normalizeResourceError(evt: Event) {
+  const target = evt.target as ResourceElemnt || evt.srcElement
+
+  if (!target) {
+    return {
+      message: 'Resource load error: unknown target',
+      stack: '',
+      extra: null,
+    }
+  }
+
+  const tag = target.tagName.toLowerCase()
+  let url = ''
+  // @ts-expect-error: ignore
+  if (target.src) url = target.src
+  // @ts-expect-error: ignore
+  if (target.href) url = target.href
+
+  return {
+    message: `Resource load error: <${tag}>${url || '(no url)'}`,
+    stack: '',
+    extra: {
+      tag,
+      url,
+      outerHTML: target.outerHTML.slice(0, 500),
+    },
+  }
+}
+
+function normalizeError(reason: any) {
+  if (reason instanceof Error) {
+    return {
+      message: reason.message || 'Unknown Error',
+      stack: reason.stack || '',
+      extra: null,
+    }
+  } else if (typeof reason === 'string') {
+    return {
+      message: reason,
+      stack: '',
+      extra: null,
+    }
+  } else if (reason == null) {
+    return {
+      message: 'null or undefined error',
+      stack: '',
+      extra: null,
+    }
+  } else if (typeof reason === 'object') {
+    let json = ''
+    try {
+      json = JSON.stringify(reason)
+    } catch {
+      json = '[object with circular structre'
+    }
+
+    return {
+      message: reason.message || reason.msg || '(object error)',
+      stack: reason.stack,
+      extra: json,
+    }
+  } else {
+    return {
+      message: String(reason),
+      stack: '',
+      extra: null,
+    }
+  }
+}
+
+function normalizeConsoleError(args: any[]) {
+  if (!args || args.length === 0) {
+    return normalizeError('console.error with no arguments')
+  }
+
+  for (const a of args) {
+    if (a instanceof Error) return normalizeError(a)
+  }
+
+  if (typeof args[0] === 'string') {
+    const message = args[0]
+
+    let extra = null
+    if (args.length > 1) {
+      try {
+        extra = JSON.stringify(args.slice(1))
+      } catch {
+        extra = '[unserializable extra]'
+      }
+    }
+
+    return {
+      message,
+      stack: '',
+      extra,
+    }
+  }
+
+  try {
+    return normalizeError(args)
+  } catch {
+    return {
+      message: 'console.error unknown structure',
+      stack: '',
+      extra: null,
+    }
+  }
 }
