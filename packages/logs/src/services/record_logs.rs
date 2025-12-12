@@ -11,7 +11,7 @@ use rdkafka::producer::BaseProducer;
 use crate::{
     db,
     model::{
-        CreateModel, apps, logs, logs_error, logs_network
+        CreateModel, apps, history_error, logs, logs_error, logs_network
     },
     services::task::{send_batch_to_kafka, send_to_kafka}
 };
@@ -33,7 +33,7 @@ pub enum RecordList {
     DeviceList(Vec<logs::Device>),
     LogList(Vec<logs::Model>),
     NetworkList(Vec<logs_network::Model>),
-    ErrorList(Vec<logs_error::Model>),
+    ErrorList((Vec<logs_error::Model>, Vec<history_error::Model>)),
     TrackList(Vec<logs::Model>),
     CustomList(Vec<logs::Model>),
 }
@@ -82,6 +82,7 @@ pub async fn record(
                 },
                 logs::RecordItem::Error((err, normalized)) => {
                     logs_error::Model::insert_one(db, &err).await?;
+                    history_error::Model::insert_one(db, &normalized).await?;
                 },
                 logs::RecordItem::Track(track) => {
                     send_to_kafka(producer, &track);
@@ -149,11 +150,12 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
             }
             logs_network::Model::insert_many(db, data).await?;
         },
-        RecordList::ErrorList(data) => {
+        RecordList::ErrorList((data, normalized)) => {
             if data.len() == 0 {
                 return Ok(());
             }
             logs_error::Model::insert_many(db, data).await?;
+            history_error::Model::insert_many(db, normalized).await?;
         },
         RecordList::CustomList(data) => {
             if data.len() == 0 {
@@ -171,6 +173,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
     let mut list_network = vec![];
     let mut list_error = vec![];
     let mut list_track = vec![];
+    let mut list_normalized_error = vec![];
 
     list.iter().for_each(|item| {
         match item.normalize_from(ip.clone()) {
@@ -185,6 +188,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
             },
             logs::RecordItem::Error((err, normalized)) => {
                 list_error.push(err);
+                list_normalized_error.push(normalized);
             },
             logs::RecordItem::Track(track) => {
                 debug!("track: {:?}", track);
@@ -200,7 +204,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
         "device" => RecordList::DeviceList(list_device),
         "collect" => RecordList::LogList(list_collect),
         "network" => RecordList::NetworkList(list_network),
-        "error" => RecordList::ErrorList(list_error),
+        "error" => RecordList::ErrorList((list_error, list_normalized_error)),
         "track" => RecordList::TrackList(list_track),
         "custom" => RecordList::CustomList(vec![]),
     }

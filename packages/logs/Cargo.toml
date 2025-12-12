@@ -37,6 +37,7 @@ uuid = "1.7.0"
 flate2 = "1.1.5"
 regex = "1.12.2"
 lazy_static = "1.5.0"
+arc-swap = "1.7.1"
 
 [dependencies.mongodb]
 version = "2.8.2"

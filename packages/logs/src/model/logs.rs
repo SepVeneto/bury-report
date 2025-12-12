@@ -33,9 +33,9 @@ impl RecordPayload {
             RecordPayload::V2(v2) => v2.appid.to_owned(),
         }
     }
-    pub fn to_string(&self) -> Result<String, serde_json::Error> {
-        serde_json::to_string(self)
-    }
+    // pub fn to_string(&self) -> Result<String, serde_json::Error> {
+    //     serde_json::to_string(self)
+    // }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -59,7 +59,7 @@ pub enum RecordItem {
     Device(Device),
     // Log(Model),
     Network(logs_network::Model),
-    Error((logs_error::Model, history_error::ErrorInfo)),
+    Error((logs_error::Model, history_error::Model)),
     Track(logs::Model),
     Custom(Model),
 }
@@ -101,13 +101,16 @@ impl RecordV1 {
             let page = self.data.get("page");
             let extra = self.data.get("extra");
 
-            let error_info = history_error::ErrorInfo {
+            let mut error_info = history_error::Model {
                 name: get_string(&self.data, "name"),
                 message: get_string(&self.data, "message"),
                 stack: get_string(&self.data, "stack"),
                 extra: extra.cloned(),
                 page: page.cloned(),
+                fingerprint: None,
+                summary: None,
             };
+            error_info.summary();
 
             RecordItem::Error((raw, error_info))
         } else if self.r#type == TYPE_TRACK {

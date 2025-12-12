@@ -166,7 +166,7 @@ function normalizeError(reason: any) {
     try {
       json = JSON.stringify(reason)
     } catch {
-      json = '[object with circular structre'
+      json = '[object with circular structre]'
     }
 
     return {
