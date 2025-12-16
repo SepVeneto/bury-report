@@ -6,6 +6,7 @@ mod model;
 mod services;
 mod middleware;
 mod utils;
+mod error_alert;
 
 
 use std::sync::Arc;

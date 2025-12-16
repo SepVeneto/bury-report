@@ -21,6 +21,7 @@ pub mod logs_error;
 pub mod apps;
 pub mod session;
 pub mod history_error;
+pub mod alert_rule;
 
 #[derive(Error, Debug)]
 pub enum ModelError {

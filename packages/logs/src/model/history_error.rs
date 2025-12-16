@@ -9,8 +9,8 @@ use crate::model::{BaseModel, CreateModel};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
-    pub fingerprint: Option<String>,
-    pub summary: Option<String>,
+    pub fingerprint: String,
+    pub summary: String,
     pub name: String,
     pub message: String,
     pub stack: String,
@@ -22,7 +22,7 @@ impl Model {
     pub fn clean(&mut self) {
         lazy_static! {
             static ref LINE_COL_RE: Regex = Regex::new(r":\d+:\d+").unwrap();
-            static ref QUERY_RE: Regex = Regex::new(r"(\?.*?)(?=\)|$)").unwrap();
+            static ref QUERY_RE: Regex = Regex::new(r"\?[^)]*").unwrap();
         }
         self.message = self.message.trim().into();
         self.stack = LINE_COL_RE.replace_all(&self.stack, ":{line}:{col}").to_string();
