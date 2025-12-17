@@ -1,3 +1,4 @@
+use bson::DateTime;
 use lazy_static::lazy_static;
 use regex::Regex;
 use md5;
@@ -13,9 +14,10 @@ pub struct Model {
     pub summary: String,
     pub name: String,
     pub message: String,
-    pub stack: String,
-    pub extra: Option<Value>,
     pub page: Option<Value>,
+    pub first_seen: DateTime,
+    pub last_seen: DateTime,
+    pub count: i64,
 }
 
 impl Model {
