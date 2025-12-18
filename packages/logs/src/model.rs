@@ -12,7 +12,7 @@ use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
 use thiserror::Error;
 use mongodb::Database;
-use futures_util::{join, StreamExt};
+use futures_util::{StreamExt, TryStreamExt, join};
 
 pub mod logs;
 pub mod device;
@@ -22,6 +22,7 @@ pub mod apps;
 pub mod session;
 pub mod history_error;
 pub mod alert_rule;
+pub mod alert_fact;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
@@ -214,6 +215,13 @@ pub trait QueryModel: BaseModel {
     ) -> QueryResult<Option<QueryBase<Self::Model>>> {
         let col = Self::col(db);
         let res = col.find_one(filter, None).await?;
+        Ok(res)
+    }
+
+    async fn find_all(db: &Database) -> QueryResult<Vec<QueryBase<Self::Model>>> {
+        let col = Self::col(db);
+        let cursor = col.find(None, None).await?;
+        let res: Vec<QueryBase<Self::Model>> = cursor.try_collect().await?;
         Ok(res)
     }
 

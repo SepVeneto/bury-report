@@ -18,22 +18,25 @@ pub struct NotifySetting {
     pub frequency: NotifyFrequency,
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum AlertType {
     Error,
     Networ,
     Custom,
 }
 
+pub struct RuleFilter {
+
+}
+
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
-    name: String,
-    enabled: bool,
+    pub name: String,
+    pub enabled: bool,
     // 告警类型，错误触发，接口超时，自定义日志主动告警
-    log_type: AlertType,
-    // 指纹控制，启用后相同错误仅告警一次
-    fingerprint: bool,
-    notify: NotifySetting,
+    pub log_type: AlertType,
+    pub fingerprint: Option<String>,
+    pub notify: NotifySetting,
 }
 
 impl BaseModel for Model {

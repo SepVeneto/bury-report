@@ -1,10 +1,12 @@
-use bson::DateTime;
+use bson::{DateTime, doc};
+use mongodb::{Client, Database};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use dashmap::{DashMap, DashSet};
 use serde_json::{Value, Map};
+use log::info;
 
-use crate::model::{alert_rule, history_error, logs, logs_error, logs_network};
+use crate::model::{QueryBase, QueryModel, alert_fact, alert_rule::{self, AlertType}, history_error, logs, logs_error, logs_network};
 
 type AppId = String;
 type ErrorRaw = logs_error::Model;
@@ -16,18 +18,59 @@ enum Raw {
     Log(LogRaw)
 }
 type ErrorSummary = history_error::Model;
-type AlertRule = alert_rule::Model;
+type AlertRule = QueryBase<alert_rule::Model>;
 
 struct AppSummary {
     summaries: DashMap<String, ErrorSummary>,
 }
 
+type AlertFactInfo = alert_fact::Model ;
+struct AlertFact {
+    map: DashMap<String, AlertFactInfo>
+}
+
 pub static SUMMARY_MAP: Lazy<DashMap<AppId, AppSummary>> = Lazy::new(|| DashMap::new());
 pub static FP_MAP: Lazy<DashMap<AppId, DashSet<String>>> = Lazy::new(|| DashMap::new());
-pub static RULE_MAP: Lazy<DashMap<AppId, AlertRule>> = Lazy::new(|| DashMap::new());
+pub static RULE_MAP: Lazy<DashMap<AppId, Vec<AlertRule>>> = Lazy::new(|| DashMap::new());
+pub static ALERT_MAP: Lazy<DashMap<AppId, AlertFact>> = Lazy::new(|| DashMap::new());
 
 static LINE_COL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r":\d+:\d+").unwrap());
 static QUERY_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\?[^)]*").unwrap());
+
+pub async fn init(client: &Client) -> anyhow::Result<()> {
+    info!("?");
+    let apps: Vec<String> = client
+        .list_database_names(None, None)
+        .await?
+        .into_iter()
+        .filter(|name| name.starts_with("app_"))
+        .collect();
+
+    for app in apps {
+        let db = client.database(&app);
+        let rules = alert_rule::Model::find_all(&db).await?;
+        RULE_MAP.insert(app.clone(), rules);
+
+        let facts = alert_fact::Model::find_all(&db).await?;
+        let fp_set= DashSet::new();
+        let alert_fact_map = DashMap::new();
+
+        for fact in &facts {
+            if let Some(fp) = &fact.model.fingerprint {
+                fp_set.insert(fp.clone());
+
+                alert_fact_map.insert(fp.clone(), fact.model.clone());
+            }
+        }
+
+        FP_MAP.insert(app.clone(), fp_set);
+        let alert_fact = AlertFact {
+            map: alert_fact_map,
+        };
+        ALERT_MAP.insert(app.clone(), alert_fact);
+    }
+    Ok(())
+}
 
 pub fn run(appid: &str, raw: &Raw) {
     match raw {
@@ -48,69 +91,73 @@ pub fn alert_log(_appid: &str, _raw: &LogRaw) {
 pub fn alert_error(appid: &str, raw: &ErrorRaw) {
     let (fp, summary)= normalize(raw);
 
-    // 标准化后根据指纹对摘要进行统计
-    let is_new_fp = FP_MAP
+    if let Some(rule) = check_alert(appid, &fp, AlertType::Error) {
+        notify(&rule.model.notify, &summary);
+    }
+
+    let _is_new_fp = FP_MAP
         .entry(appid.to_string())
         .or_insert_with(|| DashSet::new())
         .insert(fp.clone());
-    if is_new_fp {
-        let summary = ErrorSummary {
-            name: get_string(&raw.data, "name"),
-            message: get_string(&raw.data, "message"),
-            page: raw.data.get("page").cloned(),
-            summary,
-            fingerprint: fp.clone(),
-            first_seen: DateTime::now(),
-            last_seen: DateTime::now(),
+
+    let now = DateTime::now();
+    let summary_entry = ErrorSummary {
+        name: get_string(&raw.data, "name"),
+        message: get_string(&raw.data, "message"),
+        page: raw.data.get("page").cloned(),
+        summary,
+        fingerprint: fp.clone(),
+        first_seen: now,
+        last_seen: now,
+        count: 1,
+    };
+
+    let app_summary = SUMMARY_MAP
+        .entry(appid.to_string())
+        .or_insert_with(|| AppSummary {
+            summaries: DashMap::new(),
+        });
+    app_summary
+        .summaries
+        .entry(fp.clone())
+        .and_modify(|s| {
+            s.count += 1;
+            s.last_seen = now;
+        })
+        .or_insert(summary_entry);
+}
+
+fn check_alert(appid: &str, fp: &String, log_type: AlertType) -> Option<AlertRule> {
+    let rules = RULE_MAP.get(appid)?;
+    let rule = rules
+        .iter()
+        .find(|r| r.model.fingerprint == Some(fp.to_string()))
+        .or_else(|| rules.iter().find(|r| r.model.log_type == log_type))
+        .cloned()?;
+
+    let alert_fact = ALERT_MAP
+        .entry(appid.to_string())
+        .or_insert_with(|| AlertFact {
+            map: DashMap::new(),
+        });
+
+    let now = DateTime::now();
+    alert_fact.map
+        .entry(fp.to_string())
+        .and_modify(|s| {
+            s.count += 1;
+            s.last_seen = now;
+        })
+        .or_insert_with(|| AlertFactInfo {
+            fingerprint: Some(fp.to_string()),
             count: 1,
-        };
-        let app = SUMMARY_MAP
-            .entry(appid.to_string())
-            .or_insert_with(|| AppSummary {
-                summaries: DashMap::new(),
-            });
-        app.summaries.insert(fp, summary);
-    } else {
-        let app = SUMMARY_MAP
-            .entry(appid.to_string())
-            .or_insert_with(|| AppSummary {
-                summaries: DashMap::new(),
-            });
-        app.summaries
-            .entry(fp.clone())
-            .and_modify(|s| {
-                s.count += 1;
-                s.last_seen = DateTime::now();
-            })
-            .or_insert_with(|| ErrorSummary {
-                name: get_string(&raw.data, "name"),
-                message: get_string(&raw.data, "message"),
-                page: raw.data.get("page").cloned(),
-                summary,
-                fingerprint: fp.clone(),
-                first_seen: DateTime::now(),
-                last_seen: DateTime::now(),
-                count: 1,
-            });
-    }
+            last_seen: now,
+        });
+    Some(rule)
 }
 
-fn check_alert(appid: &str, summary: &ErrorSummary) {
-    let rules = RULE_MAP.get(appid);
-    if let Some(rules) = rules {
-        // 发送报警
-        notify(&summary);
-        rule.alert(summary)
-    }
-}
-
-fn notify(setting: &alert_rule::NotifySetting, summary: &ErrorSummary) {
-    if !setting.enabled {
-        return;
-    }
-
-    summary.last_seen
-    setting.frequency
+fn notify(setting: &alert_rule::NotifySetting, summary: &String) {
+    info!("notify summary with {:?} {}", setting, summary);
 }
 
 pub fn normalize(error: &ErrorRaw) -> (String, String) {

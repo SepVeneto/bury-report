@@ -20,24 +20,6 @@ pub struct Model {
     pub count: i64,
 }
 
-impl Model {
-    pub fn clean(&mut self) {
-        lazy_static! {
-            static ref LINE_COL_RE: Regex = Regex::new(r":\d+:\d+").unwrap();
-            static ref QUERY_RE: Regex = Regex::new(r"\?[^)]*").unwrap();
-        }
-        self.message = self.message.trim().into();
-        self.stack = LINE_COL_RE.replace_all(&self.stack, ":{line}:{col}").to_string();
-        self.stack = QUERY_RE.replace_all(&self.stack, "?{query}").to_string();
-    }
-    // 标准化后生成指纹
-    pub fn summary(&mut self) -> String {
-        self.clean();
-        let str = format!("{} {}", self.message, self.stack);
-        self.fingerprint = Some(cal_md5(&str));
-        str
-    }
-}
 
 impl BaseModel for Model {
     const NAME: &'static str = "history_error";

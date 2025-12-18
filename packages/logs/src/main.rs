@@ -37,6 +37,7 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let (client, db) = db::connect_db().await;
+  let _ = alert::init(&client).await;
 //   let server = actor::WsActor::new().start();
   let producer: BaseProducer = ClientConfig::new()
     .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
