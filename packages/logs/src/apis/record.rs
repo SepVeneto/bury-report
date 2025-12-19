@@ -1,16 +1,13 @@
 use std::sync::Arc;
 
 use actix_web::{HttpRequest, get, post, web};
-// use actix::Addr;
 use flate2::read::GzDecoder;
 use log::error;
 use mongodb::{Client, Database};
 use rdkafka::producer::BaseProducer;
-// use serde::{Deserialize, Serialize};
 use crate::apis::get_appid;
 use crate::db;
 use crate::model::logs::RecordPayload;
-// use crate::model::{ignore_empty_string, convert_to_i32};
 
 use super::{ApiError, ApiResult};
 use crate::services::{device, record_logs};
@@ -19,36 +16,8 @@ use std::io::Read;
 
 pub fn init_service(config: &mut web::ServiceConfig) {
   config.service(record_log);
-//   config.service(record_ws);
-//   config.service(get_log);
-//   config.service(get_error);
-//   config.service(get_network);
-//   config.service(get_network_detail);
-//   config.service(get_device);
-//   config.service(get_device_list);
-//   config.service(get_record_log);
 }
 
-// #[get("/record/ws/{app_id}")]
-// async fn record_ws(
-//     path: web::Path<String>,
-//     db: web::Data<Database>,
-//     req: HttpRequest,
-//     stream: web::Payload,
-//     srv: web::Data<Addr<WsActor>>,
-// ) -> ApiResult {
-//     let app_id = path.into_inner();
-
-//     record_logs::check_appid(&db, &app_id).await?;
-    
-//     let resp = record_logs::create_ws(
-//         app_id,
-//         srv,
-//         &req,
-//         stream
-//     )?;
-//     Ok(resp)
-// }
 
 #[post("/record")]
 async fn record_log(
@@ -68,64 +37,9 @@ async fn record_log(
     }
 
     record_logs::record(&client, &db, &json, &producer, ip).await?;
-    // record_logs::record(&client, &db, &json, ip).await?;
-
-    // record_logs::send_to_ws(&svr, &json)?;
 
     Response::ok("", None).to_json()
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct LogFilter {
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub uuid: Option<String>,
-//     pub session: Option<String>,
-//     pub r#type: Option<String>,
-//     pub data: Option<String>,
-//     pub start_time: Option<String>,
-//     pub end_time: Option<String>,
-// }
-
-// #[get("/record/logs")]
-// async fn get_log(
-//     client: web::Data<Client>,
-//     req: HttpRequest,
-//     query: web::Query<Query<LogFilter>>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
-//     let res = record_logs::get_log_list(
-//         &db,
-//         query.0,
-//     ).await?;
-
-//     Response::ok(res, None).to_json()
-// }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct ErrorFilter {
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub uuid: Option<String>,
-//     pub session: Option<String>,
-//     pub start_time: Option<String>,
-//     pub end_time: Option<String>,
-// }
-
-// #[get("/record/errors")]
-// async fn get_error(
-//     client: web::Data<Client>,
-//     req: HttpRequest,
-//     query: web::Query<Query<ErrorFilter>>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
-//     let res = record_logs::get_error_list(
-//         &db,
-//         query.0,
-//     ).await?;
-
-//     Response::ok(res, None).to_json()
-// }
 
 async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload, ApiError> {
     let res = match payload.to_bytes().await {
@@ -167,64 +81,6 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
     }
 }
 
-// #[derive(Serialize, Deserialize)]
-// pub struct FilterNetwork {
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub uuid: Option<String>,
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub session: Option<String>,
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub url: Option<String>,
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub send_page: Option<String>,
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub payload: Option<String>,
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub response: Option<String>,
-//     #[serde(deserialize_with="convert_to_i32", default)]
-//     pub status: Option<i32>,
-//     pub start_time: Option<String>,
-//     pub end_time: Option<String>,
-// }
-// #[get("/record/networks")]
-// async fn get_network(
-//     client: web::Data<Client>,
-//     req: HttpRequest,
-//     query: web::Query<Query<FilterNetwork>>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
-//     let res = record_logs::get_network_list(&db, query.0).await?;
-
-//     Response::ok(res, None).to_json()
-// }
-// #[get("/record/networks/{id}")]
-// async fn get_network_detail(
-//     client: web::Data<Client>,
-//     req: HttpRequest,
-//     path: web::Path<String>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
-//     let network_id = path.into_inner();
-//     let res = record_logs::get_network_detail(&db, network_id).await?;
-
-//     Response::ok(res, None).to_json()
-// }
-
-// #[get("/record/logs")]
-// async fn get_record_log(
-//     client: web::Data<Client>,
-//     req: HttpRequest,
-//     query: web::Query<QueryPayload>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
-//     let res = record_logs::get_log_list(&db, &query.0).await?;
-
-//     Response::ok(res, None).to_json()
-// }
-
 #[get("/device/{id}")]
 async fn get_device(
     client: web::Data<Client>,
@@ -242,24 +98,3 @@ async fn get_device(
         Response::err(404, "设备不存在".to_string()).to_json()
     }
 }
-
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct DeviceFilter {
-//     #[serde(deserialize_with="ignore_empty_string", default)]
-//     pub uuid: Option<String>,
-//     pub start_time: Option<String>,
-//     pub end_time: Option<String>,
-// }
-// #[get("/device")]
-// async fn get_device_list(
-//     client: web::Data<Client>,
-//     req: HttpRequest,
-//     query: web::Query<Query<DeviceFilter>>,
-// ) -> ApiResult {
-//     let appid = get_appid(&req)?;
-//     let db = db::DbApp::get_by_appid(&client, &appid);
-//     let res = device::get_device_pagination(&db, query.0).await?;
-
-//     Response::ok(res, None).to_json()
-// }

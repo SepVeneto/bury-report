@@ -23,6 +23,10 @@ pub struct Model {
   pub create_time: DateTime,
   pub device_time: Option<String>,
   pub normalized_id: Option<ObjectId>,
+  pub fingerprint: String,
+
+  #[serde(skip)]
+  pub summary: String,
 }
 
 impl BaseModel for Model {

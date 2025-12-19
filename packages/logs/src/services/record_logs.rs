@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use rdkafka::producer::BaseProducer;
 
 use crate::{
-    alert::alert_error, db, model::{
+    alert::{self, alert_error}, db, model::{
         CreateModel, apps, logs, logs_error, logs_network
     }, services::task::{send_batch_to_kafka, send_to_kafka}
 };
@@ -112,10 +112,9 @@ pub async fn record(
             };
             if let Some(error_list) = error_list {
                 error_list.iter().for_each(|raw| {
-                    alert_error(&appid, raw);
+                    alert_error(producer, &appid, raw);
                 });
             }
-            // TODO: alert error send to kafka
             send_batch_to_kafka(producer, &group["track"]);
         }
     }
@@ -216,78 +215,3 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
         "custom" => RecordList::CustomList(vec![]),
     }
 }
-
-// pub fn _send_to_ws(svr: &Addr<WsActor>, data: &logs::RecordPayload) -> ServiceResult<()> {
-//     let text = match data.to_string() {
-//         Ok(res) => res,
-//         Err(err) => {
-//             error!("{}", err);
-//             return Err(ServiceError::ToStrError {
-//                 origin: data.clone(),
-//                 result: err.to_string()
-//             });
-//         }
-//     };
-//     svr.do_send(LogMessage {
-//         app_id: data.get_appid(),
-//         text,
-//     });
-//     Ok(())
-// }
-
-// pub fn create_ws(
-//     appid: String,
-//     srv: web::Data<Addr<WsActor>>,
-//     req: &HttpRequest,
-//     stream: web::Payload,
-// ) -> ServiceResult<HttpResponse> {
-//     match ws::start(
-//         WebsocketConnect::new(appid, srv.get_ref().clone()),
-//         req,
-//         stream,
-//     ) {
-//         Ok(res) => Ok(res),
-//         Err(err) => {
-//             error!("{}", err);
-//             Err(anyhow!(err.to_string()).into())
-//         }
-//     }
-// }
-
-// pub async fn get_log_list(
-//     db: &Database,
-//     data: Query<LogFilter>
-// ) -> ServiceResult<PaginationResult<logs::Model>> {
-//     let mut doc = doc! {
-//         "$and": [
-//             {
-//                 "type": { "$ne": "__BR_COLLECT_INFO__" }
-//             }
-//         ]
-//     };
-//     let query = data.query;
-
-//     if let Some(uuid) = query.uuid {
-//         doc.insert("uuid", uuid);
-//     }
-//     if let Some(data) = query.data {
-//         doc.insert("data", doc! { "$regex": data });
-//     }
-//     if let Some(r#type) = query.r#type {
-//         // doc.insert("type", doc! { "$regex": r#type });
-//         let mut and = doc.get_array("$and").unwrap().clone();
-//         and.push(doc! {
-//             "type": { "$regex": r#type },
-//         }.into());
-//         doc.remove("$and");
-//         doc.insert("$and", and);
-//     }
-
-//     let res = logs::Model::pagination(
-//         db,
-//         data.page,
-//         data.size,
-//         PaginationOptions::new().query(doc).build(),
-//     ).await?;
-//     Ok(res)
-// }

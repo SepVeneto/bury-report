@@ -16,6 +16,8 @@ use rdkafka::consumer::{Consumer, StreamConsumer};
 use futures::StreamExt;
 use redis::{AsyncCommands, RedisError, RedisResult};
 use redis::aio::MultiplexedConnection;
+use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value, json};
 
 use crate::db::{connect_db, link_db, update_event};
 
@@ -30,6 +32,10 @@ async fn main() -> redis::RedisResult<()> {
     dotenv::from_filename(".env.local").ok();
     let expire_time_str = std::env::var("EXPIRE_TIME").unwrap_or("600".to_string());
     let expire_time: u64 = expire_time_str.parse().expect("expire_time must be unsigned number");
+
+    tokio::spawn(async move {
+      let _ = init_notify().await;
+    });
 
     let cos = init_cos().unwrap();
     let (client, _db) = connect_db().await;
@@ -334,4 +340,110 @@ fn parse_key(session: &str) -> Option<(String, String)> {
     [appid, session] => Some((appid.to_string(), session.to_string())),
     _ => None
   }
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+struct Notify {
+  url: String,
+  name: String,
+  r#type: String,
+  rule: Map<String, Value>,
+  content: String
+}
+
+async fn init_notify() {
+  info!("foo");
+  let brokers = std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS");
+  let consumer: StreamConsumer = ClientConfig::new()
+    .set("bootstrap.servers", brokers)
+    .set("group.id", "bury-report-notify")
+    .set("enable.partition.eof", "false")
+    .set("session.timeout.ms", "6000")
+    .set("enable.auto.commit", "true")
+    .create()
+    .expect("Consumer creation failed");
+
+  consumer.subscribe(&["notify"]).expect("notify subscribe failed");
+  info!("notify consumer started...");
+  let mut message_stream = consumer.stream();
+  while let Some(message) = message_stream.next().await {
+    match message {
+      Ok(m) => {
+        match m.payload_view() {
+          Some(Ok(message)) => {
+            let m = match serde_json::from_slice::<Notify>(message) {
+              Ok(m) => m,
+              Err(e) => {
+                error!("Error while parsing message: {}", e);
+                continue;
+              }
+            };
+            let content = format!(
+              "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**摘要**：\n> {summary}\n\n**触发阈值**：{count}次/{period}",
+              name = m.name,
+              summary = m.content,
+              count = get_number(&m.rule, "limit"),
+              period = time_humanble(get_number(&m.rule, "window_sec")),
+            );
+            tokio::spawn(async move {
+              send_notify_to_wxwork(&m.url, &content).await;
+            });
+          }
+          Some(Err(e)) => {
+            error!("Error while parsing message payload: {:?}", e);
+          }
+          None => {
+            error!("Message payload is None");
+          }
+        }
+      },
+      Err(e) => {
+        error!("Error while receiving message: {}", e);
+      }
+    }
+  }
+}
+
+async fn send_notify_to_wxwork(url: &str, content: &str) {
+  let client = reqwest::Client::new();
+  let data = json!({
+    "msgtype": "markdown",
+    "markdown": {
+      "content": content
+    }
+  });
+  let res = client
+    .post(url)
+    .json(&data)
+    .send().await;
+  info!("send notify to wxwork: {:?}", res)
+}
+
+fn get_number(map: &Map<String, Value>, key: &str) -> i64 {
+    map.get(key)
+       .and_then(|v| v.as_i64())
+       .unwrap_or(0)
+}
+
+fn time_humanble(sec: i64) -> String {
+  if sec < 0 {
+    return "0秒".to_string();
+  }
+
+  let hours = (sec % (60 * 60 * 24)) / (60 * 60);
+  let minutes = (sec % (60 * 60)) / 60;
+  let seconds = sec % 60;
+
+  let mut parts = Vec::new();
+  if hours > 0 {
+    parts.push(format!("{}小时", hours));
+  }
+  if minutes > 0 {
+    parts.push(format!("{}分", minutes));
+  }
+  if seconds > 0 || parts.is_empty() {
+    parts.push(format!("{}秒", seconds));
+  }
+
+  parts.join("")
 }

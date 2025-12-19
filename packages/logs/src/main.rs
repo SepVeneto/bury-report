@@ -37,7 +37,6 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let (client, db) = db::connect_db().await;
-  let _ = alert::init(&client).await;
 //   let server = actor::WsActor::new().start();
   let producer: BaseProducer = ClientConfig::new()
     .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
@@ -47,6 +46,8 @@ async fn main() -> std::io::Result<()> {
     .expect("Producer creation error");
   let producer_data = web::Data::new(Arc::new(producer));
   let producer_for_shutdown = producer_data.get_ref().clone();
+
+  let _ = alert::init(&client).await;
 
   info!("starting HTTP server at http://localhost:8870");
   let server = HttpServer::new(move || {

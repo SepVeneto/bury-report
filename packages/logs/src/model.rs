@@ -6,7 +6,7 @@ use bson::{oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error};
 use mongodb::{
-    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::FindOptions, results::{InsertManyResult, InsertOneResult}
+    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::FindOptions, results::{InsertManyResult, InsertOneResult, UpdateResult}
 };
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
@@ -20,9 +20,9 @@ pub mod logs_network;
 pub mod logs_error;
 pub mod apps;
 pub mod session;
-pub mod history_error;
 pub mod alert_rule;
 pub mod alert_fact;
+pub mod alert_summary;
 
 #[derive(Error, Debug)]
 pub enum ModelError {
@@ -253,6 +253,20 @@ pub trait CreateModel: BaseModel
         col.create_index(uuid_index, None).await?;
         col.create_index(session_index, None).await?;
         Ok(())
+    }
+
+    async fn update_one(
+        db: &Database,
+        filter: Document,
+        data: &Self::Model,
+    ) -> QueryResult<UpdateResult> {
+        let col: Collection<Document> = Self::col(db);
+        let res = col.update_one(
+            filter,
+            data,
+            None
+        ).await?;
+        Ok(res)
     }
 
     async fn insert_unique(

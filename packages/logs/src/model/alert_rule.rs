@@ -6,8 +6,6 @@ use crate::model::{BaseModel, QueryModel};
 pub struct NotifyFrequency {
     // 告警窗口，单位秒。也就是下一次会发送告警的时间
     pub window_sec: i64,
-    // 窗口期内最大告警次数
-    pub max_alerts: i64,
     // 告警阈值，即窗口期内到达阈值时，开始发送告警
     pub limit: i64,
 }
@@ -15,13 +13,17 @@ pub struct NotifyFrequency {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct NotifySetting {
     pub enabled: bool,
+    pub url: String,
     pub frequency: NotifyFrequency,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum AlertType {
+    #[serde(rename = "error")]
     Error,
+    #[serde(rename = "api")]
     Networ,
+    #[serde(rename = "log")]
     Custom,
 }
 

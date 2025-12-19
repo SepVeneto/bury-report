@@ -1,4 +1,5 @@
 pub mod record;
+pub mod notify;
 
 use actix_web::{HttpRequest, HttpResponse, http::header::ToStrError};
 use serde::{Deserialize, Serialize};

@@ -4,10 +4,10 @@ use mongodb::bson::{DateTime, doc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::model::logs;
+use crate::{alert, model::logs};
 
 use super::{
-    history_error,
+    alert_summary,
     logs_error,
     logs_network,
     serialize_time,
@@ -87,7 +87,7 @@ impl RecordV1 {
                 device_time: self.time.clone(),
             })
         } else if self.r#type == TYPE_ERROR {
-            let raw = logs_error::Model {
+            let mut raw = logs_error::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
@@ -97,9 +97,12 @@ impl RecordV1 {
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
                 normalized_id: None,
+                fingerprint: String::new(),
+                summary: String::new(),
             };
-            let page = self.data.get("page");
-            let extra = self.data.get("extra");
+            let (fp, summary) = alert::normalize(&raw);
+            raw.fingerprint = fp;
+            raw.summary = summary;
 
             RecordItem::Error(raw)
         } else if self.r#type == TYPE_TRACK {

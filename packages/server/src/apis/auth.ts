@@ -9,27 +9,32 @@ import dayjs from 'dayjs'
 
 const router = new Router()
 
+const isDebug = !!Deno.env.get('DEBUG')
+console.log('DEBUG', isDebug)
+
 dayjs.extend(utc)
 dayjs.extend(timezone)
 
 router.post('/login', async (ctx) => {
   const { name, password, key, offset } = await ctx.request.body.json()
 
-  const captcha = ctx.db.collection('captcha')
-  const res = await captcha.findOne({ key })
-  if (!res) {
-    ctx.resCode = 1
-    ctx.resBody = '验证码已过期'
-    return
-  }
-  await captcha.deleteOne({ key })
-  const target = res.offset
-  const isVerify = verifyCaptcha(target, offset)
+  if (!isDebug) {
+    const captcha = ctx.db.collection('captcha')
+    const res = await captcha.findOne({ key })
+    if (!res) {
+      ctx.resCode = 1
+      ctx.resBody = '验证码已过期'
+      return
+    }
+    await captcha.deleteOne({ key })
+    const target = res.offset
+    const isVerify = verifyCaptcha(target, offset)
 
-  if (!isVerify) {
-    ctx.resCode = 1
-    ctx.resMsg = '验证码错误'
-    return
+    if (!isVerify) {
+      ctx.resCode = 1
+      ctx.resMsg = '验证码错误'
+      return
+    }
   }
 
   const users = ctx.db.collection('users')

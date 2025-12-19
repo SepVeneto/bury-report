@@ -1,9 +1,37 @@
 use std::time::Duration;
 
-use log::{debug, error};
+use log::{debug, error, info};
+use mongodb::Database;
 use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
+use serde_json::Value;
 
-use crate::{model::logs, services::record_logs::RecordList};
+use crate::{
+    alert::RULE_MAP,
+    model::{alert_rule, logs, QueryModel},
+    services::{ServiceResult, record_logs::RecordList}
+};
+
+pub fn send_json_to_kafka(
+    producer: &BaseProducer,
+    topic: &str,
+    payload: &Value,
+) {
+    let data = payload.to_string();
+    let record = BaseRecord::to(topic)
+        .key("notify")
+        .payload(&data);
+    let send_res = producer.send(record);
+
+    match send_res {
+        Ok(_) => {
+            debug!("Message sent");
+        }
+        Err((kafka_err, join_err)) => {
+            error!("Message failed to send: {}", kafka_err);
+            error!("Error joining send task: {:?}", join_err);
+        }
+    }
+}
 
 pub fn send_to_kafka(
     producer: &BaseProducer,
@@ -52,4 +80,14 @@ pub fn send_batch_to_kafka(
         }
     }
 
+}
+
+pub async fn sync_alert_rule(
+    db: &Database,
+    app: &str,
+) -> ServiceResult<()> {
+    let rules = alert_rule::Model::find_all(&db).await?;
+    RULE_MAP.insert(app.to_string(), rules);
+    info!("sync alert rule success");
+    Ok(())
 }

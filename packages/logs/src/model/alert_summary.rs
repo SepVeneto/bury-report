@@ -1,5 +1,6 @@
-use bson::DateTime;
+use bson::{DateTime, Document};
 use lazy_static::lazy_static;
+use mongodb::Database;
 use regex::Regex;
 use md5;
 
@@ -19,7 +20,6 @@ pub struct Model {
     pub last_seen: DateTime,
     pub count: i64,
 }
-
 
 impl BaseModel for Model {
     const NAME: &'static str = "history_error";
