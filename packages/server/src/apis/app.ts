@@ -4,6 +4,7 @@ import { Project } from '../model/project.ts'
 import { App } from '../model/app.ts'
 import type { Document } from 'bson'
 import { normalize } from "../utils/tools.ts";
+import { initApp } from "../db.ts";
 
 
 const router = new Router()
@@ -118,6 +119,7 @@ router.post('/app', async (ctx) => {
   }
   const aid = await app.insertOne(newApp)
   await project.insertApp(pid, { id: aid.insertedId.toHexString(), ...newApp })
+  await initApp(ctx.db)
   ctx.resBody = aid.insertedId
   ctx.resMsg = '应用创建成功'
 })

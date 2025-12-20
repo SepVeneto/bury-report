@@ -8,6 +8,11 @@ pub struct Model {
     pub fingerprint: Option<String>,
     pub count: i64,
     pub last_seen: DateTime,
+    pub ttl: i64,
+    #[serde(skip)]
+    pub flush_count: i64,
+    #[serde(skip)]
+    pub need_update: bool,
 }
 
 impl BaseModel for Model {

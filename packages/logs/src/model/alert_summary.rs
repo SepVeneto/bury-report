@@ -1,7 +1,4 @@
-use bson::{DateTime, Document};
-use lazy_static::lazy_static;
-use mongodb::Database;
-use regex::Regex;
+use bson::DateTime;
 use md5;
 
 use serde::{Deserialize, Serialize};

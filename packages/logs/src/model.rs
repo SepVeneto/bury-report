@@ -6,7 +6,7 @@ use bson::{oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error};
 use mongodb::{
-    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::FindOptions, results::{InsertManyResult, InsertOneResult, UpdateResult}
+    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::{FindOptions, UpdateOptions}, results::{InsertManyResult, InsertOneResult, UpdateResult}
 };
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
@@ -258,13 +258,13 @@ pub trait CreateModel: BaseModel
     async fn update_one(
         db: &Database,
         filter: Document,
-        data: &Self::Model,
+        data: Document,
     ) -> QueryResult<UpdateResult> {
         let col: Collection<Document> = Self::col(db);
         let res = col.update_one(
             filter,
             data,
-            None
+            UpdateOptions::builder().upsert(true).build(),
         ).await?;
         Ok(res)
     }

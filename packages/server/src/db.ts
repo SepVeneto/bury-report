@@ -1,4 +1,4 @@
-import { CollectionInfo, MongoClient } from 'mongodb'
+import { CollectionInfo, Db, MongoClient } from 'mongodb'
 import process from "node:process"
 
 // const client = new MongoClient('mongodb://db:27017')
@@ -13,16 +13,52 @@ function init() {
   initDb()
 }
 
+export async function initApp(db: Db) {
+  {
+    const futures = [
+      'records_api',
+      'records_log',
+      'records_track',
+      'records_session'
+    ].map(name => {
+      const col = db.collection(name)
+      return col.createIndexes([{ key: { uuid: 1, }}, { key: { session: 1 }}])
+    })
+    await Promise.all(futures)
+  }
+
+  {
+    const col = db.collection('records_err')
+    await col.createIndexes([{ key: { uuid: 1, }}, { key: { session: 1 }}, { key: { fingerprint: 1 }}])
+  }
+
+  {
+    const futures = [
+      'alert_rule',
+      'history_error',
+    ].map(name => {
+      const col = db.collection(name)
+      return col.createIndexes([{ key: { fingerprint: 1, }}])
+    })
+    await Promise.all(futures)
+  }
+
+  {
+    const col = db.collection('alert_fact')
+    await col.createIndexes([
+      { key: { fingerpring: 1 }},
+      // 超过24小时仍不活跃的事实可以被删除
+      // 因此告警阈值的时间窗口最大不能超过24小时
+      { key: { last_seen: 1 }, expireAfterSeconds: 60 * 60 * 24 },
+    ])
+  }
+}
 async function initClient() {
   const apps = await client.db().admin().listDatabases()
-  apps.databases.forEach(async db => {
+  apps.databases.forEach(db => {
     if (db.name.startsWith('app_')) {
       const app = client.db(db.name)
-      const cols = await app.listCollections().toArray()
-      cols.forEach(col => {
-        const inst = app.collection(col.name)
-        inst.createIndexes([{ key: { uuid: 1 }}, { key: { session: 1 }}])
-      })
+      initApp(app)
     }
   })
 }

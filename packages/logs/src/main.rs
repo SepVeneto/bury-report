@@ -14,7 +14,6 @@ use std::time::Duration;
 
 // use crate::services::actor;
 
-use actix::Actor;
 use actix_web::{post, web, App, HttpResponse, HttpServer, Responder};
 use log::{info, error};
 use rdkafka::ClientConfig;
@@ -37,6 +36,7 @@ async fn main() -> std::io::Result<()> {
   init_log();
 
   let (client, db) = db::connect_db().await;
+  let flush_client = client.clone();
 //   let server = actor::WsActor::new().start();
   let producer: BaseProducer = ClientConfig::new()
     .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
@@ -75,6 +75,10 @@ async fn main() -> std::io::Result<()> {
     info!("Flushing Kafka producer...");
     let _ = producer_for_shutdown.flush(Duration::from_secs(5));
     info!("Kafka producer flushed, shutdown complete.");
+
+    info!("Flushing alert fact & summary...");
+    alert::alert_flush(&flush_client).await;
+    info!("alert fact & summary flushed.");
 
     info!("Shutdown signal received, stopping server...");
     handle.stop(true).await;
