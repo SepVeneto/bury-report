@@ -11,6 +11,8 @@ import NetworkView from '@/views/app/NetworkView.vue'
 import LogView from '@/views/app/LogView.vue'
 import TaskListView from '@/views/task/listView.vue'
 import TriggerListView from '@/views/task/triggerListView.vue'
+import AlertView from '@/views/alert/ListView.vue'
+import AlertRule from '@/views/alert/RuleView.vue'
 
 export const content = {
   TriggerListView,
@@ -26,4 +28,6 @@ export const content = {
   NetworkView,
   DeviceDetail,
   LogView,
+  AlertView,
+  AlertRule,
 }

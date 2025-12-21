@@ -8,6 +8,7 @@ export * from './project'
 export * as source from './source'
 export * as statistics from './statistics'
 export * from './task'
+export * from './alert'
 
 export class Query {
   private query: Record<string, any> = {}
@@ -92,6 +93,29 @@ const mockMenus = [
       path: 'detail/:id',
       hidden: true,
     }],
+  },
+  {
+    pid: 3,
+    id: 35,
+    name: '告警管理',
+    path: 'alert',
+    route: 'view',
+    children: [
+      {
+        pid: 35,
+        id: 351,
+        name: '告警规则',
+        path: 'rule',
+        route: 'AlertRule',
+      },
+      {
+        pid: 35,
+        id: 352,
+        name: '告警列表',
+        path: 'list',
+        route: 'AlertView',
+      },
+    ],
   },
   // {
   //   pid: 2,

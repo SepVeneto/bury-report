@@ -79,6 +79,7 @@ const hasSubMenu = computed(() => {
   return subMenus.value?.children?.length && subMenus.value.children.length > 1
 })
 const mainActiveMenu = computed(() => {
+  console.log(props.activeSubMenu)
   // 对于不需要菜单分列的情况，没有sub-menu的概念，activeSubMenu就是当前激活的路由
   return props.splitMenu ? props.activeMenu : props.activeSubMenu
 })

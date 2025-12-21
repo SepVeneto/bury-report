@@ -19,7 +19,7 @@ export function useMenu(mod: Ref<number>) {
     /**
      * TODO: normalize variable
      */
-    const [, side, subSide] = route.matched.length < 4 ? [null, ...route.matched] : route.matched
+    const [, side, subSide] = route.matched.length < 3 ? [null, ...route.matched] : route.matched
     if (!side || !subSide) return
     activeMenu.value = side.name as string
     activeSubMenu.value = (subSide.children[0] ? subSide.children[0].name : subSide.name) as string
