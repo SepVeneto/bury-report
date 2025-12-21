@@ -1,16 +1,14 @@
 use std::sync::Arc;
 
-use actix_web::{HttpRequest, get, post, web};
+use actix_web::{HttpRequest, post, web};
 use flate2::read::GzDecoder;
 use log::error;
 use mongodb::{Client, Database};
 use rdkafka::producer::BaseProducer;
-use crate::apis::get_appid;
-use crate::db;
 use crate::model::logs::RecordPayload;
 
 use super::{ApiError, ApiResult};
-use crate::services::{device, record_logs};
+use crate::services::record_logs;
 use crate::services::Response;
 use std::io::Read;
 
@@ -78,23 +76,5 @@ async fn payload_handler(payload: web::Payload) -> anyhow::Result<RecordPayload,
             error!("Invalid JSON: {:?} with {:?}", err, str);
             Err(ApiError::ValidateError { err: err.to_string(), col: column!(), line: line!(), file: file!().to_string() })
         }
-    }
-}
-
-#[get("/device/{id}")]
-async fn get_device(
-    client: web::Data<Client>,
-    req: HttpRequest,
-    path: web::Path<String>
-) -> ApiResult {
-    let appid = get_appid(&req)?;
-    let db = db::DbApp::get_by_appid(&client, &appid);
-    let device_id = path.into_inner();
-    let res = device::get_device_by_uuid(&db, &device_id).await?;
-
-    if let Some(device) = res{
-        Response::ok(device, None).to_json()
-    } else {
-        Response::err(404, "设备不存在".to_string()).to_json()
     }
 }

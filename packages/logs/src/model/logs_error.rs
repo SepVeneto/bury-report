@@ -2,7 +2,6 @@ use super::{
     serialize_time,
     BaseModel,
     CreateModel,
-    PaginationModel
 };
 use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
@@ -34,4 +33,3 @@ impl BaseModel for Model {
     type Model = Model;
 }
 impl CreateModel for Model {}
-impl PaginationModel for Model {}

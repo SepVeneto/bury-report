@@ -9,7 +9,7 @@ use anyhow::anyhow;
 use rdkafka::producer::BaseProducer;
 
 use crate::{
-    alert::{self, alert_error}, db, model::{
+    alert::alert_error, db, model::{
         CreateModel, apps, logs, logs_error, logs_network
     }, services::task::{send_batch_to_kafka, send_to_kafka}
 };

@@ -1,25 +1,23 @@
-use std::{str::FromStr, time::SystemTime};
+use std::str::FromStr;
 use log::info;
 
-use anyhow::{anyhow, Error};
+use anyhow::anyhow;
 use bson::{oid, DateTime};
 use chrono::FixedOffset;
 use log::{debug, error};
 use mongodb::{
-    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::{FindOptions, UpdateOptions}, results::{InsertManyResult, InsertOneResult, UpdateResult}
+    Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::UpdateOptions, results::{InsertManyResult, InsertOneResult, UpdateResult}
 };
-use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
 use thiserror::Error;
 use mongodb::Database;
-use futures_util::{StreamExt, TryStreamExt, join};
+use futures_util::TryStreamExt;
 
 pub mod logs;
-pub mod device;
 pub mod logs_network;
 pub mod logs_error;
 pub mod apps;
-pub mod session;
 pub mod alert_rule;
 pub mod alert_fact;
 pub mod alert_summary;
@@ -52,156 +50,6 @@ pub struct QueryBase<T> {
     pub _id: oid::ObjectId,
     #[serde(flatten)]
     pub model: T,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct PaginationResultTotal<T> {
-    pub total: u64,
-    pub list: Vec<QueryBase<T>>,
-}
-#[derive(Deserialize, Serialize, Debug)]
-pub struct PaginationResult<T> {
-    pub list: Vec<QueryBase<T>>,
-}
-
-pub struct PaginationOptions {
-    query: Option<Document>,
-    projection: Option<Document>,
-    sort: Option<Document>,
-}
-impl PaginationOptions {
-    pub fn new() -> Self {
-        Self {
-            query: doc! {}.into(),
-            projection: None,
-            sort: doc! {"_id": -1}.into(),
-        }
-    }
-    pub fn query(mut self, query: Document) -> Self {
-        self.query = Some(query);
-        self
-    }
-    pub fn projection(mut self, projection: Document) -> Self {
-        self.projection = Some(projection);
-        self
-    }
-    pub fn build(self) -> Option<Self> {
-        Some(self)
-    }
-}
-impl Default for PaginationOptions {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-pub trait PaginationModel: BaseModel {
-    fn col<T>(db: &Database) -> Collection<QueryBase<T>> {
-        let col_name = Self::NAME;
-        db.collection(col_name)
-    }
-    async fn pagination_with_total<T>(
-        db: &Database,
-        page: u64,
-        size: u64,
-        options: Option<PaginationOptions>,
-    ) -> QueryResult<PaginationResultTotal<T>>
-    where T: for<'a> Deserialize<'a>
-    {
-        let col = Self::col(db);
-        let start = page;
-        let PaginationOptions {
-            query,
-            projection,
-            sort,
-        } = options.unwrap_or_default();
-
-        let get_total = async {
-            let start_count = SystemTime::now();
-
-            let total;
-            if let Some(ref query) = query {
-                if query.len() > 0 {
-                    total = col.count_documents(query.clone(), None).await?;
-                } else {
-                    total = col.estimated_document_count(None).await?;
-                }
-            } else {
-                total = col.estimated_document_count(None).await?;
-            }
-            debug!("count total used: {:?}", SystemTime::now().duration_since(start_count));
-
-            Ok::<u64, Error>(total)
-        };
-        let get_list = async {
-            let start_list= SystemTime::now();
-
-            let options = FindOptions::builder()
-                .sort(sort)
-                .projection(projection)
-                .skip((start - 1) * size)
-                .limit(size as i64)
-                .build();
-            let mut res = col.find(query.clone(), options).await?;
-
-            let mut list = vec![];
-            while let Some(record) = res.next().await {
-                list.push(record.unwrap())
-            }
-
-            debug!("count list used: {:?}", SystemTime::now().duration_since(start_list));
-            Ok::<Vec<QueryBase<T>>, Error>(list)
-        };
-        let (_total, _list) = join!(get_total, get_list);
-        let total = _total?;
-        let list = _list?;
-
-        Ok(PaginationResultTotal {
-            total,
-            list,
-        })
-    }
-    async fn pagination<T>(
-        db: &Database,
-        page: u64,
-        size: u64,
-        options: Option<PaginationOptions>,
-    ) -> QueryResult<PaginationResult<T>>
-    where T: for<'a> Deserialize<'a>
-    {
-        let col = Self::col(db);
-        let start = page;
-        let PaginationOptions {
-            query,
-            projection,
-            sort,
-        } = options.unwrap_or_default();
-
-        let get_list = async {
-            let start_list= SystemTime::now();
-
-            let options = FindOptions::builder()
-                .sort(sort)
-                .projection(projection)
-                .skip((start - 1) * size)
-                .limit(size as i64)
-                .build();
-            let mut res = col.find(query.clone(), options).await?;
-
-            let mut list = vec![];
-            while let Some(record) = res.next().await {
-                list.push(record.unwrap())
-            }
-
-            debug!("count list used: {:?}", SystemTime::now().duration_since(start_list));
-            Ok::<Vec<QueryBase<T>>, Error>(list)
-        };
-        let list = get_list.await?;
-
-        Ok(PaginationResult {
-            list,
-        })
-    }
 }
 
 pub trait QueryModel: BaseModel {
@@ -376,11 +224,6 @@ where
         }
     } else {
         time.serialize(serializer)
-        // BSON序列化
-        // let naive = NaiveDateTime::parse_from_str(time, "%Y-%m-%d %H:%M:%S").unwrap();
-        // let chrono_datetime = DateTime::<Utc>::from_naive_utc_and_offset(naive, Utc);
-        // let s = mongodb::bson::DateTime::from_chrono(chrono_datetime);
-        // s.serialize(serializer)
     }
 }
 
@@ -391,61 +234,4 @@ where
     let bson_datetime = mongodb::bson::DateTime::deserialize(deserializer)?;
     let res = bson_datetime.to_chrono().format("%Y-%m-%d %H:%M:%S").to_string();
     Ok(res)
-}
-
-struct StrVisitor;
-impl<'de> serde::de::Visitor<'de> for StrVisitor {
-    type Value = Option<String>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("str")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        if v.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(v.to_string()))
-        }
-    }
-}
-
-struct I32Visitor;
-impl <'de> Visitor<'de> for I32Visitor {
-    type Value = Option<i32>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("i32")
-    }
-
-    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: serde::de::Error, {
-        match v.parse::<i32>() {
-            Ok(res) => {
-                Ok(Some(res))
-            },
-            Err(_) => {
-                error!("cannot parse string to i32: {}", v);
-                Ok(None)
-            }
-        }
-    }
-}
-
-pub fn ignore_empty_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where 
-    D: Deserializer<'de>,
-{
-    deserializer.deserialize_str(StrVisitor)
-}
-
-pub fn convert_to_i32<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    deserializer.deserialize_str(I32Visitor)
 }

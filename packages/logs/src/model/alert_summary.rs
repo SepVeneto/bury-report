@@ -1,5 +1,4 @@
 use bson::DateTime;
-use md5;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -23,9 +22,3 @@ impl BaseModel for Model {
     type Model = Model;
 }
 impl CreateModel for Model {}
-
-fn cal_md5(res: &str) -> String {
-  let digest = md5::compute(res.as_bytes());
-
-  format!("{:x}", digest).to_uppercase()
-}

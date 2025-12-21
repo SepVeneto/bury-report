@@ -1,5 +1,5 @@
 use super::{
-    serialize_time, BaseModel, CreateModel, PaginationModel, QueryModel
+    serialize_time, BaseModel, CreateModel, QueryModel
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -25,4 +25,3 @@ impl BaseModel for Model {
 }
 impl QueryModel for Model {}
 impl CreateModel for Model {}
-impl PaginationModel for Model {}

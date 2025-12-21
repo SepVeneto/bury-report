@@ -4,7 +4,6 @@ mod config;
 mod apis;
 mod model;
 mod services;
-mod middleware;
 mod utils;
 mod alert;
 

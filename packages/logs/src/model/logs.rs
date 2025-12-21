@@ -7,14 +7,12 @@ use serde_json::{Map, Value};
 use crate::{alert, model::logs};
 
 use super::{
-    alert_summary,
     logs_error,
     logs_network,
     serialize_time,
     deserialize_reocrd_data,
     BaseModel,
     CreateModel,
-    PaginationModel,
     QueryModel,
 };
 
@@ -165,7 +163,6 @@ impl BaseModel for Model {
     const NAME: &'static str = NAME;
     type Model = Model;
 }
-impl PaginationModel for Model {}
 impl QueryModel for Model {}
 impl CreateModel for Model {}
 
@@ -203,10 +200,3 @@ impl BaseModel for Session {
 }
 impl CreateModel for Session {}
 impl QueryModel for Session {}
-
-fn get_string(map: &Map<String, Value>, key: &str) -> String {
-    map.get(key)
-       .and_then(|v| v.as_str())
-       .unwrap_or_default()
-       .to_string()
-}
