@@ -44,6 +44,9 @@ jobs:
       - name: Check OIDC token
         run: |
           curl -v -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" https://registry.npmjs.org/-/whoami
+      - name: Check OIDC token
+        run: |
+          node -e "console.log(process.env.GITHUB_TOKEN, process.env.NPM_CONFIG_NODE_AUTH_TOKEN)"
       
       # - name: Force clean npm auth (required for OIDC)
       #   run: |
