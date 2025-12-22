@@ -6,6 +6,9 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "bootstrap": "wasm-pack build ../sign --target no-modules --out-dir ../sign/pkg-client --mode no-install --scope client",
     "build": "tsup",
