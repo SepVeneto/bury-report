@@ -17,6 +17,10 @@
     "dev": "export LOG_DEBUG=1 && tsup --watch src",
     "play": "npm -C playground/browser run dev"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/SepVeneto/bury-report"
+  },
   "files": [
     "dist"
   ],
