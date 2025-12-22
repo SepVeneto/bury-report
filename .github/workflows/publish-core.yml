@@ -25,7 +25,7 @@ jobs:
       #     version: 9
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version:  24
           registry-url: https://registry.npmjs.org
@@ -34,13 +34,13 @@ jobs:
       #   id: pnpm-cache
       #   run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
-      - name: Setup pnpm cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
+      # - name: Setup pnpm cache
+      #   uses: actions/cache@v3
+      #   with:
+      #     path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+      #     key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+      #     restore-keys: |
+      #       ${{ runner.os }}-pnpm-store-
 
       # 手动请求 OIDC token，绕过 actions/id-token 内置 Action
       - name: Request OIDC token manually
