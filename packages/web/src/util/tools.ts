@@ -49,3 +49,5 @@ export function walkRoute<T extends Array<any>>(
     }
   }
 }
+
+export type WithDetail<T> = T & { id: string }

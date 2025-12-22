@@ -15,12 +15,12 @@ router.post('/alert/rule', async (ctx) => {
   const alert = new Alert(ctx.db)
 
   const body = await ctx.request.body.json()
-  const { name, enabled, log_type, fingerprint, notify } = body
+  const { name, enabled, notify, strategy, source } = body
   await alert.insertOne({
     name,
+    source,
     enabled,
-    log_type,
-    fingerprint,
+    strategy,
     notify,
     is_delete: false,
   })
@@ -28,18 +28,32 @@ router.post('/alert/rule', async (ctx) => {
   ctx.resMsg = '创建成功'
 })
 
+router.patch('/alert/rule/:ruleId/toggle', async (ctx) => {
+  const alert = new Alert(ctx.db)
+
+  const ruleId = ctx.params.ruleId
+
+  const body = await ctx.request.body.json()
+  await alert.updateOne({
+    id: ruleId,
+    enabled: body.enabled,
+  })
+
+  ctx.resMsg = '切换成功'
+})
+
 router.put('/alert/rule/:ruleId', async (ctx) => {
   const alert = new Alert(ctx.db)
 
   const ruleId = ctx.params.ruleId
   const body = await ctx.request.body.json()
-  const { name, enabled, log_type, fingerprint, notify } = body
+  const { source, name, enabled, notify, strategy } = body
   await alert.updateOne({
     id: ruleId,
+    strategy,
     name,
+    source,
     enabled,
-    log_type,
-    fingerprint,
     notify,
   })
   ctx.resMsg = '修改成功'

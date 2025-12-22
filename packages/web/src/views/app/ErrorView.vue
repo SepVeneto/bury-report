@@ -28,6 +28,10 @@
         </ElLink>
       </template>
       <template #expand="{ row }">
+        <div style="padding: 0 20px;">
+          <span>指纹：</span>
+          <span>{{ row.fingerprint }}</span>
+        </div>
         <pre style="padding-left: 100px; color: var(--el-color-danger);">{{ row.data.stack }}</pre>
       </template>
       <template #error="{ row }">
@@ -67,6 +71,7 @@ const tableConfig = shallowRef([
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
+  { catalog: 'input', name: '指纹', prop: 'fingerprint', width: 300 },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
 

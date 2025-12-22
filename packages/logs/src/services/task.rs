@@ -66,6 +66,9 @@ pub fn send_batch_to_kafka(
 ) {
     match payloads {
         RecordList::TrackList(list) => {
+            if list.len() == 0 {
+                return;
+            }
             debug!("start send track list");
             for payload in list {
                 send_to_kafka(producer, payload);

@@ -10,7 +10,19 @@ use serde_json::{Value, Map, json};
 use log::{debug, error, info};
 use tokio::time::{Duration, interval};
 
-use crate::model::{CreateModel, QueryBase, QueryModel, QueryResult, alert_fact, alert_rule::{self, AlertType}, alert_summary, logs, logs_error, logs_network};
+use crate::model::alert_rule::{AlertNotify, AlertSource, CollectionType};
+use crate::model::{
+    CreateModel,
+    QueryBase,
+    QueryModel,
+    QueryResult,
+    alert_fact,
+    alert_rule,
+    alert_summary,
+    logs,
+    logs_error,
+    logs_network
+};
 use crate::services::task::send_json_to_kafka;
 
 type AppId = String;
@@ -29,7 +41,7 @@ struct AppSummary {
     summaries: DashMap<String, ErrorSummary>,
 }
 
-type AlertFactInfo = alert_fact::Model ;
+type AlertFactInfo = alert_fact::Model;
 struct AlertFact {
     map: DashMap<String, AlertFactInfo>
 }
@@ -38,7 +50,7 @@ static SUMMARY_MAP: Lazy<DashMap<AppId, AppSummary>> = Lazy::new(|| DashMap::new
 
 pub static RULE_MAP: Lazy<DashMap<AppId, Vec<AlertRule>>> = Lazy::new(|| DashMap::new());
 static ALERT_MAP: Lazy<DashMap<AppId, AlertFact>> = Lazy::new(|| DashMap::new());
-pub static FP_MAP: Lazy<DashMap<AppId, DashSet<String>>> = Lazy::new(|| DashMap::new());
+// pub static FP_MAP: Lazy<DashMap<AppId, DashSet<String>>> = Lazy::new(|| DashMap::new());
 
 static LINE_COL_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r":\d+:\d+").unwrap());
 static QUERY_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\?[^)]*").unwrap());
@@ -65,17 +77,19 @@ pub async fn init(client: &Client) -> anyhow::Result<()> {
         RULE_MAP.insert(app.clone(), rules);
 
         let facts = alert_fact::Model::find_all(&db).await.unwrap();
-        let fp_set= DashSet::new();
+        // let fp_set= DashSet::new();
         let alert_fact_map = DashMap::new();
 
         for fact in &facts {
             if let Some(fp) = &fact.model.fingerprint {
-                fp_set.insert(fp.clone());
+                // fp_set.insert(fp.clone());
 
                 let data = AlertFactInfo {
                     fingerprint: Some(fp.clone()),
                     ttl: fact.model.ttl,
+                    strategy: fact.model.strategy.clone(),
                     last_seen: fact.model.last_seen,
+                    last_notify: fact.model.last_notify,
                     need_update: false,
                     count: fact.model.count,
                     flush_count: 0,
@@ -85,8 +99,8 @@ pub async fn init(client: &Client) -> anyhow::Result<()> {
             }
         }
 
-        info!("初始化指纹{}条", fp_set.len());
-        FP_MAP.insert(app.clone(), fp_set);
+        // info!("初始化指纹{}条", fp_set.len());
+        // FP_MAP.insert(app.clone(), fp_set);
         info!("初始化事实{}条", alert_fact_map.len());
         let alert_fact = AlertFact {
             map: alert_fact_map,
@@ -127,17 +141,21 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
 
     debug!(target: "alert","{}: 指纹{}", summary, fp);
 
-    if let Some((rule, fact)) = check_alert(&appid, &fp, AlertType::Error) {
+    if let Some((rule, fact)) = check_alert(&appid, &fp, CollectionType::Error) {
         // 第一次出现或在告警窗口内才会通知
-        if fact.count == 1 || is_expired(fact.last_seen, fact.ttl, None) {
-            notify(producer, &rule, &summary);
+        if fact.count == 1 {
+            notify(producer, &rule, &summary, &fact);
+        } else if let Some(ttl) = fact.ttl {
+            if is_expired(fact.last_seen, ttl, None) {
+                notify(producer, &rule, &summary, &fact);
+            }
         }
-    }
 
-    let _is_new_fp = FP_MAP
-        .entry(appid.to_string())
-        .or_insert_with(|| DashSet::new())
-        .insert(fp.clone());
+        // let _is_new_fp = FP_MAP
+        //     .entry(appid.to_string())
+        //     .or_insert_with(|| DashSet::new())
+        //     .insert(fp.clone());
+    }
 
     let now = DateTime::now();
     let summary_entry = ErrorSummary {
@@ -169,13 +187,23 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
 fn check_alert(
     appid: &str,
     fp: &String,
-    log_type: AlertType
+    log_type: CollectionType,
 ) -> Option<(AlertRule, AlertFactInfo)> {
     let rules = RULE_MAP.get(appid)?;
     let rule = rules
         .iter()
-        .find(|r| r.model.fingerprint == Some(fp.to_string()))
-        .or_else(|| rules.iter().find(|r| r.model.log_type == log_type))
+        .find(|r| {
+            match &r.model.source {
+                AlertSource::Fingerprint(source) => source.fingerprint == fp.clone(),
+                _ => false
+            }
+        })
+        .or_else(|| rules.iter().find(|r| {
+            match &r.model.source {
+                AlertSource::Collection(source) => source.log_type == log_type,
+                _ => false
+            }
+        }))
         .cloned()?;
 
     debug!(target: "alert", "命中规则{}", rule._id);
@@ -188,10 +216,17 @@ fn check_alert(
 
     let now = DateTime::now();
 
+    let ttl = match rule.model.notify {
+        AlertNotify::Window(ref notify) => Some(notify.window_sec),
+        AlertNotify::Limit(ref notify) => Some(notify.window_sec),
+        _ => None,
+    };
     let alert_fact_entry = AlertFactInfo {
         fingerprint: Some(fp.to_string()),
-        ttl: rule.model.notify.frequency.window_sec,
+        strategy: rule.model.strategy.clone(),
+        ttl,
         last_seen: now,
+        last_notify: None,
         need_update: true,
         count: 1,
         flush_count: 1,
@@ -200,8 +235,13 @@ fn check_alert(
     let current_fact = alert_fact.map
         .entry(fp.to_string())
         .and_modify(|s| {
+            let ttl = match &rule.model.notify {
+                AlertNotify::Window(notify) => Some(notify.window_sec),
+                AlertNotify::Limit(notify) => Some(notify.window_sec),
+                _ => None,
+            };
             s.flush_count += 1;
-            s.ttl = rule.model.notify.frequency.window_sec;
+            s.ttl = ttl;
             s.last_seen = now;
             s.need_update = true;
         })
@@ -209,8 +249,35 @@ fn check_alert(
     Some((rule, current_fact.value().clone()))
 }
 
-fn notify(producer: &BaseProducer, rule: &AlertRule, summary: &String) {
-    let url = &rule.model.notify.url;
+fn notify(
+    producer: &BaseProducer,
+    rule: &AlertRule,
+    summary: &String,
+    fact: &AlertFactInfo,
+) {
+    let now = chrono::Utc::now();
+    match &rule.model.notify {
+        AlertNotify::Once(notify) => {
+            if fact.last_notify.is_none() {
+                return;
+            }
+            let url = notify.url;
+        },
+        AlertNotify::Window(notify) => {
+            if let Some(ttl) = fact.ttl {
+                if !is_expired(fact.last_seen, ttl, Some(now)) {
+                    return;
+                }
+                let url = notify.url;
+            }
+        },
+        AlertNotify::Limit(notify) => {
+            if let Some(ttl) = fact.ttl {
+
+            }
+        }
+    }
+    let url = &rule.model.notify;
     let data = json!({
         "url": url,
         "name": rule.model.name,
@@ -348,10 +415,10 @@ async fn collect_alert_fact(client: &Client) -> QueryResult<()> {
         debug!("活跃的告警事实{}", facts.len());
         debug!("过期指纹{:?}", expire_fp);
 
-        if let Some(fps) = FP_MAP.get_mut(app) {
-            fps.retain(|fp| !expire_fp.contains(fp));
-            debug!("活跃的指纹{}", fps.len());
-        }
+        // if let Some(fps) = FP_MAP.get_mut(app) {
+        //     fps.retain(|fp| !expire_fp.contains(fp));
+        //     debug!("活跃的指纹{}", fps.len());
+        // }
     }
 
     Ok(())
