@@ -8,6 +8,6 @@ cd packages/core
 
 pnpm build
 
-pnpm publish --no-git-checks --access public
+npm publish --no-git-checks --access public
 
 echo "✅ Publish completed"
