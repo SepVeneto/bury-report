@@ -6,9 +6,9 @@ on:
     tags:
       - 'v*'
 
-# permissions:
-#   id-token: write  # Required for OIDC
-#   contents: read
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
 
 jobs:
   publish:
@@ -21,10 +21,17 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Check OIDC token
+      - name: Request OIDC Token
+        id: idtoken
+        uses: actions/id-token@v1
+        with:
+          audience: "https://registry.npmjs.org/"
+
+      - name: Show token exists
         run: |
-          curl -v -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" https://registry.npmjs.org/-/whoami
-      - name: Check OIDC token
-        run: |
-          node -e "console.log(process.env.NODE_AUTH_TOKEN, process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN, process.env.GITHUB_TOKEN, process.env.NPM_CONFIG_NODE_AUTH_TOKEN)"
-      
+          if [ -z "${{ steps.idtoken.outputs.id_token }}" ]; then
+            echo "OIDC token not found!"
+            exit 1
+          else
+            echo "OIDC token exists."
+          fi
