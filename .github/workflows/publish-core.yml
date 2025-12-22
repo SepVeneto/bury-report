@@ -53,6 +53,8 @@ jobs:
 
           OIDC_TOKEN=$(echo "$RESPONSE" | jq -r '.value')
 
+          echo "OIDC token length: ${#OIDC_TOKEN}"
+
           # 输出 token 供后续 steps 使用
           echo "oidc_token=$OIDC_TOKEN" >> $GITHUB_OUTPUT
 
