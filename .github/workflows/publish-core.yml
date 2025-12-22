@@ -54,9 +54,12 @@ jobs:
           OIDC_TOKEN=$(echo "$RESPONSE" | jq -r '.value')
 
           echo "OIDC token length: ${#OIDC_TOKEN}"
+          echo "oidc_token=$OIDC_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Get NPM Token
         id: npmtoken
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.oidc_token }}
         run: |
           NPM_RESPONSE=$(curl -s -X POST \
             -H "Authorization: Bearer $OIDC_TOKEN" \
