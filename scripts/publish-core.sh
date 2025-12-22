@@ -10,6 +10,8 @@ cd packages/core
 
 pnpm build
 
+npm -v
+
 npm publish --no-git-checks --access public
 
 echo "✅ Publish completed"
