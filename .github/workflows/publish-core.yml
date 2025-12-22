@@ -57,4 +57,6 @@ jobs:
           echo "oidc_token=$OIDC_TOKEN" >> $GITHUB_OUTPUT
 
       - name: Build and Publish
+        env:
+          NODE_AUTH_TOKEN: ""
         run: sh ./scripts/publish-core.sh
