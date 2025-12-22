@@ -6,15 +6,16 @@ on:
     tags:
       - core@*
 
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest
 
-    permissions:
-      id-token: write
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       # - name: Setup pnpm
@@ -25,7 +26,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 20.9.0 
+          node-version: 24 
           registry-url: https://registry.npmjs.org
 
       # - name: Get pnpm store directory
@@ -44,21 +45,21 @@ jobs:
         run: |
           curl -v -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" https://registry.npmjs.org/-/whoami
       
-      - name: Force clean npm auth (required for OIDC)
-        run: |
-          rm -f ~/.npmrc
-          rm -f ~/.pnpmrc
+      # - name: Force clean npm auth (required for OIDC)
+      #   run: |
+      #     rm -f ~/.npmrc
+      #     rm -f ~/.pnpmrc
 
-      - name: Build and Publish
-        # run: sh ./scripts/publish-core.sh
-        run: |
-          npm i -g pnpm@9
-          pnpm i --frozen-lockfile
+      # - name: Build and Publish
+      #   # run: sh ./scripts/publish-core.sh
+      #   run: |
+      #     npm i -g pnpm@9
+      #     pnpm i --frozen-lockfile
 
-          cd packages/core
+      #     cd packages/core
 
-          pnpm build
+      #     pnpm build
 
-          npm publish --no-git-checks --access public
+      #     npm publish --no-git-checks --access public
 
-          echo "✅ Publish completed"
+      #     echo "✅ Publish completed"
