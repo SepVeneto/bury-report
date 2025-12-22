@@ -6,8 +6,9 @@ on:
     tags:
       - core@*
 
+# 顶层 permissions 必须有 id-token: write
 permissions:
-  id-token: write  # Required for OIDC
+  id-token: write
   contents: read
 
 jobs:
@@ -15,54 +16,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      # - name: Setup pnpm
-      #   uses: pnpm/action-setup@v2
-      #   with:
-      #     version: 9
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: 24 
+          node-version: 20.9.0 
           registry-url: https://registry.npmjs.org
 
-      # - name: Get pnpm store directory
-      #   id: pnpm-cache
-      #   run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        run: echo "pnpm_cache_dir=$(pnpm store path)" >> $GITHUB_OUTPUT
 
-      # - name: Setup pnpm cache
-      #   uses: actions/cache@v3
-      #   with:
-      #     path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
-      #     key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-      #     restore-keys: |
-      #       ${{ runner.os }}-pnpm-store-
-      
-      - name: Check OIDC token
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.pnpm_cache_dir }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      # 手动请求 OIDC token，绕过 actions/id-token 内置 Action
+      - name: Request OIDC token manually
+        id: oidc
         run: |
-          curl -v -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" https://registry.npmjs.org/-/whoami
-      - name: Check OIDC token
-        run: |
-          node -e "console.log(process.env.GITHUB_TOKEN, process.env.NPM_CONFIG_NODE_AUTH_TOKEN)"
-      
-      # - name: Force clean npm auth (required for OIDC)
-      #   run: |
-      #     rm -f ~/.npmrc
-      #     rm -f ~/.pnpmrc
+          echo "Requesting OIDC token..."
+          TOKEN=$(curl -s -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL?audience=https://registry.npmjs.org/")
+          echo "OIDC token: $TOKEN"
+          # 输出 token 供后续 steps 使用
+          echo "oidc_token=$TOKEN" >> $GITHUB_OUTPUT
 
-      # - name: Build and Publish
-      #   # run: sh ./scripts/publish-core.sh
-      #   run: |
-      #     npm i -g pnpm@9
-      #     pnpm i --frozen-lockfile
+      - name: Gen npmrc
+        run: echo "//registry.npmjs.com/:_authToken=${{ steps.oidc.outputs.oidc_token }}" >> ./.npmrc
 
-      #     cd packages/core
-
-      #     pnpm build
-
-      #     npm publish --no-git-checks --access public
-
-      #     echo "✅ Publish completed"
+      - name: Build and Publish
+        run: sh ./scripts/publish-core.sh
+        env:
+          NODE_AUTH_TOKEN: ${{ steps.oidc.outputs.oidc_token }}
+          NPM_TOKEN: ${{ steps.oidc.outputs.oidc_token }}
