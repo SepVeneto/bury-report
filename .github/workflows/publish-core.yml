@@ -39,6 +39,11 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
+      
+      - name: Force clean npm auth (required for OIDC)
+        run: |
+          rm -f ~/.npmrc
+          rm -f ~/.pnpmrc
 
       - name: Build and Publish
         run: sh ./scripts/publish-core.sh
