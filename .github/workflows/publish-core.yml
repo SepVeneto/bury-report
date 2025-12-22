@@ -65,6 +65,9 @@ jobs:
             -H "Authorization: Bearer $OIDC_TOKEN" \
             https://registry.npmjs.org/-/npm/v1/github/oidc)
 
+          echo "npm oidc response:"
+          echo "$NPM_RESPONSE" | jq
+
           NPM_TOKEN=$(echo "$NPM_RESPONSE" | jq -r '.token')
 
           echo "npm token length: ${#NPM_TOKEN}"
