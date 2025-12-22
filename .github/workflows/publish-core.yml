@@ -6,12 +6,12 @@ on:
     tags:
       - core@*
 
-permissions:
-  id-token: write
-
 jobs:
   publish:
     runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
 
     steps:
       - uses: actions/checkout@v3
@@ -52,6 +52,7 @@ jobs:
       - name: Build and Publish
         # run: sh ./scripts/publish-core.sh
         run: |
+          npm i -g pnpm@9
           pnpm i --frozen-lockfile
 
           cd packages/core
