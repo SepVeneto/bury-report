@@ -11,27 +11,43 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test-oidc:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+      - name: Request OIDC token
+        id: oidc
+        uses: actions/id-token@v2
 
-      - name: Request OIDC Token
-        id: idtoken
-        uses: actions/id-token@v1
-        with:
-          audience: "https://registry.npmjs.org/"
+      - name: Show token
+        run: echo "${{ steps.oidc.outputs.id_token }}"
+  # publish:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Show token exists
-        run: |
-          if [ -z "${{ steps.idtoken.outputs.id_token }}" ]; then
-            echo "OIDC token not found!"
-            exit 1
-          else
-            echo "OIDC token exists."
-          fi
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '24'
+  #         registry-url: 'https://registry.npmjs.org'
+
+  #     - name: Request OIDC Token
+  #       id: idtoken
+  #       uses: actions/id-token@v1
+  #       with:
+  #         audience: "https://registry.npmjs.org/"
+
+  #     - name: Show token exists
+  #       run: |
+  #         if [ -z "${{ steps.idtoken.outputs.id_token }}" ]; then
+  #           echo "OIDC token not found!"
+  #           exit 1
+  #         else
+  #           echo "OIDC token exists."
+  #         fi
