@@ -1,5 +1,6 @@
 import type { Options } from '@/type'
 import { ErrorPlugin } from './plugins/error'
+import 'core-js/es/promise/all-settled'
 
 function init(options: Options) {
   try {
@@ -10,7 +11,6 @@ function init(options: Options) {
       loadScript(options.url),
       options.operationRecord?.enable && loadScript(options.url, 'plugins/operationRecord.global.js'),
     ]).then(() => {
-      console.log('foo?')
       plugin.resetListener()
 
       if ('BuryReport' in window) {

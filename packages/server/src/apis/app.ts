@@ -171,8 +171,8 @@ router.delete('/app', async (ctx) => {
   await Promise.all([
     apps.updateOne({ _id: appId }, { $set: { is_delete: true } }),
     projects.updateMany(
-      { 'apps.id': appId },
-      { $pull: { apps: { id: appId } } as Document},
+      { 'apps.id': id },
+      { $pull: { apps: { id } } as Document},
     )
   ])
   ctx.resMsg = '删除成功'

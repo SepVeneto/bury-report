@@ -5,7 +5,7 @@ use crate::model::{BaseModel, CreateModel, QueryModel, alert_rule::AlertStrategy
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {
-    pub fingerprint: Option<String>,
+    pub fingerprint: String,
     pub count: i64,
     pub last_seen: DateTime,
     pub ttl: Option<i64>,

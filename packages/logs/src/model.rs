@@ -68,7 +68,9 @@ pub trait QueryModel: BaseModel {
 
     async fn find_all(db: &Database) -> QueryResult<Vec<QueryBase<Self::Model>>> {
         let col = Self::col(db);
-        let cursor = col.find(None, None).await?;
+        let cursor = col.find(doc! {
+            "is_delete": { "$ne": true },
+        }, None).await?;
         let res: Vec<QueryBase<Self::Model>> = cursor.try_collect().await?;
         Ok(res)
     }

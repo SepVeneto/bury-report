@@ -203,7 +203,6 @@ function normalizeConsoleError(args: any[]) {
         extra = '[unserializable extra]'
       }
     }
-    console.log('foo')
 
     return {
       message,

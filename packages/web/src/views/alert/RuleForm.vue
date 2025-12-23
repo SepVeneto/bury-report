@@ -14,15 +14,24 @@
       label="告警策略"
       prop="strategy"
     >
-      <ElRadioGroup v-model="model.strategy">
-        <ElRadio label="仅一次" value="once" />
-        <ElRadio label="窗口期触发" value="window" />
-        <ElRadio label="阈值触发" value="limit" />
+      <ElRadioGroup v-model="model.notify.strategy">
+        <ElRadio
+          label="仅一次"
+          value="once"
+        />
+        <ElRadio
+          label="窗口期触发"
+          value="window"
+        />
+        <ElRadio
+          label="阈值触发"
+          value="limit"
+        />
       </ElRadioGroup>
     </ElFormItem>
 
     <ElFormItem
-      v-if="model.strategy !== 'once'"
+      v-if="model.notify.strategy !== 'once'"
       label="告警窗口（秒）"
     >
       <ElInputNumber
@@ -34,7 +43,7 @@
     </ElFormItem>
 
     <ElFormItem
-      v-if="model.strategy === 'limit'"
+      v-if="model.notify.strategy === 'limit'"
       label="告警阈值"
     >
       <ElInputNumber
@@ -46,8 +55,14 @@
 
     <ElFormItem label="触发源">
       <ElRadioGroup v-model="model.source.type">
-        <ElRadio label="日志集合" value="collection" />
-        <ElRadio label="指纹" value="fingerprint" />"
+        <ElRadio
+          label="日志集合"
+          value="collection"
+        />
+        <ElRadio
+          label="指纹"
+          value="fingerprint"
+        />"
       </ElRadioGroup>
     </ElFormItem>
 
@@ -57,9 +72,18 @@
       prop="log_type"
     >
       <ElRadioGroup v-model="model.source.log_type">
-        <ElRadio label="错误日志" value="error" />
-        <ElRadio label="接口日志" value="api" />
-        <ElRadio label="自定义日志" value="log" />
+        <ElRadio
+          label="错误日志"
+          value="error"
+        />
+        <ElRadio
+          label="接口日志"
+          value="api"
+        />
+        <ElRadio
+          label="自定义日志"
+          value="log"
+        />
       </ElRadioGroup>
     </ElFormItem>
 
@@ -84,7 +108,7 @@
 </template>
 
 <script lang="ts" setup>
-import { AlertRule } from '@/apis';
+import type { AlertRule } from '@/apis'
 import RxSwitch from '@/components/switch/rxSwitch.vue'
 
 const model = defineModel<AlertRule>({ required: true })

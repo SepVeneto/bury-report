@@ -22,13 +22,22 @@
         />
       </template>
 
-      <template #operate="{row}">
+      <template #operate="{ row }">
         <BcButton
           text
           type="primary"
           @click="handleUpdate(row)"
-        >编辑</BcButton>
-        <BcButton text type="danger" confirm @click="handleDelete(row)">删除</BcButton>
+        >
+          编辑
+        </BcButton>
+        <BcButton
+          text
+          type="danger"
+          confirm
+          @click="handleDelete(row)"
+        >
+          删除
+        </BcButton>
       </template>
     </bc-table>
 
@@ -46,11 +55,12 @@
 </template>
 
 <script lang="ts" setup>
-import { AlertRule, deleteAlertRule, getAlertRuleList, toggleAlertRule, updateAlertRule } from '@/apis'
+import type { AlertRule } from '@/apis'
+import { deleteAlertRule, getAlertRuleList, toggleAlertRule, updateAlertRule } from '@/apis'
 import { ref, shallowRef, useTemplateRef } from 'vue'
 import RuleForm from './RuleForm.vue'
 import RxSwitch from '@/components/switch/rxSwitch.vue'
-import { WithDetail } from '@/util/tools'
+import type { WithDetail } from '@/util/tools'
 
 const searchConfig = shallowRef([
   { catalog: 'input', name: '规则名称', prop: 'name' },
@@ -59,7 +69,7 @@ const tableConfig = shallowRef([
   { label: '名称', prop: 'name' },
   { label: '类型', prop: 'source.log_type' },
   { label: '触发源', prop: 'source.type' },
-  { label: '策略', prop: 'strategy', filter: (val: string) => ({ once: '仅一次', window: '窗口期触发', limit: '阈值触发'}[val]) },
+  { label: '策略', prop: 'strategy', filter: (val: string) => ({ once: '仅一次', window: '窗口期触发', limit: '阈值触发' }[val]) },
   { label: '状态', prop: 'enabled' },
   { label: '操作', prop: 'operate' },
 ])
@@ -76,8 +86,9 @@ const defaultForm = {
     log_type: 'error',
   },
   notify: {
+    strategy: 'once',
     url: '',
-  }
+  },
 } as AlertRule
 const ruleModal = ref({
   show: false,
@@ -103,7 +114,7 @@ function getList() {
 
 function handleUpdate(row?: WithDetail<AlertRule>) {
   ruleModal.value.show = true
-  ruleModal.value.data = JSON.parse(JSON.stringify(row ? row : defaultForm))
+  ruleModal.value.data = JSON.parse(JSON.stringify(row || defaultForm))
 }
 
 async function handleSubmit() {

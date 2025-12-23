@@ -1,5 +1,6 @@
 use actix_web::{HttpRequest, get, web};
 use mongodb::Client;
+use log::debug;
 
 use crate::{
     apis::{ApiResult, get_appid},
@@ -15,6 +16,7 @@ async fn sync_alert_rule(
     client: web::Data<Client>,
     req: HttpRequest,
 ) -> ApiResult {
+    debug!("sync alert rule");
     let appid = get_appid(&req)?;
     let app_name = format!("app_{}", appid);
     let db = client.database(&app_name);

@@ -12,13 +12,13 @@ export type AlertRule = {
   id?: string,
   name: string,
   enabled: boolean,
-  strategy: 'once' | 'window' | 'limit',
   source: {
     type: 'collection' | 'fingerprint',
     log_type?: 'error' | 'api' | 'log',
     fingerprint?: string
   },
   notify: {
+    strategy: 'once' | 'window' | 'limit',
     url: string,
     window_sec?: number,
     limit?: number
@@ -45,6 +45,6 @@ export function toggleAlertRule(id: string, enabled: boolean) {
     method: 'patch',
     data: {
       enabled,
-    }
+    },
   }, true)
 }
