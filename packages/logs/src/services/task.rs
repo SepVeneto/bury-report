@@ -6,8 +6,8 @@ use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 use serde_json::Value;
 
 use crate::{
-    alert::RULE_MAP,
-    model::{alert_rule, logs, QueryModel},
+    alert::{AlertRuleMap, RULE_MAP},
+    model::{QueryModel, alert_rule, logs},
     services::{ServiceResult, record_logs::RecordList}
 };
 
@@ -90,7 +90,7 @@ pub async fn sync_alert_rule(
     app: &str,
 ) -> ServiceResult<()> {
     let rules = alert_rule::Model::find_all(&db).await?;
-    RULE_MAP.insert(app.to_string(), rules);
+    RULE_MAP.insert(app.to_string(), AlertRuleMap::from_models(rules));
     info!("sync alert rule success");
     Ok(())
 }

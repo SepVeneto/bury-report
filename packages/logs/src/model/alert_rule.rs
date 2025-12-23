@@ -2,21 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::{BaseModel, QueryModel};
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct NotifyFrequency {
-    // 告警窗口，单位秒。也就是下一次会发送告警的时间
-    pub window_sec: i64,
-    // 告警阈值，即窗口期内到达阈值时，开始发送告警
-    pub limit: i64,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct NotifySetting {
-    pub url: String,
-    pub frequency: NotifyFrequency,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CollectionType {
     #[serde(rename = "error")]
     Error,
@@ -53,19 +39,6 @@ pub enum AlertSource {
     Fingerprint {
         fingerprint: String,
     },
-}
-
-impl AlertSource {
-    pub fn type_human_readable(&self) -> String {
-        match self {
-            AlertSource::Collection { log_type } => match log_type {
-                CollectionType::Error => "错误日志",
-                CollectionType::Networ => "网络日志",
-                CollectionType::Custom => "上报日志",
-            },
-            AlertSource::Fingerprint { fingerprint: _ } => "指纹",
-        }.into()
-    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -111,6 +84,22 @@ impl AlertNotify {
             | AlertNotify::Limit { ref url, .. } => url,
         }.into()
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct CollectionRule  {
+    pub name: String,
+    pub enabled: bool,
+    pub notify: AlertNotify,
+    pub log_type: CollectionType,
+}
+
+#[derive(Clone, Debug)]
+pub struct FingerprintRule {
+    pub name: String,
+    pub enabled: bool,
+    pub notify: AlertNotify,
+    pub fingerprint: String,
 }
 
 

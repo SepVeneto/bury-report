@@ -5,21 +5,14 @@ use mongodb::{Client, bson::doc};
 use once_cell::sync::Lazy;
 use rdkafka::producer::BaseProducer;
 use regex::Regex;
-use dashmap::{DashMap, DashSet};
+use dashmap::DashMap;
 use serde_json::{Value, Map, json};
 use log::{debug, error, info};
 use tokio::time::{Duration, interval};
 
-use crate::model::alert_rule::{AlertNotify, AlertSource, CollectionType};
+use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule};
 use crate::model::{
-    CreateModel,
-    QueryBase,
-    QueryModel,
-    QueryResult,
-    alert_fact,
-    alert_rule,
-    alert_summary,
-    logs_error,
+    CreateModel, QueryBase, QueryModel, QueryResult, alert_fact, alert_rule, alert_summary, logs_error
 };
 use crate::services::task::send_json_to_kafka;
 
@@ -27,7 +20,7 @@ type AppId = String;
 type ErrorRaw = logs_error::Model;
 
 type ErrorSummary = alert_summary::Model;
-type AlertRule = QueryBase<alert_rule::Model>;
+type AlertRule = alert_rule::Model;
 
 struct AppSummary {
     summaries: DashMap<String, ErrorSummary>,
@@ -38,10 +31,45 @@ struct AlertFact {
     map: DashMap<String, AlertFactInfo>
 }
 
+pub struct AlertRuleMap {
+    collection: DashMap<CollectionType, CollectionRule>,
+    fingerprints: DashMap<String, FingerprintRule>,
+}
+impl AlertRuleMap {
+    pub fn from_models(models: Vec<QueryBase<AlertRule>>) -> Self {
+        let collection = DashMap::new();
+        let fingerprints = DashMap::new();
+
+        for model in models {
+            match model.model.source {
+                AlertSource::Collection { ref log_type } => {
+                    let rule = CollectionRule {
+                        name: model.model.name,
+                        enabled: model.model.enabled,
+                        notify: model.model.notify,
+                        log_type: log_type.clone(),
+                    };
+                    collection.insert(log_type.clone(), rule);
+                }
+                AlertSource::Fingerprint { fingerprint } => {
+                    let rule = FingerprintRule {
+                        name: model.model.name,
+                        enabled: model.model.enabled,
+                        notify: model.model.notify,
+                        fingerprint: fingerprint.to_string(),
+                    };
+                    fingerprints.insert(fingerprint, rule);
+                }
+            }
+        }
+
+        Self { collection, fingerprints }
+    }
+}
+
 static SUMMARY_MAP: Lazy<DashMap<AppId, AppSummary>> = Lazy::new(|| DashMap::new());
 
-pub static COL_RULE_MAP: Lazy<DashMap<AppId, Vec<AlertRule>>> = Lazy::new(|| DashMap::new());
-pub static FP_RULE_MAP: Lazy<DashMap<AppId, Vec<AlertRule>>> = Lazy::new(|| DashMap::new());
+pub static RULE_MAP: Lazy<DashMap<AppId, AlertRuleMap>> = Lazy::new(|| DashMap::new());
 static ALERT_MAP: Lazy<DashMap<AppId, AlertFact>> = Lazy::new(|| DashMap::new());
 // pub static FP_MAP: Lazy<DashMap<AppId, DashSet<String>>> = Lazy::new(|| DashMap::new());
 
@@ -66,17 +94,9 @@ pub async fn init(client: &Client) -> anyhow::Result<()> {
                 vec![]
             }
         };
-        let col_rules = rules.iter().filter(|r| {
-            match r.model.source {
-                AlertSource::Collection { .. } {
 
-                }
-            }
-            // r.model.source
-            true
-        });
-        info!("初始化规则{}条", rules.len());
-        RULE_MAP.insert(app.clone(), rules);
+        // info!("初始化规则{}条", rules.len());
+        RULE_MAP.insert(app.clone(), AlertRuleMap::from_models(rules));
 
         let facts = alert_fact::Model::find_all(&db).await.unwrap();
         // let fp_set= DashSet::new();
@@ -119,6 +139,52 @@ pub async fn init(client: &Client) -> anyhow::Result<()> {
     Ok(())
 }
 
+enum UnionRule {
+    Collection(CollectionRule),
+    Fingerprint(FingerprintRule),
+}
+impl UnionRule {
+    pub fn strategy(&self) -> AlertStrategy {
+        match self {
+            UnionRule::Collection(rule) => rule.notify.strategy(),
+            UnionRule::Fingerprint(rule) => rule.notify.strategy(),
+        }
+    }
+
+    pub fn ttl(&self) -> Option<i64> {
+        match self {
+            UnionRule::Collection(rule) => rule.notify.ttl(),
+            UnionRule::Fingerprint(rule) => rule.notify.ttl(),
+        }
+    }
+    
+    pub fn notify(&self) -> AlertNotify {
+        match self {
+            UnionRule::Collection(rule) => rule.notify.clone(),
+            UnionRule::Fingerprint(rule) => rule.notify.clone(),
+        }
+    }
+
+    pub fn type_human_readable(&self) -> String {
+        match self {
+            UnionRule::Collection(rule) => {
+                match rule.log_type {
+                    CollectionType::Error => "错误日志",
+                    CollectionType::Networ => "网络日志",
+                    CollectionType::Custom => "上报日志",
+                }
+            },
+            UnionRule::Fingerprint(_) => "指纹",
+        }.into()
+    }
+
+    pub fn name(&self) -> String {
+        match self {
+            UnionRule::Collection(rule) => rule.name.clone(),
+            UnionRule::Fingerprint(rule) => rule.name.clone(),
+        }
+    }
+}
 pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
     let appid = format!("app_{}", appid);
     let fp = &raw.fingerprint;
@@ -126,9 +192,16 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
 
     debug!(target: "alert","{}: 指纹{}", summary, fp);
 
-    let rule = check_rule(&appid, &fp, CollectionType::Error);
-
-    if let Some(rule ) = rule {
+    let (col_rule, fp_rule)= check_rule(&appid, &fp, &CollectionType::Error);
+    if let Some(rule) = fp_rule {
+        let rule = UnionRule::Fingerprint(rule);
+        let (need_notify, fact) = check_notify(&rule, &appid, &fp);
+        debug!("通知策略{:?}, 是否通知{}, 告警次数{}", fact.strategy, need_notify, fact.count);
+        if need_notify {
+            notify(producer, &rule, summary, &fact);
+        }
+    } else if let Some(rule) = col_rule {
+        let rule = UnionRule::Collection(rule);
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
         debug!("通知策略{:?}, 是否通知{}, 告警次数{}", fact.strategy, need_notify, fact.count);
         if need_notify {
@@ -166,32 +239,32 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
 fn check_rule(
     appid: &str,
     fp: &String,
-    log_type: CollectionType,
-) -> Option<AlertRule> {
-    let rules = RULE_MAP.get(appid)?;
-    let rule = rules
-        .iter()
-        .find(|r| {
-            match &r.model.source {
-                AlertSource::Fingerprint { fingerprint}  => *fingerprint == fp.clone(),
-                _ => false
+    log_type: &CollectionType,
+) -> (Option<CollectionRule>, Option<FingerprintRule>) {
+    let rules = RULE_MAP.get(appid);
+    if let Some(rules) = rules {
+        let fp_rule = rules.fingerprints.get(fp).filter(|r| r.enabled);
+        if let Some(fp_rule) = fp_rule {
+            debug!(target: "alert", "命中指纹规则{}", fp_rule.name);
+            return (None, Some(fp_rule.clone()));
+        } else {
+            let col_rule = rules.collection.get(log_type).filter(|r| r.enabled);
+            if let Some(col_rule) = &col_rule {
+                debug!(target: "alert", "命中集合规则{}", col_rule.name);
             }
-        })
-        .or_else(|| rules.iter().find(|r| {
-            match &r.model.source {
-                AlertSource::Collection { log_type: ltype } => *ltype == log_type,
-                _ => false
+            match col_rule {
+                Some(rule) => (Some(rule.clone()), None),
+                None => (None, None)
             }
-        }))
-        .cloned()?;
-
-    debug!(target: "alert", "命中规则{}", rule._id);
-    Some(rule)
+        }
+    } else {
+        return (None, None);
+    }
 }
 
 
 fn check_notify(
-    rule: &AlertRule,
+    rule: &UnionRule,
     appid: &str,
     fp: &str
 ) -> (bool, AlertFactInfo) {
@@ -205,8 +278,8 @@ fn check_notify(
 
     let alert_fact_entry = AlertFactInfo {
         fingerprint: fp.to_string(),
-        strategy: rule.model.notify.strategy(),
-        ttl: rule.model.notify.ttl(),
+        strategy: rule.strategy(),
+        ttl: rule.ttl(),
         last_seen: now,
         last_notify: None,
         need_update: true,
@@ -218,7 +291,7 @@ fn check_notify(
         .entry(fp.to_string())
         .and_modify(|s| {
             s.flush_count += 1;
-            s.ttl = rule.model.notify.ttl();
+            s.ttl = rule.ttl();
             s.last_seen = now;
             s.need_update = true;
         })
@@ -229,7 +302,7 @@ fn check_notify(
         return (true, fact.clone());
     }
 
-    let need_notify = match rule.model.notify {
+    let need_notify = match rule.notify() {
         AlertNotify::Once { .. } => {
             if fact.last_notify.is_none() {
                 fact.last_notify = Some(now);
@@ -242,7 +315,7 @@ fn check_notify(
             if let Some(ttl) = fact.ttl {
                 // 窗口期内不触发
                 let expired = is_expired(fact.last_seen, ttl, Some(now.to_chrono()));
-                if (expired) {
+                if expired {
                     fact.last_notify = Some(now);
                 }
                 expired
@@ -263,15 +336,15 @@ fn check_notify(
 
 fn notify(
     producer: &BaseProducer,
-    rule: &AlertRule,
+    rule: &UnionRule,
     summary: &String,
     fact: &AlertFactInfo,
 ) {
-    let r#type = rule.model.source.type_human_readable();
+    let r#type = rule.type_human_readable();
     let data = json!({
-        "name": rule.model.name,
+        "name": rule.name(),
         "type": r#type,
-        "rule": rule.model.notify,
+        "rule": rule.notify(),
         "fact": fact,
         "content": summary,
     });
