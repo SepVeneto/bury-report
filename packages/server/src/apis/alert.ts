@@ -39,6 +39,13 @@ router.patch('/alert/rule/:ruleId/toggle', async (ctx) => {
     enabled: body.enabled,
   })
 
+  await fetch(`${Deno.env.get("NOTIFY_URL")}/notify/sync-alert-rule`, {
+    headers: {
+      "appid": ctx.request.headers.get('appid') || '',
+      "notify-token": Deno.env.get("NOTIFY_TOKEN") || '',
+    }
+  })
+
   ctx.resMsg = '切换成功'
 })
 
@@ -57,9 +64,10 @@ router.put('/alert/rule/:ruleId', async (ctx) => {
     notify,
   })
 
-  await fetch(`http://localhost:8870/notify/sync-alert-rule`, {
+  await fetch(`${Deno.env.get("NOTIFY_URL")}/notify/sync-alert-rule`, {
     headers: {
       "appid": ctx.request.headers.get('appid') || '',
+      "notify-token": Deno.env.get("NOTIFY_TOKEN") || '',
     }
   })
 
