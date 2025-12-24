@@ -157,6 +157,13 @@ impl UnionRule {
             UnionRule::Fingerprint(rule) => rule.notify.ttl(),
         }
     }
+
+    pub fn url(&self) -> String {
+        match self {
+            UnionRule::Collection(rule) => rule.notify.url(),
+            UnionRule::Fingerprint(rule) => rule.notify.url(),
+        }
+    }
     
     pub fn notify(&self) -> AlertNotify {
         match self {
@@ -352,6 +359,7 @@ fn notify(
 ) {
     let r#type = rule.type_human_readable();
     let data = json!({
+        "url": rule.url(),
         "name": rule.name(),
         "type": r#type,
         "rule": rule.notify(),
