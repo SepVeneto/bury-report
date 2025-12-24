@@ -47,10 +47,12 @@ export async function initApp(db: Db) {
     const col = db.collection('alert_fact')
     await col.createIndexes([
       { key: { fingerpring: 1 }},
-      // 超过24小时仍不活跃的事实可以被删除
+      // 超过7天仍不活跃的事实可以被删除
       // 因此告警阈值的时间窗口最大不能超过24小时
-      { key: { last_seen: 1 }, expireAfterSeconds: 60 * 60 * 24 },
-    ])
+      { key: { last_seen: 1 }, expireAfterSeconds: 60 * 60 * 24 * 7 },
+    ]).catch(err => {
+      console.error(err)
+    })
   }
 }
 async function initClient() {

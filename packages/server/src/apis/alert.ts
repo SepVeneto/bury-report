@@ -56,6 +56,13 @@ router.put('/alert/rule/:ruleId', async (ctx) => {
     enabled,
     notify,
   })
+
+  await fetch(`http://localhost:8870/notify/sync-alert-rule`, {
+    headers: {
+      "appid": ctx.request.headers.get('appid') || '',
+    }
+  })
+
   ctx.resMsg = '修改成功'
 })
 

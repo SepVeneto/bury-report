@@ -196,14 +196,14 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
     if let Some(rule) = fp_rule {
         let rule = UnionRule::Fingerprint(rule);
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
-        debug!("通知策略{:?}, 是否通知{}, 告警次数{}", fact.strategy, need_notify, fact.count);
+        debug!("通知策略{:?}, 是否通知{}, 告警次数{}", rule.strategy(), need_notify, fact.count);
         if need_notify {
             notify(producer, &rule, summary, &fact);
         }
     } else if let Some(rule) = col_rule {
         let rule = UnionRule::Collection(rule);
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
-        debug!("通知策略{:?}, 是否通知{}, 告警次数{}", fact.strategy, need_notify, fact.count);
+        debug!("通知策略{:?}, 是否通知{}, 告警次数{}", rule.strategy(), need_notify, fact.count);
         if need_notify {
             notify(producer, &rule, summary, &fact);
         }
@@ -294,6 +294,7 @@ fn check_notify(
             s.ttl = rule.ttl();
             s.last_seen = now;
             s.need_update = true;
+            s.strategy = rule.strategy();
         })
         .or_insert(alert_fact_entry);
 

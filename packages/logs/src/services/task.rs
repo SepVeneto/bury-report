@@ -90,6 +90,7 @@ pub async fn sync_alert_rule(
     app: &str,
 ) -> ServiceResult<()> {
     let rules = alert_rule::Model::find_all(&db).await?;
+    debug!("update rule {:?}", rules);
     RULE_MAP.insert(app.to_string(), AlertRuleMap::from_models(rules));
     info!("sync alert rule success");
     Ok(())
