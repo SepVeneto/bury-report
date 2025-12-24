@@ -196,6 +196,7 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
     let appid = format!("app_{}", appid);
     let fp = &raw.fingerprint;
     let summary = &raw.summary;
+    let page = get_string(&raw.data, "page");
 
     debug!(target: "alert","{}: 指纹{}", summary, fp);
 
@@ -205,14 +206,14 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
         debug!("通知策略{:?}, 是否通知{}, 告警次数{}", rule.strategy(), need_notify, fact.count);
         if need_notify {
-            notify(producer, &rule, summary, &fact);
+            notify(producer, &rule, summary, &fact, &page);
         }
     } else if let Some(rule) = col_rule {
         let rule = UnionRule::Collection(rule);
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
         debug!("通知策略{:?}, 是否通知{}, 告警次数{}", rule.strategy(), need_notify, fact.count);
         if need_notify {
-            notify(producer, &rule, summary, &fact);
+            notify(producer, &rule, summary, &fact, &page);
         }
     }
 
@@ -356,6 +357,7 @@ fn notify(
     rule: &UnionRule,
     summary: &String,
     fact: &AlertFactInfo,
+    trigger_page: &String,
 ) {
     let r#type = rule.type_human_readable();
     let data = json!({
@@ -364,6 +366,7 @@ fn notify(
         "type": r#type,
         "rule": rule.notify(),
         "fact": fact,
+        "page": trigger_page,
         "content": summary,
     });
     debug!("发送通知{:?}", data);
@@ -375,9 +378,12 @@ pub fn normalize(error: &ErrorRaw) -> (String, String) {
     let mut stack = get_string(&error.data, "stack");
     stack = LINE_COL_RE.replace_all(&stack, ":{line}:{col}").to_string();
     stack = QUERY_RE.replace_all(&stack, "?{query}").to_string();
+    let mut page = get_string(&error.data, "page");
+    page = QUERY_RE.replace_all(&page, "?{query}").to_string();
 
+    let md5_str = format!("{} {} {}", message, stack, page);
     let summary = format!("{} {}", message, stack);
-    let fingerprint = cal_md5(&summary);
+    let fingerprint = cal_md5(&md5_str);
 
     (fingerprint, summary)
 }
