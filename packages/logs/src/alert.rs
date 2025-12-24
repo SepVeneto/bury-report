@@ -290,16 +290,17 @@ fn check_notify(
     let mut fact = alert_fact.map
         .entry(fp.to_string())
         .and_modify(|s| {
-            s.flush_count += 1;
             s.ttl = rule.ttl();
             s.last_seen = now;
             s.need_update = true;
             s.strategy = rule.strategy();
+            s.count += 1;
         })
         .or_insert(alert_fact_entry);
 
     // 所有告警首次触发固定通知
     if fact.count == 1 {
+        fact.last_notify = Some(now);
         return (true, fact.clone());
     }
 
@@ -307,6 +308,9 @@ fn check_notify(
         AlertNotify::Once { .. } => {
             if fact.last_notify.is_none() {
                 fact.last_notify = Some(now);
+                // TODO: 统一控制
+                // 仅一次告警有7天的TTL
+                fact.ttl = Some(60 * 60 * 24 * 7);
                 true
             } else {
                 false
@@ -315,17 +319,22 @@ fn check_notify(
         AlertNotify::Window { .. } => {
             if let Some(ttl) = fact.ttl {
                 // 窗口期内不触发
-                let expired = is_expired(fact.last_seen, ttl, Some(now.to_chrono()));
-                if expired {
+                if let Some(last_notify) = fact.last_notify {
+                    let expired = is_expired(last_notify, ttl, Some(now.to_chrono()));
+                    if expired {
+                        fact.last_notify = Some(now);
+                    }
+                    expired
+                } else {
                     fact.last_notify = Some(now);
+                    true
                 }
-                expired
             } else {
                 false
             }
         },
         AlertNotify::Limit { limit, .. } => {
-            let trigger = fact.flush_count >= limit;
+            let trigger = fact.flush_count == limit;
             if trigger {
                 fact.last_notify = Some(now);
             }
@@ -415,8 +424,10 @@ async fn collect_summary(client: &Client) -> QueryResult<()> {
                     "page": page.as_str(),
                     "first_seen": value.first_seen,
                 },
-                "$inc": { "count": value.count },
-                "$set": { "last_seen": value.last_seen }
+                "$set": {
+                    "count": value.count,
+                    "last_seen": value.last_seen
+                }
             };
             alert_summary::Model::update_one(
                 &db,
@@ -444,21 +455,18 @@ async fn collect_alert_fact(client: &Client) -> QueryResult<()> {
         for mut fact in facts.iter_mut().filter(|f| f.need_update) {
             let value: &mut alert_fact::Model = fact.value_mut();
             debug!("插入告警事实{:?}", value);
-            // 被标记为need_update时才会更新，所以delta必定大于0
             let update = doc! {
                 "$setOnInsert": {
                     "fingerprint": value.fingerprint.clone(),
                 },
-                "$inc": { "count": value.flush_count},
                 "$set": {
+                    "count": value.count,
                     "strategy": value.strategy.to_string(),
                     "last_notify": value.last_notify,
                     "last_seen": value.last_seen,
                     "ttl": value.ttl,
                 }
             };
-            value.count += value.flush_count;
-            value.flush_count = 0;
             alert_fact::Model::update_one(
                 &db,
                 doc! {
