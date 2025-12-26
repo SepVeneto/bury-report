@@ -378,12 +378,9 @@ pub fn normalize(error: &ErrorRaw) -> (String, String) {
     let mut stack = get_string(&error.data, "stack");
     stack = LINE_COL_RE.replace_all(&stack, ":{line}:{col}").to_string();
     stack = QUERY_RE.replace_all(&stack, "?{query}").to_string();
-    let mut page = get_string(&error.data, "page");
-    page = QUERY_RE.replace_all(&page, "?{query}").to_string();
 
-    let md5_str = format!("{} {} {}", message, stack, page);
     let summary = format!("{} {}", message, stack);
-    let fingerprint = cal_md5(&md5_str);
+    let fingerprint = cal_md5(&summary);
 
     (fingerprint, summary)
 }
