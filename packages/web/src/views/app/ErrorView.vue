@@ -12,20 +12,20 @@
       :api="getList"
     >
       <template #uuid="{ row }">
-        <ElLink
-          type="primary"
+        <DeviceLink
+          :uuid="row.uuid"
           @click="handleDetail(row.uuid)"
         >
           {{ row.uuid }}
-        </ElLink>
+        </DeviceLink>
       </template>
       <template #session="{ row }">
-        <ElLink
-          type="primary"
+        <DeviceLink
+          :uuid="row.session"
           @click="handleDetail(row.uuid, row.session)"
         >
           {{ row.session }}
-        </ElLink>
+        </DeviceLink>
       </template>
       <template #expand="{ row }">
         <div style="padding: 0 20px;">
@@ -51,6 +51,7 @@ import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
+import DeviceLink from './components/DeviceLink.vue'
 
 defineOptions({
   name: 'ErrorView',
@@ -65,8 +66,8 @@ const tableConfig = shallowRef([
   { type: 'expand' },
   { label: '发生时间', prop: 'create_time', width: 200 },
   { label: '触发地址', prop: 'data.page', width: 200 },
-  { label: '会话ID', prop: 'session', width: 200 },
-  { label: '设备ID', prop: 'uuid', width: 200 },
+  { label: '会话ID', prop: 'session', width: 220 },
+  { label: '设备ID', prop: 'uuid', width: 220 },
   { label: '错误概述', prop: 'error' },
 ])
 const searchConfig = shallowRef([
