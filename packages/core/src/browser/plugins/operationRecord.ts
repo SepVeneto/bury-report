@@ -1,3 +1,5 @@
+import '../polyfill'
+
 import { OPERATION_TRACK } from '@/constant'
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import * as rrweb from '@rrweb/record'
