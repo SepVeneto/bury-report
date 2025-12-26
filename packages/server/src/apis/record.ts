@@ -33,8 +33,9 @@ router.get('/record/errors', async (ctx) => {
   const record = new RecordError(ctx.db)
 
   const { page, size, ...query } = ctx.request.query
-  const { start_time, end_time, uuid, session } = query
+  const { start_time, end_time, uuid, session, fingerprint } = query
   const filter = new Filter()
+  filter.equal('fingerprint', fingerprint)
   filter.equal('uuid', uuid)
   filter.rangeTime('create_time', start_time, end_time)
   filter.equal('session', session)
