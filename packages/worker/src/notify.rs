@@ -26,10 +26,9 @@ impl Notify {
       match strategy.as_str() {
         Some("once") => {
             let content = format!(
-              "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发位置**: {page}\n**触发条件**：周期内首次触发",
+              "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：周期内首次触发",
               name = self.name,
               fp = fp,
-              page = self.page,
               summary = self.content,
             );
             Some(content)
@@ -37,11 +36,10 @@ impl Notify {
         Some("window") => {
           let window_sec = time_human_readable(get_number(&self.rule, "window_sec"));
           let content = format!(
-            "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发位置**: {page}\n**触发条件**：{period}/次",
+            "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：{period}/次",
             name = self.name,
             fp = fp,
             summary = self.content,
-            page = self.page,
             period = window_sec,
           );
           Some(content)
@@ -50,11 +48,10 @@ impl Notify {
           let window_sec = time_human_readable(get_number(&self.rule, "window_sec"));
           let limit = get_number(&self.rule, "limit");
           let content = format!(
-            "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发位置**: {page}\n**触发条件**：{period}内已累计触发{limit}次",
+            "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：{period}内已累计触发{limit}次",
             name = self.name,
             fp = fp,
             summary = self.content,
-            page = self.page,
             period = window_sec,
           );
           Some(content)

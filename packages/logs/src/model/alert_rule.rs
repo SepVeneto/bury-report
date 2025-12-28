@@ -39,6 +39,9 @@ pub enum AlertSource {
     Fingerprint {
         fingerprint: String,
     },
+    ErrorType {
+        text: String,
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -99,7 +102,13 @@ pub struct FingerprintRule {
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,
-    pub fingerprint: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct TypeRule {
+    pub name: String,
+    pub enabled: bool,
+    pub notify: AlertNotify,
 }
 
 

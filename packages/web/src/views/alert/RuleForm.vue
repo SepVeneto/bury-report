@@ -36,9 +36,9 @@
     >
       <ElInputNumber
         v-model="model.notify.window_sec"
-        :min="3600 * 1"
+        :min="60 * 1"
         :step="1"
-        :max="3600 * 24"
+        :max="60 * 60 * 24"
       />
     </ElFormItem>
 
@@ -48,7 +48,7 @@
     >
       <ElInputNumber
         v-model="model.notify.limit"
-        :min="500"
+        :min="10"
         :step="1"
       />
     </ElFormItem>
@@ -63,6 +63,10 @@
           label="指纹"
           value="fingerprint"
         />"
+        <ElRadio
+          label="告警名称"
+          value="errorType"
+        />
       </ElRadioGroup>
     </ElFormItem>
 
@@ -93,6 +97,13 @@
       prop="fingerprint"
     >
       <BcInput v-model="model.source.fingerprint" />
+    </ElFormItem>
+
+    <ElFormItem
+      v-else-if="model.source.type === 'errorType'"
+      label="匹配内容"
+    >
+      <BcInput v-model="model.source.text" />
     </ElFormItem>
 
     <ElFormItem label="通知地址">

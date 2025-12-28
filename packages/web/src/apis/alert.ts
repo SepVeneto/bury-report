@@ -13,9 +13,10 @@ export type AlertRule = {
   name: string,
   enabled: boolean,
   source: {
-    type: 'collection' | 'fingerprint',
+    type: 'collection' | 'fingerprint' | 'errorType',
     log_type?: 'error' | 'api' | 'log',
     fingerprint?: string
+    text?: string
   },
   notify: {
     strategy: 'once' | 'window' | 'limit',
