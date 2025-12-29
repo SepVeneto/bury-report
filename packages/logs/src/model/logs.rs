@@ -98,7 +98,7 @@ impl RecordV1 {
                 fingerprint: String::new(),
                 summary: String::new(),
             };
-            let (fp, summary) = alert::normalize(&raw);
+            let (fp, summary) = alert::normalize_error(&raw);
             raw.fingerprint = fp;
             raw.summary = summary;
 

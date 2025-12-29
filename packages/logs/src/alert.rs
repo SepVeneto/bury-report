@@ -385,14 +385,16 @@ fn notify(
     send_json_to_kafka(producer, "notify", &data);
 }
 
-pub fn normalize(error: &ErrorRaw) -> (String, String) {
+pub fn normalize_error(error: &ErrorRaw) -> (String, String) {
     let message = get_string(&error.data, "message");
     let mut stack = get_string(&error.data, "stack");
+    let name = get_string(&error.data, "name");
     stack = LINE_COL_RE.replace_all(&stack, ":{line}:{col}").to_string();
     stack = QUERY_RE.replace_all(&stack, "?{query}").to_string();
 
     let summary = format!("{} {}", message, stack);
-    let fingerprint = cal_md5(&summary);
+    let md5_str = format!("{} {} {}", name, message, stack);
+    let fingerprint = cal_md5(&md5_str);
 
     (fingerprint, summary)
 }
