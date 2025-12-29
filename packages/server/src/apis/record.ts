@@ -54,7 +54,7 @@ router.get('/record/networks', async (ctx) => {
   filter.like('data.url', url)
   filter.like('data.response', response)
   filter.like('data.page', send_page)
-  filter.equal('data.status', status)
+  filter.equal('data.status', Number(status))
   filter.rangeTime('create_time', start_time, end_time)
   filter.equal('session', session)
 
