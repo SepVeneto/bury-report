@@ -359,7 +359,6 @@ fn check_notify(
             let trigger = fact.flush_count == limit;
             if trigger {
                 fact.last_notify = Some(now);
-                fact.flush_count = 0;
             }
             trigger
         }
@@ -505,11 +504,15 @@ async fn collect_alert_fact(client: &Client) -> QueryResult<()> {
         let mut expire_fp = HashSet::new();
         facts.retain(|fp, v| {
             if let Some(ttl) = v.ttl {
-                let expired = is_expired(v.last_seen, ttl, Some(now));
-                if expired {
-                    expire_fp.insert(fp.clone());
+                if let Some(notify) = v.last_notify {
+                    let expired = is_expired(notify, ttl, Some(now));
+                    if expired {
+                        expire_fp.insert(fp.clone());
+                    }
+                    !expired
+                } else {
+                    true
                 }
-                !expired
             } else {
                 true
             }
