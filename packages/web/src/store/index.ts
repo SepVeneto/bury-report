@@ -13,7 +13,7 @@ export type Route = {
 
 export const useApp = defineStore('app', () => {
   const username = 'anonymous'
-  const title = import.meta.env.VITE_APP_TITLE
+  const title = import.meta.env.PUBLIC_TITLE
 
   const menuList = shallowRef<Route[]>([])
   const modList = shallowRef<Route[]>([])

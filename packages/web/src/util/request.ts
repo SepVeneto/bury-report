@@ -12,11 +12,11 @@ interface Response<T = any> {
   data: T | null;
 }
 
-sign.SIGN_KEY = import.meta.env.VITE_APP_SIGNKEY
+sign.SIGN_KEY = import.meta.env.PUBLIC_SIGNKEY
 let isRedirect = false
 
 const serverInst = axios.create({
-  baseURL: import.meta.env.VITE_APP_SERVER_BASEURL,
+  baseURL: import.meta.env.PUBLIC_SERVER_BASEURL,
 })
 
 export const requestInspector = (config: AxiosRequestConfig<any>) => {

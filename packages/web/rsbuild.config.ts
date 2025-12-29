@@ -1,22 +1,31 @@
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from '@rsbuild/core'
+import { pluginVue } from '@rsbuild/plugin-vue'
 import { resolve } from 'path'
-import vueJsx from '@vitejs/plugin-vue-jsx'
+import { pluginVueJsx } from '@rsbuild/plugin-vue-jsx'
+import { pluginSass } from '@rsbuild/plugin-sass'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  html: {
+    template: './index.html',
+  },
+  source: {
+    entry: {
+      index: './src/main.ts',
+    },
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
     },
   },
   server: {
-    port: 5173,
+    port: 8800,
     proxy: {
       '/api/server': {
         target: 'http://localhost:8878',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/server/, ''),
+        pathRewrite: (path) => path.replace(/^\/api\/server/, ''),
       },
       // '/api/report': {
       //   target: 'http://localhost:8870',
@@ -30,11 +39,15 @@ export default defineConfig({
       // },
     },
   },
-  plugins: [vue({
-    template: {
-      compilerOptions: {
-        isCustomElement: tag => /^micro-app/.test(tag),
+  plugins: [
+    pluginSass(),
+    pluginVue({
+      vueLoaderOptions: {
+        compilerOptions: {
+          isCustomElement: tag => /^micro-app/.test(tag),
+        },
       },
-    },
-  }), vueJsx()],
+    }),
+    pluginVueJsx(),
+  ],
 })

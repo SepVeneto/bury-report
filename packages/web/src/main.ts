@@ -22,4 +22,4 @@ app.use(comps)
 app.use(router)
 app.mount('#app')
 
-import.meta.env.VITE_APP_BASE && microApp.start()
+import.meta.env.PUBLIC_BASE && microApp.start()
