@@ -168,7 +168,7 @@ async fn init_redis(cos: &Client, db_client: &mongodb::Client) -> redis::RedisRe
   let db_client = db_client.clone();
   tokio::spawn(async move {
     if let Err(e) = process_message(pubsub_conn, conn_clone, &cos_clone, db_client).await {
-        eprintln!("Error in task: {}", e);
+        error!("Error in task: {}", e);
     };
   });
 
@@ -319,9 +319,9 @@ async fn upload_session(
             if let Err(err) = update_event(&db, &session, &url).await {
               error!("Error while updating event: {}", err);
             }
-            println!("put object success");
+            info!("put object success");
           } else {
-            println!("put object failed, [{}]: {}", res.error_no, res.error_message);
+            error!("put object failed, [{}]: {}", res.error_no, res.error_message);
           }
         },
         Err(e) => {
