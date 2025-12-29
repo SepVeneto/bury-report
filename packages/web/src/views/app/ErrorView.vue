@@ -32,6 +32,13 @@
           <span>指纹：</span>
           <span>{{ row.fingerprint }}</span>
         </div>
+        <div style="padding: 0 20px;">
+          <span>错误类型：</span>
+          <span>{{ row.data.name }}</span>
+        </div>
+        <pre
+          style="padding-left: 100px; white-space: break-spaces; word-break: break-word;"
+        >{{ row.data.extra }}</pre>
         <pre style="padding-left: 100px; color: var(--el-color-danger);">{{ row.data.stack }}</pre>
       </template>
       <template #error="{ row }">
