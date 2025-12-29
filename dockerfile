@@ -65,7 +65,7 @@ RUN npm i -g pnpm && pnpm i
 COPY ./packages/web/.env.production\
      ./packages/web/index.html\
      ./packages/web/*.json\
-     ./packages/web/vite.config.ts\
+     ./packages/web/rsbuild.config.ts\
      ./packages/web/
 COPY ./packages/web/src ./packages/web/src
 COPY ./packages/web/public ./packages/web/public
