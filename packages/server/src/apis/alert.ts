@@ -15,12 +15,11 @@ router.post('/alert/rule', async (ctx) => {
   const alert = new Alert(ctx.db)
 
   const body = await ctx.request.body.json()
-  const { name, enabled, notify, strategy, source } = body
+  const { name, enabled, notify, source } = body
   await alert.insertOne({
     name,
     source,
     enabled,
-    strategy,
     notify,
     is_delete: false,
   })

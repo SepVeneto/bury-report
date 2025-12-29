@@ -23,9 +23,10 @@ export default defineConfig({
     port: 8800,
     proxy: {
       '/api/server': {
-        target: 'http://localhost:8878',
+        // target: 'http://localhost:8878',
+        target: 'https://scsj.jsrxjt.com',
         changeOrigin: true,
-        pathRewrite: (path) => path.replace(/^\/api\/server/, ''),
+        // pathRewrite: (path) => path.replace(/^\/api\/server/, ''),
       },
       // '/api/report': {
       //   target: 'http://localhost:8870',

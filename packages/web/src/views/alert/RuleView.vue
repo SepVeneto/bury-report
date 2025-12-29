@@ -67,9 +67,9 @@ const searchConfig = shallowRef([
 ])
 const tableConfig = shallowRef([
   { label: '名称', prop: 'name' },
-  { label: '类型', prop: 'source.log_type' },
-  { label: '触发源', prop: 'source.type' },
-  { label: '策略', prop: 'strategy', filter: (val: string) => ({ once: '仅一次', window: '窗口期触发', limit: '阈值触发' }[val]) },
+  { label: '日志类型', prop: 'source.log_type', filter: (val: string) => ({ error: '错误日志', api: '接口日志', log: '自定义日志' }[val]) },
+  { label: '触发源', prop: 'source.type', filter: (val: string) => ({ collection: '日志集合', fingerprint: '指纹', errorType: '错误类型' }[val]) },
+  { label: '策略', prop: 'notify.strategy', filter: (val: string) => ({ once: '仅一次', window: '窗口期触发', limit: '阈值触发' }[val]) },
   { label: '状态', prop: 'enabled' },
   { label: '操作', prop: 'operate' },
 ])
