@@ -348,7 +348,9 @@ fn check_notify(
                     true
                 }
             } else {
-                false
+                fact.last_notify = Some(now);
+                // 原告警是其它规则，后来切换成窗口期触发
+                true
             }
         },
         AlertNotify::Limit { limit, .. } => {
