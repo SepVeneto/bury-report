@@ -64,7 +64,7 @@
           value="fingerprint"
         />"
         <ElRadio
-          label="告警名称"
+          label="错误类型"
           value="errorType"
         />
       </ElRadioGroup>
