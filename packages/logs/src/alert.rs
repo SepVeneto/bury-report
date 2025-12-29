@@ -319,6 +319,7 @@ fn check_notify(
             s.need_update = true;
             s.strategy = rule.strategy();
             s.count += 1;
+            s.flush_count += 1;
         })
         .or_insert(alert_fact_entry);
 
@@ -354,9 +355,11 @@ fn check_notify(
             }
         },
         AlertNotify::Limit { limit, .. } => {
+            debug!("limit {limit}, trigger {count}", limit = limit, count = fact.flush_count);
             let trigger = fact.flush_count == limit;
             if trigger {
                 fact.last_notify = Some(now);
+                fact.flush_count = 0;
             }
             trigger
         }

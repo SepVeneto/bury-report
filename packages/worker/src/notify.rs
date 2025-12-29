@@ -11,7 +11,6 @@ use serde_json::{Map, Value, json};
 struct Notify {
   url: String,
   name: String,
-  page: String,
   r#type: String,
   rule: Map<String, Value>,
   fact: Map<String, Value>,
