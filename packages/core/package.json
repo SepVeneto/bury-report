@@ -24,6 +24,9 @@
   "files": [
     "dist"
   ],
+  "sideEffects": [
+    "./src/browser/polyfill.ts"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
