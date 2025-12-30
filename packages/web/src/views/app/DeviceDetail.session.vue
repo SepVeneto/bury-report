@@ -2,9 +2,12 @@
   <BcSearch
     v-model="params"
     :config="searchConfig"
+    :search="handleSearch"
     @reset="params.session = undefined"
   />
   <BcTable
+    ref="tableRef"
+    v-model="params"
     :config="tableConfig"
     :api="getList"
     pagination
@@ -58,7 +61,8 @@
                     class="api-item"
                     :class="[isActiveApi(api) && 'active']"
                   >
-                    [{{ timeFormat(api.stamp) }}] {{ simpleUrl(api) }}
+                    <span class="log-stamp">[{{ timeFormat(api.stamp) }}]</span>
+                    <span>{{ simpleUrl(api) }}</span>
                   </div>
                 </template>
                 <ElDescriptions :column="1">
@@ -69,7 +73,7 @@
                     {{ api.data.status }}
                   </ElDescriptionsItem>
                   <ElDescriptionsItem label="耗时">
-                    {{ api.data.duration.toFixed(2) }}ms
+                    {{ api.data.duration?.toFixed(2) || '--' }}ms
                   </ElDescriptionsItem>
                 </ElDescriptions>
               </ElCollapseItem>
@@ -93,7 +97,10 @@
                 class="api-item"
                 :class="[isActiveApi(log) && 'active']"
               >
-                [{{ timeFormat(log.stamp) }}] {{ JSON.stringify(log.data) }}
+                <div class="log-stamp">
+                  [{{ timeFormat(log.stamp) }}]
+                </div>
+                <div>{{ JSON.stringify(log.data) }}</div>
               </div>
             </div>
           </ElScrollbar>
@@ -107,21 +114,20 @@
             height="700px"
             style="flex: 1;"
           >
-            <ElCollapse>
-              <ElCollapseItem
-                v-for="(err, index) in errs"
-                :key="index"
+            <div
+              v-for="(err, index) in errs"
+              :key="index"
+            >
+              <div
+                class="api-item"
+                :class="[isActiveApi(err) && 'active']"
               >
-                <template #title>
-                  <div
-                    class="api-item"
-                    :class="[isActiveApi(err) && 'active']"
-                  >
-                    [{{ timeFormat(err.stamp) }}] {{ `${err.data.name}: ${JSON.stringify(err.data.message)}` }}
-                  </div>
-                </template>
-              </ElCollapseItem>
-            </ElCollapse>
+                <div class="log-stamp">
+                  [{{ timeFormat(err.stamp) }}]
+                </div>
+                <div>{{ `${err.data.name}: ${JSON.stringify(err.data.message)}` }}</div>
+              </div>
+            </div>
           </ElScrollbar>
         </ElTabPane>
       </ElTabs>
@@ -142,6 +148,7 @@ import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const playerRef = useTemplateRef('refPlayer')
+const refTable = useTemplateRef('tableRef')
 
 const deviceId = route.params.id as string
 const params = ref<{ session?: string, page: number, size: number }>({
@@ -166,6 +173,11 @@ function handleSync(session: string) {
   syncSession(session)
 }
 
+function handleSearch() {
+  params.value.page = 1
+  // @ts-expect-error: ignore
+  refTable.value?.getList()
+}
 function getList() {
   return getSessionList(deviceId, params.value)
 }
@@ -241,6 +253,9 @@ function onClosed() {
 }
 
 function simpleUrl(api: SessionApi) {
+  if (!api.data.url) {
+    return api.data.type
+  }
   const url = new URL(api.data.url)
   return url.pathname
 }
@@ -271,9 +286,16 @@ function isActiveApi(api: SessionApi) {
   box-shadow: none;
 }
 .api-item {
+  display: flex;
+  white-space: wrap;
+  word-break: break-all;
   color: gray;
   &.active {
     color: black;
   }
+}
+.log-stamp {
+  flex-shrink: 0;
+  width: 60px;
 }
 </style>
