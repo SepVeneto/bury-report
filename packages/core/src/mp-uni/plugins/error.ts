@@ -1,30 +1,34 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
-import { tryJsonString } from '@/utils'
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
   private ctx?: BuryReport
 
   public uncaughtErrorListener = (error: string | PromiseRejectionEvent) => {
+    let err
     if (typeof error === 'string') {
-      const errMsg = error?.split('\n') || []
-      this.reportError({
-        name: errMsg[0] || 'UnknownError',
-        message: errMsg[1] || 'unknown message',
-        stack: error,
-      })
+      const [
+        name = 'UnknownError',
+        message = 'unknown message',
+        stack,
+      ] = error?.split('\n') || []
+      err = new Error(message)
+      err.name = name
+      err.stack = stack
+      err = normalizeError(err)
     } else if ('reason' in error) {
-      console.log('reason', error)
       // 微信小程序Promise.reject也会被onError收集
-      this.unhandleRejectionErrorListener(error)
+      err = normalizeError(error.reason)
     } else {
-      this.reportError({
-        name: 'UnknownError',
-        message: 'unknown message',
-        stack: error,
-      })
+      err = normalizeError(error)
     }
+    this.reportError({
+      name: err.name || 'ErrorEvent',
+      message: err.message,
+      stack: err.stack,
+      extra: '',
+    })
   }
 
   constructor() {
@@ -39,11 +43,9 @@ export class ErrorPlugin implements BuryReportPlugin {
     this.onUnhandleRejectionError()
   }
 
-  public reportError(error: { name: string, message: string, stack?: string }) {
+  public reportError(error: { name: string, message: string, stack?: string, extra: any | null }) {
     const data = {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
+      ...error,
       page: getCurrentPages().map(page => page.route).join('->'),
     }
     this.ctx?.report?.(COLLECT_ERROR, data)
@@ -63,68 +65,111 @@ export class ErrorPlugin implements BuryReportPlugin {
 
   public unhandleRejectionErrorListener = (evt: PromiseRejectionEvent) => {
     const error = evt.reason
-    console.log(evt)
-    if (typeof error === 'object' && 'message' in error) {
-      this.reportError(error)
-    } else {
-      this.reportError({
-        name: 'UnhandleRejection',
-        message: typeof error === 'string' ? error : tryJsonString(error),
-      })
-    }
+    const _error = normalizeError(error)
+    this.reportError({
+      name: _error.name || 'UnhandleRejection',
+      message: _error.message,
+      stack: _error.stack,
+      extra: _error.extra,
+    })
   }
 }
 
 function initErrorProxy(reportFn: (...args: any[]) => void) {
   const _tempError = console.error
   console.error = function (...args) {
-    const [arg, err] = args
-    if (err instanceof TypeError) {
-      const error = {
-        name: err.name,
-        message: err.message,
-        stack: err.stack,
-      }
-      reportFn(error)
-    } else if (typeof arg === 'string') {
-      const error = {
+    try {
+      const e = normalizeConsoleError(args)
+
+      reportFn({
         name: 'CustomError',
-        message: arg,
-        stack: '',
-      }
-      if (err && 'message' in err) {
-        error.message += err.message
-      }
-      if (err && 'stack' in err) {
-        error.stack = err.stack || ''
-      }
-      reportFn(error)
-    } else if (arg instanceof Error) {
-      const error = {
-        name: arg.name,
-        message: arg.message,
-        stack: arg.stack,
-      }
-      reportFn(error)
-    } else if (globalThis.PromiseRejectionEvent && arg instanceof PromiseRejectionEvent && arg.reason) {
-      const error = {
-        name: arg.reason.name,
-        message: arg.reason.message,
-        stack: arg.reason.stack,
-      }
-      reportFn(error)
-    } else if (Object.prototype.toString.call(arg) === '[object Object]') {
-      const error = {
-        name: 'CustomError',
-        message: JSON.stringify(arg),
-        stack: '',
-      }
-      reportFn(error)
-    } else {
-      console.warn(args)
-      console.warn(arg, Object.prototype.toString.call(arg))
+        ...e,
+      })
+      _tempError.apply(this, args)
+    } catch (e) {
+      console.warn(e)
     }
-    _tempError.apply(this, args)
   }
   return _tempError
+}
+
+function normalizeError(reason: any) {
+  if (reason instanceof Error) {
+    return {
+      name: reason.name,
+      message: reason.message || 'Unknown Error',
+      stack: reason.stack || '',
+      extra: null,
+    }
+  } else if (typeof reason === 'string') {
+    return {
+      message: reason,
+      stack: '',
+      extra: null,
+    }
+  } else if (reason == null) {
+    return {
+      message: 'null or undefined error',
+      stack: '',
+      extra: null,
+    }
+  } else if (typeof reason === 'object') {
+    let json = ''
+    try {
+      json = JSON.stringify(reason)
+    } catch {
+      json = '[object with circular structre]'
+    }
+
+    return {
+      message: reason.message || reason.msg || '(object error)',
+      stack: reason.stack,
+      extra: json,
+    }
+  } else {
+    return {
+      message: String(reason),
+      stack: '',
+      extra: null,
+    }
+  }
+}
+
+function normalizeConsoleError(args: any[]) {
+  if (!args || args.length === 0) {
+    return normalizeError('console.error with no arguments')
+  }
+
+  for (const a of args) {
+    if (a instanceof Error) return normalizeError(a)
+  }
+
+  if (typeof args[0] === 'string') {
+    const message = args[0]
+
+    let extra = null
+    if (args.length > 1) {
+      try {
+        extra = JSON.stringify(args.slice(1))
+      } catch {
+        extra = '[unserializable extra]'
+      }
+    }
+
+    return {
+      message,
+      stack: '',
+      extra,
+    }
+  }
+
+  try {
+    return normalizeError(args)
+  } catch {
+    return {
+      message: 'console.error unknown structure',
+      stack: '',
+      extra: null,
+    }
+  }
 }

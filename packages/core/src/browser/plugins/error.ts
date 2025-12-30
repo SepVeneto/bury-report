@@ -66,7 +66,7 @@ export class ErrorPlugin implements BuryReportPlugin {
     }
 
     this.reportError({
-      name: 'ErrorEvent',
+      name: error.name || 'ErrorEvent',
       message: error.message,
       stack: error.stack,
       extra: {
@@ -87,7 +87,7 @@ export class ErrorPlugin implements BuryReportPlugin {
     const error = normalizeError(evt.reason)
 
     this.reportError({
-      name: 'UnhandleRejection',
+      name: error.name || 'UnhandleRejection',
       message: error.message,
       stack: error.stack,
       extra: error.extra,
@@ -145,6 +145,7 @@ function normalizeResourceError(evt: Event) {
 function normalizeError(reason: any) {
   if (reason instanceof Error) {
     return {
+      name: reason.name,
       message: reason.message || 'Unknown Error',
       stack: reason.stack || '',
       extra: null,
