@@ -392,9 +392,8 @@ pub fn normalize_error(error: &ErrorRaw) -> (String, String) {
     stack = LINE_COL_RE.replace_all(&stack, ":{line}:{col}").to_string();
     stack = QUERY_RE.replace_all(&stack, "?{query}").to_string();
 
-    let summary = format!("{} {}", message, stack);
-    let md5_str = format!("{} {} {}", name, message, stack);
-    let fingerprint = cal_md5(&md5_str);
+    let summary = format!("{} {} {}", name, message, stack);
+    let fingerprint = cal_md5(&summary);
 
     (fingerprint, summary)
 }
