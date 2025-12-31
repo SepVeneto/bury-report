@@ -149,7 +149,7 @@ fn time_human_readable(sec: i64) -> String {
     return "0秒".to_string();
   }
 
-  let hours = (sec % (60 * 60 * 24)) / (60 * 60);
+  let hours = sec / (60 * 60);
   let minutes = (sec % (60 * 60)) / 60;
   let seconds = sec % 60;
 
@@ -165,4 +165,19 @@ fn time_human_readable(sec: i64) -> String {
   }
 
   parts.join("")
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_time_human_readable() {
+    assert_eq!(time_human_readable(0), "0秒");
+    assert_eq!(time_human_readable(59), "59秒");
+    assert_eq!(time_human_readable(60), "1分钟");
+    assert_eq!(time_human_readable(61), "1分钟1秒");
+    assert_eq!(time_human_readable(3600), "1小时");
+    assert_eq!(time_human_readable(86400), "24小时");
+  }
 }
