@@ -74,7 +74,12 @@ function supportPerformanceObject() {
 
 function isInIframe() {
   try {
-    return window.self !== window.top
+    const isIframe = window.self !== window.top
+    if (isIframe) {
+      return document.referrer || location.ancestorOrigins
+    } else {
+      return false
+    }
   } catch {
     return true
   }
