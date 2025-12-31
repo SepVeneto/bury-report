@@ -336,22 +336,25 @@ fn check_notify(
             }
         },
         AlertNotify::Window { .. } => {
-            if let Some(ttl) = fact.ttl {
-                // 窗口期内不触发
-                if let Some(last_notify) = fact.last_notify {
-                    let expired = is_expired(last_notify, ttl, Some(now.to_chrono()));
+            // 窗口期，但是第一次触发，会发送通知
+            if fact.last_notify.is_none() {
+                fact.last_notify = Some(now);
+                true
+            } else {
+                if let Some(ttl) = fact.ttl {
+                    // 滑动窗口，每次触发更新last_seen，ttl同样根据它计算
+                    // 只有距最后一次出现超过ttl才会告警
+                    // 窗口期内不触发
+                    let expired = is_expired(fact.last_seen, ttl, Some(now.to_chrono()));
                     if expired {
                         fact.last_notify = Some(now);
                     }
                     expired
                 } else {
                     fact.last_notify = Some(now);
+                    // 原告警是其它规则，后来切换成窗口期触发
                     true
                 }
-            } else {
-                fact.last_notify = Some(now);
-                // 原告警是其它规则，后来切换成窗口期触发
-                true
             }
         },
         AlertNotify::Limit { limit, .. } => {
@@ -506,15 +509,26 @@ async fn collect_alert_fact(client: &Client) -> QueryResult<()> {
         let mut expire_fp = HashSet::new();
         facts.retain(|fp, v| {
             if let Some(ttl) = v.ttl {
-                if let Some(notify) = v.last_notify {
-                    let expired = is_expired(notify, ttl, Some(now));
-                    if expired {
-                        expire_fp.insert(fp.clone());
+                match v.strategy {
+                    AlertStrategy::Window => {
+                        let expired = is_expired(v.last_seen, ttl, Some(now));
+                        if expired {
+                            expire_fp.insert(fp.clone());
+                        }
+                        !expired                       
+                    },
+                    _ => {
+                        if let Some(notify) = v.last_notify {
+                            let expired = is_expired(notify, ttl, Some(now));
+                            if expired {
+                                expire_fp.insert(fp.clone());
+                            }
+                            !expired
+                        } else {
+                            true
+                        }
                     }
-                    !expired
-                } else {
-                    true
-                }
+                } 
             } else {
                 true
             }

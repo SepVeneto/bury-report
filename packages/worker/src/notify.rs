@@ -25,7 +25,7 @@ impl Notify {
       match strategy.as_str() {
         Some("once") => {
             let content = format!(
-              "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：周期内首次触发",
+              "<font color=\"warning\">日志告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：周期内首次触发",
               name = self.name,
               fp = fp,
               summary = self.content,
@@ -35,7 +35,7 @@ impl Notify {
         Some("window") => {
           let window_sec = time_human_readable(get_number(&self.rule, "window_sec"));
           let content = format!(
-            "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：{period}/次",
+            "<font color=\"warning\">日志告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**: 距上一次触发超过{period}",
             name = self.name,
             fp = fp,
             summary = self.content,
@@ -47,7 +47,7 @@ impl Notify {
           let window_sec = time_human_readable(get_number(&self.rule, "window_sec"));
           let limit = get_number(&self.rule, "limit");
           let content = format!(
-            "<font color=\"warning\">错误告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：{period}内已累计触发{limit}次",
+            "<font color=\"warning\">日志告警</font>\n**规则名称**：{name}\n**指纹**: {fp}\n**摘要**：\n> {summary}\n\n**触发条件**：{period}内已累计触发{limit}次",
             name = self.name,
             fp = fp,
             summary = self.content,
@@ -158,7 +158,7 @@ fn time_human_readable(sec: i64) -> String {
     parts.push(format!("{}小时", hours));
   }
   if minutes > 0 {
-    parts.push(format!("{}分", minutes));
+    parts.push(format!("{}分钟", minutes));
   }
   if seconds > 0 || parts.is_empty() {
     parts.push(format!("{}秒", seconds));
