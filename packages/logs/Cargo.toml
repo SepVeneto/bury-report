@@ -1,7 +1,12 @@
 [package]
 name = "bury-report-logs"
-version = "0.1.0"
+version = "0.6.7"
 edition = "2021"
+
+[workspace.metadata.release]
+tag-name="log@{{version}}
+push = true
+publish = false
 
 [[bin]]
 name = "bury-report-logs"
