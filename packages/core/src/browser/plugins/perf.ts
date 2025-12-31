@@ -56,7 +56,10 @@ export class PerfPlugin implements BuryReportPlugin {
     })
 
     if (fcpEntry && fcpEntry.startTime < firstHidden.timestamp && fcpEntry.startTime < TIMING_MAXIMUM_DELAY) {
-      this.ctx!.report?.(PERF_INFO, { fcp: formatTime(fcpEntry.startTime) })
+      this.ctx!.report?.(PERF_INFO, {
+        fcp: formatTime(fcpEntry.startTime),
+        if: isInIframe(),
+      })
       if (this.observer) {
         this.observer.disconnect()
         this.observer = undefined
@@ -67,4 +70,12 @@ export class PerfPlugin implements BuryReportPlugin {
 
 function supportPerformanceObject() {
   return window.performance && 'getEntries' in performance
+}
+
+function isInIframe() {
+  try {
+    return window.self !== window.top
+  } catch {
+    return true
+  }
 }
