@@ -27,6 +27,7 @@ const browser: Options = {
 
 const cli: Options = {
   entry: [
+    'src/rspack.ts',
     'src/vite.ts',
     'src/webpack.ts',
     'src/index.ts',

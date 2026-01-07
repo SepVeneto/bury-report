@@ -40,7 +40,11 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
     name: 'plugin-bury-report',
     enforce: 'pre',
     transformInclude(id) {
-      return isEntry(id, config.entry)
+      if (id.includes('/node_modules/')) return false
+
+      const entry = Array.isArray(config.entry) ? config.entry : [config.entry]
+      const res = entry.some(item => isEntry(id, item))
+      return res
     },
     transform(code) {
       if (isH5) return code
@@ -72,7 +76,7 @@ try {
       }
     },
     vite: {
-      transformIndexHtml(html) {
+      transformIndexHtml(html: any) {
         if (isH5) {
           return {
             html,
@@ -100,6 +104,31 @@ try {
             callback(null, data)
           },
         )
+      })
+    },
+    rspack(compiler) {
+      compiler.hooks.thisCompilation.tap('plugin-bury-report', (compilation) => {
+        compilation.hooks.processAssets.tap({
+          name: 'plugin-bury-report',
+          stage: compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+        },
+        () => {
+          const assets = compilation.getAssets()
+          for (const asset of assets) {
+            const filename = asset.name
+
+            if (!filename.endsWith('.html')) continue
+
+            const source = asset.source.source().toString()
+            const next = source.replace(/<body([^>]*)>/, `<body$1><script>${sdk}</script>`)
+
+            compilation.updateAsset(
+              filename,
+              new compiler.webpack.sources.RawSource(next),
+            )
+          }
+        }
+      )
       })
     },
   }
