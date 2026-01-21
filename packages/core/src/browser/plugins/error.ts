@@ -33,7 +33,7 @@ export class ErrorPlugin implements BuryReportPlugin {
     if (this.ctx) {
       this.ctx.report?.(COLLECT_ERROR, data)
     } else {
-      storageReport(COLLECT_ERROR, data)
+      storageReport(COLLECT_ERROR, data, Date.now())
     }
   }
 
