@@ -101,8 +101,6 @@ function wrapPage(report: ReportFn) {
         },
       }
       report(TRACK_EVENT, pageInfo)
-      // 保证语义清晰和幂等性
-      this.__enterTime = null
       return originOnShow?.apply(this)
     }
 
