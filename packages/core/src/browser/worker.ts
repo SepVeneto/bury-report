@@ -4,8 +4,8 @@ import pako from 'pako'
 self.onmessage = (evt) => {
   switch (evt.data.type) {
     case 'report': {
-      const { store, cache, appid, keepalive } = evt.data
-      const data = [...store, ...cache].map(item => ({ ...item, appid })).sort((a: any, b: any) => a.stamp - b.stamp)
+      const { store, appid, keepalive } = evt.data
+      const data = store.map((item: any) => ({ ...item, appid })).sort((a: any, b: any) => a.stamp - b.stamp)
       if (!data.length) return
 
       if (keepalive) {
