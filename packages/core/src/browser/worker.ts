@@ -14,7 +14,11 @@ self.onmessage = (evt) => {
           degradationReport({ appid, data: item })
         })
       } else {
-        degradationReport({ appid, data }).finally(() => {
+        degradationReport({ appid, data }).catch((err) => {
+          console.warn(err)
+          self.postMessage('exception')
+          self.close()
+        }).finally(() => {
           self.postMessage('finish')
         })
       }

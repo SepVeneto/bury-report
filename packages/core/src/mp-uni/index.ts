@@ -42,54 +42,109 @@ export function report(type: string, data: Record<string, any>, immediate = fals
   globalThis[REPORT_REQUEST]?.(type, data, immediate)
 }
 
-let timer: number | undefined
+// 1秒节流
+const FLUSH_INTERVAL = 1000
+// 最多缓存最新的50条
+const MAX_PERSIST_COUNT = 50
 function createProxy(options: Options) {
   const { appid, interval = 10, url } = options
-  let abort = false
+  let canSend = true
+  let sendTimer: number | undefined
 
-  const report = function (
+  let memoryBuffer: any[] = []
+  let flushTimer: number | undefined
+
+  const readQueue: () => any[] = () => {
+    try {
+      return JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
+    } catch (err) {
+      console.warn(err)
+      return []
+    }
+  }
+
+  const writeQueue = (list: any[]) => {
+    try {
+      setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+    } catch (err) {
+      console.warn(err)
+    }
+  }
+
+  const flushMemoryToStorage = () => {
+    if (!memoryBuffer.length) return
+
+    const list = readQueue()
+    list.push(...memoryBuffer)
+
+    if (list.length > MAX_PERSIST_COUNT) {
+      list.splice(0, list.length - MAX_PERSIST_COUNT)
+    }
+
+    writeQueue(list)
+
+    memoryBuffer = []
+    clearTimeout(flushTimer)
+    flushTimer = undefined
+  }
+
+  const sendRequest = () => {
+    if (!canSend) return
+
+    // 发送前强制 flush，避免内存数据丢失
+    flushMemoryToStorage()
+
+    const list = readQueue()
+    if (!list.length) return
+
+    uni.request({
+      url,
+      method: 'POST',
+      data: JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) }),
+      timeout: 3000,
+      success: () => {
+        writeQueue([])
+      },
+      fail: () => {
+        // 生命周期级熔断：只禁发送
+        canSend = false
+      },
+    })
+
+    clearTimeout(sendTimer)
+    sendTimer = undefined
+  }
+
+  const report = (
     type: string,
     data: Record<string, any>,
     immediate = false,
-  ) {
-    const sendRequest = (record?: any) => {
-      if (abort) return
+  ) => {
+    const record = storageReport(type, data)
 
-      const list: any[] = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-      if (record) {
-        list.push(record)
-      }
-      if (!list.length) return
+    memoryBuffer.push(record)
 
-      const postData = list.map(item => ({ ...item, appid }))
-      uni.request({
-        url,
-        method: 'POST',
-        data: JSON.stringify({ appid, data: postData }),
-        timeout: 3000,
-        fail: () => {
-          // 防止record失败触发死循环
-          abort = true
-        },
-      })
-      setLocalStorage(REPORT_QUEUE, JSON.stringify([]))
-      clearInterval(timer)
-      timer = undefined
+    if (!flushTimer) {
+      flushTimer = globalThis.setTimeout(
+        flushMemoryToStorage,
+        FLUSH_INTERVAL,
+      ) as unknown as number
     }
 
     if (immediate) {
-      const record = storageReport(type, data)
-      sendRequest(record)
-    } else {
-      storageReport(type, data)
-      if (!timer) {
-        timer = globalThis.setTimeout(sendRequest, interval * 1000) as unknown as number
-      }
+      sendRequest()
+      return
+    }
+
+    if (!sendTimer) {
+      sendTimer = globalThis.setTimeout(
+        sendRequest,
+        interval * 1000,
+      ) as unknown as number
     }
   }
 
   globalThis[REPORT_REQUEST] = report
-
   return report
 }
 

@@ -127,8 +127,8 @@ try {
               new compiler.webpack.sources.RawSource(next),
             )
           }
-        }
-      )
+        },
+        )
       })
     },
   }

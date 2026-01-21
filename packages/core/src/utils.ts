@@ -1,5 +1,5 @@
 import type { Options } from '@/type'
-import { REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
+import { SESSIONID_KEY, UUID_KEY } from '@/constant'
 
 const DEFAULT_CONFIG = {
   collect: true,
@@ -152,13 +152,9 @@ export function removeLocalStorage(key: string) {
   }
 }
 
-// 最多使用1MB本地缓存
-const MAX_CACHE_REQUEST = 10
 export function storageReport(
   type: string,
   data: Record<string, any>,
-  store = true,
-  cache?: any,
   stamp?: number,
 ) {
   const uuid = getUuid()
@@ -172,17 +168,7 @@ export function storageReport(
     stamp,
   }
 
-  if (!store) {
-    cache.push(record)
-    return
-  }
-
-  const list = JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]') as Array<any>
-  if (list.length > MAX_CACHE_REQUEST) {
-    list.shift()
-  }
-  list.push(record)
-  setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+  return record
 }
 
 export function tryJsonString(json: Record<string, any>) {

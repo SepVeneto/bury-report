@@ -51,6 +51,15 @@ function wrapApp(report: ReportFn) {
       return originOnPageNotFound?.call(this, options)
     }
 
+    const originOnMemoryWarning = options.onMemoryWarning
+    options.onMemoryWarning = function (options: any) {
+      report(TRACK_EVENT, {
+        type: 'AppMemoryWarning',
+        data: options,
+      })
+      return originOnMemoryWarning?.call(this, options)
+    }
+
     return rawApp(options)
   }
 }
