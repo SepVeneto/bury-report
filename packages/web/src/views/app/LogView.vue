@@ -61,6 +61,7 @@ const tableConfig = shallowRef([
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', prop: 'type', name: '日志类型' },
+  { catalog: 'input', prop: 'session', name: '会话ID', style: 'width: 320px' },
   { catalog: 'input', prop: 'uuid', name: '设备ID', style: 'width: 320px' },
   { catalog: 'input', prop: 'data', name: '上报数据', style: 'width: 320px' },
 ])
