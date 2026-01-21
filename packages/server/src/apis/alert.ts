@@ -23,6 +23,12 @@ router.post('/alert/rule', async (ctx) => {
     notify,
     is_delete: false,
   })
+  await fetch(`${Deno.env.get("NOTIFY_URL")}/notify/sync-alert-rule`, {
+    headers: {
+      "appid": ctx.request.headers.get('appid') || '',
+      "notify-token": Deno.env.get("NOTIFY_TOKEN") || '',
+    }
+  })
 
   ctx.resMsg = '创建成功'
 })
