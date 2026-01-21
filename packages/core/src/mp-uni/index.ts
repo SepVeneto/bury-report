@@ -4,10 +4,12 @@ import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
 import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/utils'
 import { ErrorPlugin as _ErrorPlugin } from './plugins/error'
 import { CollectPlugin as _CollectPlugin } from './plugins/collect'
+import { TrackPlugin as _TrackPlugin } from './plugins/track'
 
 export const CollectPlugin = _CollectPlugin
 export const ErrorPlugin = _ErrorPlugin
 export const NetworkPlugin = _NetworkPlugin
+export const TrackPlugin = _TrackPlugin
 
 export class BuryReport implements BuryReportBase {
   public report?: ReportFn
