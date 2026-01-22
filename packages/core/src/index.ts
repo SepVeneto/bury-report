@@ -39,5 +39,5 @@ export function reportNetwork(data: object, immediate?: boolean) {
     storageReport(COLLECT_API, data)
     return
   }
-  fn(COLLECT_API, data, immediate)
+  fn(COLLECT_API, data, { immediate })
 }
