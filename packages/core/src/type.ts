@@ -110,12 +110,46 @@ export type MPSDK = {
   request: <R>(params: RequestParams<R>) => any
 }
 
+export type ReportOptions = {
+  /**
+   * 是否立即上报
+   * 由于上报时会强制把内存刷新到缓存中，因此不要和flush同时开启
+   *
+   * 默认不会
+   * @default false
+   */
+  immediate?: boolean,
+  /**
+   * 是否定时存入本地缓存
+   *
+   * 默认是开启的，只有开启状态才会刷新数据到本地缓存
+   * @default true
+   */
+  store?: boolean,
+  /**
+   * 是否立即刷新本地缓存
+   * 该操作会立即将内存中的数据写入本地缓存中
+   * 如果是希望数据不被持久化，需要关闭store
+   *
+   * 换句话说，在关闭store后，flush的控制是没有意义的
+   *
+   * 默认不会立即刷新，而是定时刷新
+   * @default fasle
+   */
+  flush?: boolean,
+  /**
+   * 页面关闭后是否保持连接（与sendBeacon功能类似）
+   *
+   * 默认不会
+   * @default false
+   */
+  keepalive?: boolean,
+}
+
 export type ReportFn = (
   type: string,
   data: Record<string, any>,
-  immediate?: boolean,
-  cache?: boolean,
-  keepalive?: boolean,
+  options?: ReportOptions
 ) => void
 export abstract class BuryReportBase {
   public abstract report?: ReportFn

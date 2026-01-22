@@ -1,9 +1,11 @@
+import { ReportOptions } from "@/type"
+
 declare global {
   namespace globalThis {
     function __BR_REPORT__(
       type: string,
       data: Record<string, any>,
-      immediate?: boolean,
+      options?: ReportOptions,
     ): void
 
     interface Window {

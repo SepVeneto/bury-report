@@ -1,7 +1,7 @@
 import { NetworkPlugin as _NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
-import { REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
-import { getLocalStorage, setLocalStorage, storageReport, withDefault } from '@/utils'
+import { REPORT_REQUEST } from '@/constant'
+import { flushMemoryToStorage, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 import { ErrorPlugin as _ErrorPlugin } from './plugins/error'
 import { CollectPlugin as _CollectPlugin } from './plugins/collect'
 import { TrackPlugin as _TrackPlugin } from './plugins/track'
@@ -41,54 +41,13 @@ export class BuryReport implements BuryReportBase {
 }
 
 export function report(type: string, data: Record<string, any>, immediate = false) {
-  globalThis[REPORT_REQUEST]?.(type, data, immediate)
+  globalThis[REPORT_REQUEST]?.(type, data, { immediate })
 }
 
-// 1秒节流
-const FLUSH_INTERVAL = 1000
-// 最多缓存最新的50条
-const MAX_PERSIST_COUNT = 50
 function createProxy(options: Options) {
   const { appid, interval = 10, url } = options
   let canSend = true
   let sendTimer: number | undefined
-
-  let memoryBuffer: any[] = []
-  let flushTimer: number | undefined
-
-  const readQueue: () => any[] = () => {
-    try {
-      return JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-    } catch (err) {
-      console.warn(err)
-      return []
-    }
-  }
-
-  const writeQueue = (list: any[]) => {
-    try {
-      setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
-    } catch (err) {
-      console.warn(err)
-    }
-  }
-
-  const flushMemoryToStorage = () => {
-    if (!memoryBuffer.length) return
-
-    const list = readQueue()
-    list.push(...memoryBuffer)
-
-    if (list.length > MAX_PERSIST_COUNT) {
-      list.splice(0, list.length - MAX_PERSIST_COUNT)
-    }
-
-    writeQueue(list)
-
-    memoryBuffer = []
-    clearTimeout(flushTimer)
-    flushTimer = undefined
-  }
 
   const sendRequest = () => {
     if (!canSend) return
@@ -120,18 +79,12 @@ function createProxy(options: Options) {
   const report = (
     type: string,
     data: Record<string, any>,
-    immediate = false,
+    options: { immediate?: boolean } = {},
   ) => {
+    const { immediate = false } = options
     const record = storageReport(type, data)
 
-    memoryBuffer.push(record)
-
-    if (!flushTimer) {
-      flushTimer = globalThis.setTimeout(
-        flushMemoryToStorage,
-        FLUSH_INTERVAL,
-      ) as unknown as number
-    }
+    writeMemory(record)
 
     if (immediate) {
       sendRequest()

@@ -1,6 +1,6 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
-import { storageReport } from '@/utils'
+import { storageReport, writeMemory } from '@/utils'
 
 type ResourceElemnt =
   HTMLScriptElement |
@@ -33,7 +33,8 @@ export class ErrorPlugin implements BuryReportPlugin {
     if (this.ctx) {
       this.ctx.report?.(COLLECT_ERROR, data)
     } else {
-      storageReport(COLLECT_ERROR, data, Date.now())
+      const record = storageReport(COLLECT_ERROR, data, Date.now())
+      writeMemory(record)
     }
   }
 

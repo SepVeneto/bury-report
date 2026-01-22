@@ -1,8 +1,8 @@
 import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
-import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
-import { LIFECYCLE, REPORT_QUEUE, REPORT_REQUEST } from '@/constant'
-import { getLocalStorage, getSessionId, getUuid, setLocalStorage, storageReport, withDefault } from '@/utils'
+import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
+import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
+import { flushMemoryToStorage, getSessionId, getUuid, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
 import { ErrorPlugin } from './plugins/error'
@@ -66,7 +66,11 @@ export class BuryReport implements BuryReportBase {
         if (operation && operation.collect) {
           operation.collect()
         }
-        this.report?.(LIFECYCLE, { t: 'visibilitychange' }, true, true, true)
+        this.report?.(LIFECYCLE, { t: 'visibilitychange' }, {
+          immediate: true,
+          store: true,
+          flush: true,
+        })
       }
     })
     window.addEventListener('pagehide', (evt) => {
@@ -74,7 +78,11 @@ export class BuryReport implements BuryReportBase {
       if (operation && operation.collect) {
         operation.collect()
       }
-      this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, true, true, true)
+      this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, {
+        immediate: true,
+        store: true,
+        flush: true,
+      })
     })
   }
 
@@ -96,50 +104,9 @@ INNER_PLUGINs.forEach(plugin => {
 
 window.BuryReport = BuryReport
 
-// 1秒节流
-const FLUSH_INTERVAL = 1000
-// 最多缓存最新的50条
-const MAX_PERSIST_COUNT = 50
 function createProxy(options: Options) {
   const { appid, interval = 10 } = options
   let sendTimer: number | undefined
-
-  let memoryBuffer: any[] = []
-  let flushTimer: number | undefined
-
-  const readQueue: () => any[] = () => {
-    try {
-      return JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
-    } catch (err) {
-      console.warn(err)
-      return []
-    }
-  }
-
-  const writeQueue = (list: any[]) => {
-    try {
-      setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
-    } catch (err) {
-      console.warn(err)
-    }
-  }
-
-  const flushMemoryToStorage = () => {
-    if (!memoryBuffer.length) return
-
-    const list = readQueue()
-    list.push(...memoryBuffer)
-
-    if (list.length > MAX_PERSIST_COUNT) {
-      list.splice(0, list.length - MAX_PERSIST_COUNT)
-    }
-
-    writeQueue(list)
-
-    memoryBuffer = []
-    clearTimeout(flushTimer)
-    flushTimer = undefined
-  }
 
   const sendRequest = (keepalive = false) => {
     if (!window.__BR_WORKER__) return
@@ -155,13 +122,14 @@ function createProxy(options: Options) {
       appid,
       sessionid: getSessionId(),
       deviceid: getUuid(),
-      store: list,
+      store: [...list, ...BuryReport.cache],
       keepalive,
     })
 
     // 不管上报的成功与否，都需要清除定时器，保证新的上报流程正常执行
     // 都需要把上报队列清空，防止过度使用用户缓存
     writeQueue([])
+    BuryReport.cache = []
     clearInterval(sendTimer)
     sendTimer = undefined
   }
@@ -169,21 +137,24 @@ function createProxy(options: Options) {
   const report = (
     type: string,
     data: Record<string, any>,
-    immediate = false,
-    cache = true,
-    keepalive = false,
+    options: ReportOptions = {},
   ) => {
     // TODO: 网络日志是否需要区分发起时间和响应时间
     const record = storageReport(type, data, Date.now())
-    if (cache) {
-      memoryBuffer.push(record)
-    }
 
-    if (!flushTimer) {
-      flushTimer = globalThis.setTimeout(
-        flushMemoryToStorage,
-        FLUSH_INTERVAL,
-      ) as unknown as number
+    const {
+      store = true,
+      flush = false,
+      immediate = false,
+      keepalive = false,
+    } = options
+
+    if (store) {
+      writeMemory(record, flush)
+    } else {
+      // 如果不需要存入本地缓存，那就得把数据写入到另一块内存中
+      // 否则当执行刷新操作时，内存中的数据仍然会写入到本地缓存中
+      BuryReport.cache.push(record)
     }
 
     if (immediate) {

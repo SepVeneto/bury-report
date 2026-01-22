@@ -65,7 +65,11 @@ class OperationRecordPlugin implements BuryReportPlugin {
   collect(immediate = false, keepalive = false) {
     if (!this.events.length) return
 
-    this.ctx?.report?.(OPERATION_TRACK, { events: this.events }, immediate, true, keepalive)
+    this.ctx?.report?.(OPERATION_TRACK, { events: this.events }, {
+      immediate,
+      keepalive,
+      store: false,
+    })
     this.events = []
   }
 }

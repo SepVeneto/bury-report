@@ -1,5 +1,5 @@
 import type { Options } from '@/type'
-import { SESSIONID_KEY, UUID_KEY } from '@/constant'
+import { REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
 
 const DEFAULT_CONFIG = {
   collect: true,
@@ -177,4 +177,59 @@ export function tryJsonString(json: Record<string, any>) {
   } catch (e) {
     return `failed to stringify with error: ${e}`
   }
+}
+
+export const readQueue: () => any[] = () => {
+  try {
+    return JSON.parse(getLocalStorage(REPORT_QUEUE) || '[]')
+  } catch (err) {
+    console.warn(err)
+    return []
+  }
+}
+
+export const writeQueue = (list: any[]) => {
+  try {
+    setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+  } catch (err) {
+    console.warn(err)
+  }
+}
+
+let memoryBuffer: any[] = []
+let flushTimer: number | undefined
+
+export function writeMemory(record: any, immediate = false) {
+  memoryBuffer.push(record)
+
+  if (immediate) {
+    flushMemoryToStorage()
+  }
+  if (!flushTimer) {
+    flushTimer = globalThis.setTimeout(
+      flushMemoryToStorage,
+      FLUSH_INTERVAL,
+    ) as unknown as number
+  }
+}
+
+// 1秒节流
+const FLUSH_INTERVAL = 1000
+// 最多缓存最新的50条
+const MAX_PERSIST_COUNT = 50
+export function flushMemoryToStorage() {
+  if (!memoryBuffer.length) return
+
+  const list = readQueue()
+  list.push(...memoryBuffer)
+
+  if (list.length > MAX_PERSIST_COUNT) {
+    list.splice(0, list.length - MAX_PERSIST_COUNT)
+  }
+
+  writeQueue(list)
+
+  memoryBuffer = []
+  clearTimeout(flushTimer)
+  flushTimer = undefined
 }

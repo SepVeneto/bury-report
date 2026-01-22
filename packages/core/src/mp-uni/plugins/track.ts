@@ -38,7 +38,7 @@ function wrapApp(report: ReportFn) {
     options.onHide = function () {
       report(TRACK_EVENT, {
         type: 'AppHide',
-      })
+      }, { immediate: true })
       return originOnHide?.call(this)
     }
 
