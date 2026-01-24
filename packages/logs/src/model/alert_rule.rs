@@ -41,6 +41,9 @@ pub enum AlertSource {
     },
     ErrorType {
         text: String,
+    },
+    Group {
+        condition: String,
     }
 }
 
@@ -106,6 +109,13 @@ pub struct FingerprintRule {
 
 #[derive(Clone, Debug)]
 pub struct TypeRule {
+    pub name: String,
+    pub enabled: bool,
+    pub notify: AlertNotify,
+}
+
+#[derive(Clone, Debug)]
+pub struct GroupRule {
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,

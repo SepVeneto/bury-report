@@ -10,7 +10,7 @@ use serde_json::{Value, Map, json};
 use log::{debug, error, info};
 use tokio::time::{Duration, interval};
 
-use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule, TypeRule};
+use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule, GroupRule, TypeRule};
 use crate::model::{
     CreateModel, QueryBase, QueryModel, QueryResult, alert_fact, alert_rule, alert_summary, logs_error
 };
@@ -42,6 +42,8 @@ impl AlertRuleMap {
         let fingerprints = DashMap::new();
         let types = DashMap::new();
 
+        let mut group_condition = vec![];
+
         for model in models {
             match model.model.source {
                 AlertSource::Collection { ref log_type } => {
@@ -69,8 +71,18 @@ impl AlertRuleMap {
                     };
                     types.insert(text, rule);
                 }
+                AlertSource::Group { condition } => {
+                    let rule = GroupRule {
+                        name: model.model.name,
+                        enabled: model.model.enabled,
+                        notify: model.model.notify,
+                    };
+                    group_condition.push((condition, rule));
+                }
             }
         }
+
+        // let group_patterns = group_condition.iter().map(|(condition)| )
 
         Self { collection, fingerprints, types}
     }
@@ -213,10 +225,17 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
     let fp = &raw.fingerprint;
     let error_type = get_string(&raw.data, "name");
     let summary = &raw.summary;
+    let message = get_string(&raw.data, "message");
 
     debug!(target: "alert","{}: 指纹{}", summary, fp);
 
-    if let Some(rule) = check_rule(&appid, &fp, &error_type, &CollectionType::Error) {
+    if let Some(rule) = check_rule(
+        &appid,
+        &fp,
+        &error_type,
+        &message,
+        &CollectionType::Error,
+    ) {
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
         debug!("通知策略{:?}, 是否通知{}, 告警次数{}", rule.strategy(), need_notify, fact.count);
         if need_notify {
@@ -257,6 +276,7 @@ fn check_rule(
     appid: &str,
     fp: &String,
     error_type: &String,
+    error_message: &String,
     log_type: &CollectionType,
 ) -> Option<UnionRule> {
     let rules = RULE_MAP.get(appid);
