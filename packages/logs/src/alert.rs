@@ -1,16 +1,17 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use bson::DateTime;
 use mongodb::{Client, bson::doc};
 use once_cell::sync::Lazy;
 use rdkafka::producer::BaseProducer;
-use regex::Regex;
+use regex::{Regex, RegexSet};
 use dashmap::DashMap;
 use serde_json::{Value, Map, json};
 use log::{debug, error, info};
 use tokio::time::{Duration, interval};
 
-use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule, GroupRule, TypeRule};
+use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule, GroupPattern, GroupRule, TypeRule};
 use crate::model::{
     CreateModel, QueryBase, QueryModel, QueryResult, alert_fact, alert_rule, alert_summary, logs_error
 };
@@ -31,18 +32,46 @@ struct AlertFact {
     map: DashMap<String, AlertFactInfo>
 }
 
+// 分组规则
+/**
+ * {
+  "pattern": [
+    { "type": "literal", "value": "route" },
+    { "type": "literal", "value": "webview" },
+    { "type": "number", "noise": true },
+    { "type": "literal", "value": "before" },
+    { "type": "literal", "value": "done" }
+  ],
+}
+ */
+
+struct Pattern {
+
+}
+struct AlertGroup {
+    rules: RegexSet,
+}
+
+impl AlertGroup {
+    pub fn is_match(self, content: &str) {
+        // self.rules.
+    }
+}
+
 pub struct AlertRuleMap {
     collection: DashMap<CollectionType, CollectionRule>,
     fingerprints: DashMap<String, FingerprintRule>,
     types: DashMap<String, TypeRule>,
+    group: DashMap<String, Arc<Vec<GroupPattern>>>,
 }
 impl AlertRuleMap {
     pub fn from_models(models: Vec<QueryBase<AlertRule>>) -> Self {
         let collection = DashMap::new();
         let fingerprints = DashMap::new();
         let types = DashMap::new();
+        let group = DashMap::new();
 
-        let mut group_condition = vec![];
+        let mut group_pattern = vec![];
 
         for model in models {
             match model.model.source {
@@ -77,14 +106,14 @@ impl AlertRuleMap {
                         enabled: model.model.enabled,
                         notify: model.model.notify,
                     };
-                    group_condition.push((condition, rule));
+                    group_pattern.push(GroupPattern::new(condition, rule));
                 }
             }
         }
 
         // let group_patterns = group_condition.iter().map(|(condition)| )
-
-        Self { collection, fingerprints, types}
+        group.insert("pattern".to_string(), Arc::new(group_pattern));
+        Self { collection, fingerprints, types, group }
     }
 }
 
@@ -285,6 +314,22 @@ fn check_rule(
         if let Some(fp_rule) = fp_rule {
             debug!(target: "alert", "命中指纹规则{}", fp_rule.name);
             return Some(UnionRule::Fingerprint(fp_rule.clone()));
+        }
+
+        if let Some(group_rules) = rules.group.get("pattern") {
+            for group_pattern in group_rules.iter() {
+                // group_pattern.
+                // if group_rule.enabled {
+                //     debug!(target: "alert", "命中组合规则{}", group_rule.name);
+                //     let mut pattern_list = vec![];
+                //     for pattern in &group_rule.pattern {
+                //         let mut item_list = vec![];
+                //         for item in &pattern.condition {
+                            
+                //         }
+                //     }
+                // }
+            }
         }
 
         let type_rules = rules.types.get(error_type).filter(|r| r.enabled);

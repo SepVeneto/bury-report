@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::model::{BaseModel, QueryModel};
+use crate::{model::{BaseModel, QueryModel}, utils::Tokenizer};
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CollectionType {
@@ -31,6 +31,32 @@ impl ToString for AlertStrategy {
 
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct PatternItem {
+
+}
+
+pub struct GroupPattern {
+    pub condition: Vec<PatternItem>,
+    pub rule: GroupRule,
+}
+impl GroupPattern {
+    pub fn new (list: Vec<PatternItem>, rule: GroupRule) -> Self {
+        GroupPattern {
+            condition: list,
+            rule,
+        }
+    }
+
+    pub fn is_match(&self, tokenizer: &Tokenizer<'_>) -> bool {
+        let tokens = &tokenizer.tokens;
+        for start in 0..tokens.len() - self.condition.len() {
+
+        }
+        false
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum AlertSource {
     Collection {
@@ -43,7 +69,7 @@ pub enum AlertSource {
         text: String,
     },
     Group {
-        condition: String,
+        condition: Vec<PatternItem>,
     }
 }
 
