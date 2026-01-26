@@ -1,6 +1,8 @@
+use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
+use log::{debug};
 
-use crate::{model::{BaseModel, QueryModel}, utils::Tokenizer};
+use crate::{model::{BaseModel, QueryModel}, utils::{Token, TokenKind, cal_md5}};
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CollectionType {
@@ -31,28 +33,57 @@ impl ToString for AlertStrategy {
 
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct PatternItem {
-
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "type", content = "value")]
+pub enum PatternType {
+    Literal(String),
+    Number,
+    Uuid,
 }
 
+impl PatternType {
+    fn matches(&self, token: &Token) -> bool {
+        match &self {
+            PatternType::Literal(s) => token.raw == *s,
+            PatternType::Number => token.kind == TokenKind::Number,
+            PatternType::Uuid => token.kind == TokenKind::Uuid,
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct GroupPattern {
-    pub condition: Vec<PatternItem>,
-    pub rule: GroupRule,
+    pub fp: String,
+    pub condition: Vec<PatternType>,
 }
 impl GroupPattern {
-    pub fn new (list: Vec<PatternItem>, rule: GroupRule) -> Self {
+    pub fn new (id: ObjectId, list: Vec<PatternType>) -> Self {
+        let id_str = id.to_hex();
+        println!("id: {}, md5: {:?}", id_str, cal_md5(&id_str));
         GroupPattern {
+            fp: cal_md5(&id_str),
             condition: list,
-            rule,
         }
     }
 
-    pub fn is_match(&self, tokenizer: &Tokenizer<'_>) -> bool {
-        let tokens = &tokenizer.tokens;
+    pub fn is_match(&self, tokens: &Vec<Token>) -> bool {
         for start in 0..tokens.len() - self.condition.len() {
-
+            if let Some(matched) = self.match_from(start, tokens) {
+                return matched;
+            }
         }
         false
+    }
+
+    pub fn match_from(&self, start: usize, tokens: &Vec<Token>) -> Option<bool>{
+        for (i, cond) in self.condition.iter().enumerate() {
+            let token = &tokens[start + i];
+            debug!("match: {:?} == {:?}", token, cond);
+            if !cond.matches(token) {
+                return None;
+            }
+        }
+        Some(true)
     }
 }
 
@@ -69,7 +100,7 @@ pub enum AlertSource {
         text: String,
     },
     Group {
-        condition: Vec<PatternItem>,
+        condition: Vec<PatternType>,
     }
 }
 
@@ -139,14 +170,6 @@ pub struct TypeRule {
     pub enabled: bool,
     pub notify: AlertNotify,
 }
-
-#[derive(Clone, Debug)]
-pub struct GroupRule {
-    pub name: String,
-    pub enabled: bool,
-    pub notify: AlertNotify,
-}
-
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {

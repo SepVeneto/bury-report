@@ -4,7 +4,7 @@ use log::info;
 use anyhow::anyhow;
 use bson::{oid, DateTime};
 use chrono::FixedOffset;
-use log::{debug, error};
+use log::error;
 use mongodb::{
     Collection, IndexModel, bson::{self, Document, doc, oid::ObjectId}, options::UpdateOptions, results::{InsertManyResult, InsertOneResult, UpdateResult}
 };

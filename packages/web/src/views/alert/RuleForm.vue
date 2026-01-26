@@ -54,7 +54,10 @@
     </ElFormItem>
 
     <ElFormItem label="触发源">
-      <ElRadioGroup v-model="model.source.type">
+      <ElRadioGroup
+        v-model="model.source.type"
+        @change="onChange"
+      >
         <ElRadio
           label="日志集合"
           value="collection"
@@ -66,6 +69,10 @@
         <ElRadio
           label="错误类型"
           value="errorType"
+        />
+        <ElRadio
+          label="分组"
+          value="group"
         />
       </ElRadioGroup>
     </ElFormItem>
@@ -106,6 +113,38 @@
       <BcInput v-model="model.source.text" />
     </ElFormItem>
 
+    <ElFormItem
+      v-else-if="model.source.type === 'group'"
+      label="匹配结构"
+    >
+      <div
+        v-for="(cond, index) in model.source.condition"
+        :key="index"
+        style="display: flex;"
+      >
+        <BcSelect
+          v-model="cond.type"
+          :options="[
+            { label: '文本', value: 'literal' },
+            { label: '数字', value: 'number' },
+            { label: 'UUID', value: 'uuid' },
+          ]"
+          :clearable="false"
+        />
+        <BcInput v-model="cond.value" />
+        <BcButton
+          text
+          type="danger"
+          :icon="IconDelete"
+          @click="onDelete(index)"
+        />
+      </div>
+      <BcButton
+        :icon="IconPlus"
+        @click="model.source.condition?.push({ type: 'literal' })"
+      />
+    </ElFormItem>
+
     <ElFormItem label="通知地址">
       <BcInput v-model="model.notify.url" />
     </ElFormItem>
@@ -121,6 +160,20 @@
 <script lang="ts" setup>
 import type { AlertRule } from '@/apis'
 import RxSwitch from '@/components/switch/rxSwitch.vue'
+import {
+  Delete as IconDelete,
+  Plus as IconPlus,
+} from '@element-plus/icons-vue'
 
 const model = defineModel<AlertRule>({ required: true })
+
+function onChange() {
+  if (model.value.source.type === 'group' && !Array.isArray(model.value.source.condition)) {
+    model.value.source.condition = []
+  }
+}
+
+function onDelete(index: number) {
+  model.value.source.condition?.splice(index, 1)
+}
 </script>

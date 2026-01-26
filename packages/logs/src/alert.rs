@@ -5,17 +5,18 @@ use bson::DateTime;
 use mongodb::{Client, bson::doc};
 use once_cell::sync::Lazy;
 use rdkafka::producer::BaseProducer;
-use regex::{Regex, RegexSet};
+use regex::Regex;
 use dashmap::DashMap;
 use serde_json::{Value, Map, json};
 use log::{debug, error, info};
 use tokio::time::{Duration, interval};
 
-use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule, GroupPattern, GroupRule, TypeRule};
+use crate::model::alert_rule::{AlertNotify, AlertSource, AlertStrategy, CollectionRule, CollectionType, FingerprintRule, GroupPattern, TypeRule};
 use crate::model::{
     CreateModel, QueryBase, QueryModel, QueryResult, alert_fact, alert_rule, alert_summary, logs_error
 };
 use crate::services::task::send_json_to_kafka;
+use crate::utils::{Tokenizer, cal_md5};
 
 type AppId = String;
 type ErrorRaw = logs_error::Model;
@@ -44,19 +45,6 @@ struct AlertFact {
   ],
 }
  */
-
-struct Pattern {
-
-}
-struct AlertGroup {
-    rules: RegexSet,
-}
-
-impl AlertGroup {
-    pub fn is_match(self, content: &str) {
-        // self.rules.
-    }
-}
 
 pub struct AlertRuleMap {
     collection: DashMap<CollectionType, CollectionRule>,
@@ -101,12 +89,14 @@ impl AlertRuleMap {
                     types.insert(text, rule);
                 }
                 AlertSource::Group { condition } => {
-                    let rule = GroupRule {
+                    let rule = FingerprintRule {
                         name: model.model.name,
                         enabled: model.model.enabled,
                         notify: model.model.notify,
                     };
-                    group_pattern.push(GroupPattern::new(condition, rule));
+                    let pattern = GroupPattern::new(model._id, condition);
+                    group_pattern.push(pattern.clone());
+                    fingerprints.insert(pattern.fp, rule);
                 }
             }
         }
@@ -254,7 +244,6 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
     let fp = &raw.fingerprint;
     let error_type = get_string(&raw.data, "name");
     let summary = &raw.summary;
-    let message = get_string(&raw.data, "message");
 
     debug!(target: "alert","{}: 指纹{}", summary, fp);
 
@@ -262,7 +251,6 @@ pub fn alert_error(producer: &BaseProducer, appid: &str, raw: &ErrorRaw) {
         &appid,
         &fp,
         &error_type,
-        &message,
         &CollectionType::Error,
     ) {
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
@@ -305,42 +293,25 @@ fn check_rule(
     appid: &str,
     fp: &String,
     error_type: &String,
-    error_message: &String,
     log_type: &CollectionType,
 ) -> Option<UnionRule> {
     let rules = RULE_MAP.get(appid);
     if let Some(rules) = rules {
         let fp_rule = rules.fingerprints.get(fp).filter(|r| r.enabled);
         if let Some(fp_rule) = fp_rule {
-            debug!(target: "alert", "命中指纹规则{}", fp_rule.name);
+            debug!(target: "alert", "命中指纹/分组规则: {}", fp_rule.name);
             return Some(UnionRule::Fingerprint(fp_rule.clone()));
-        }
-
-        if let Some(group_rules) = rules.group.get("pattern") {
-            for group_pattern in group_rules.iter() {
-                // group_pattern.
-                // if group_rule.enabled {
-                //     debug!(target: "alert", "命中组合规则{}", group_rule.name);
-                //     let mut pattern_list = vec![];
-                //     for pattern in &group_rule.pattern {
-                //         let mut item_list = vec![];
-                //         for item in &pattern.condition {
-                            
-                //         }
-                //     }
-                // }
-            }
         }
 
         let type_rules = rules.types.get(error_type).filter(|r| r.enabled);
         if let Some(type_rule) = type_rules {
-            debug!(target: "alert", "命中类型规则{}", type_rule.name);
+            debug!(target: "alert", "命中类型规则: {}", type_rule.name);
             return Some(UnionRule::TypeRule(type_rule.clone()));
         }
 
         let col_rule = rules.collection.get(log_type).filter(|r| r.enabled);
         if let Some(col_rule) = &col_rule {
-            debug!(target: "alert", "命中集合规则{}", col_rule.name);
+            debug!(target: "alert", "命中集合规则: {}", col_rule.name);
         }
         match col_rule {
             Some(rule) => Some(UnionRule::Collection(rule.clone())),
@@ -453,24 +424,40 @@ fn notify(
     send_json_to_kafka(producer, "notify", &data);
 }
 
+// 指纹的来源包括对错误信息的md5和分组规则的id
 pub fn normalize_error(error: &ErrorRaw) -> (String, String) {
     let message = get_string(&error.data, "message");
+
     let mut stack = get_string(&error.data, "stack");
     let name = get_string(&error.data, "name");
     stack = LINE_COL_RE.replace_all(&stack, ":{line}:{col}").to_string();
     stack = QUERY_RE.replace_all(&stack, "?{query}").to_string();
-
     let summary = format!("{} {}", message, stack);
+
+    let appid = format!("app_{}", &error.appid);
+    if let Some(col) = RULE_MAP.get(&appid) {
+        let tokenizer = Tokenizer::new(&message);
+        let tokens = &tokenizer.tokens;
+        debug!("应用{}存在分组{:?}", appid, col.group);
+        if let Some(pattern) = col.group.get("pattern") {
+            let match_rule = pattern.iter().find(|p| {
+                debug!("匹配规则: {:?}, 内容: {:?}", p, tokens);
+                p.is_match(&tokens)
+            });
+            debug!("命中规则: {:?}", match_rule);
+            if let Some(match_rule) = match_rule {
+                let fp = match_rule.fp.to_string();
+                let message = tokenizer.normalize();
+                let summary = format!("{} {}", message, stack);
+                return (fp, summary)
+            }
+        }
+    }
+
     let md5_str = format!("{} {} {}", name, message, stack);
     let fingerprint = cal_md5(&md5_str);
 
     (fingerprint, summary)
-}
-
-fn cal_md5(res: &str) -> String {
-  let digest = md5::compute(res.as_bytes());
-
-  format!("{:x}", digest).to_uppercase()
 }
 
 fn get_string(map: &Map<String, Value>, key: &str) -> String {
