@@ -1,6 +1,5 @@
 use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
-use log::{debug};
 
 use crate::{model::{BaseModel, QueryModel}, utils::{Token, TokenKind, cal_md5}};
 
@@ -52,9 +51,22 @@ impl PatternType {
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct Condition {
+    pub kind: TokenKind,
+    pub pattern: PatternType,
+}
+
+impl Condition {
+    pub fn matches(&self, token: &Token) -> bool {
+        self.pattern.matches(token)
+    }
+}
+
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct GroupPattern {
     pub fp: String,
-    pub condition: Vec<PatternType>,
+    pub condition: Vec<Condition>,
 }
 impl GroupPattern {
     pub fn new (id: ObjectId, list: Vec<PatternType>) -> Self {
@@ -62,7 +74,17 @@ impl GroupPattern {
         println!("id: {}, md5: {:?}", id_str, cal_md5(&id_str));
         GroupPattern {
             fp: cal_md5(&id_str),
-            condition: list,
+            condition: list.iter().map(|item| {
+                let pre_kind = match item {
+                    PatternType::Literal(_) => TokenKind::Word,
+                    PatternType::Number => TokenKind::Number,
+                    PatternType::Uuid => TokenKind::Uuid,
+                };
+                Condition {
+                    kind: pre_kind,
+                    pattern: item.clone(),
+                }
+            }).collect(),
         }
     }
 
@@ -77,19 +99,16 @@ impl GroupPattern {
 
             let cond = &conds[pattern_idx];
 
-            // if token.kind
-        }
-    }
+            if cond.kind != token.kind {
+                continue;
+            }
 
-    pub fn match_from(&self, start: usize, tokens: &Vec<Token>) -> Option<bool>{
-        for (i, cond) in self.condition.iter().enumerate() {
-            let token = &tokens[start + i];
-            debug!("match: {:?} == {:?}", token, cond);
-            if !cond.matches(token) {
-                return None;
+            if cond.matches(token) {
+                pattern_idx += 1;
             }
         }
-        Some(true)
+
+        pattern_idx == conds.len()
     }
 }
 

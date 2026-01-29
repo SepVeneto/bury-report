@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 use log::debug;
+use serde::{Deserialize, Serialize};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -7,7 +8,7 @@ use regex::Regex;
 
 static UUID_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9a-zA-Z]{32}$").unwrap());
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub enum  TokenKind {
     Word,
     Number,
