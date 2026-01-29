@@ -67,12 +67,18 @@ impl GroupPattern {
     }
 
     pub fn is_match(&self, tokens: &Vec<Token>) -> bool {
-        for start in 0..tokens.len() - self.condition.len() {
-            if let Some(matched) = self.match_from(start, tokens) {
-                return matched;
+        let conds = &self.condition;
+        let mut pattern_idx = 0;
+
+        for token in tokens {
+            if pattern_idx == conds.len() {
+                break; //匹配结束
             }
+
+            let cond = &conds[pattern_idx];
+
+            // if token.kind
         }
-        false
     }
 
     pub fn match_from(&self, start: usize, tokens: &Vec<Token>) -> Option<bool>{

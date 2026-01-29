@@ -1,3 +1,6 @@
+use std::fmt::{Debug, Display};
+use log::debug;
+
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -12,102 +15,102 @@ pub enum  TokenKind {
     Symbol,
 }
 
-#[derive(Debug)]
 pub struct Token<'a> {
     pub raw: &'a str,
     pub kind: TokenKind,
-    pub sep: Option<char>,
+    pub sep: &'a str,
 }
 
+impl<'a> Debug for Token<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Token")
+            .field("raw", &self.raw)
+            .field("kind", &self.kind)
+            .field("sep", &self.sep)
+            .finish()
+    }
+}
+
+#[derive(Debug)]
+pub enum Segment<'a> {
+    Atom(&'a str),
+    Text(&'a str),
+}
+
+
 pub struct Tokenizer<'a> {
+    pub input: &'a str,
     pub tokens: Vec<Token<'a>>,
+}
+
+impl<'a> Debug for Tokenizer<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_list().entries(&self.tokens).finish()
+    }
+}
+
+impl<'a> Display for Tokenizer<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for t in &self.tokens {
+            let _ = write!(f, "{}", t.raw);
+            let _ = write!(f, "{}", t.sep);
+        }
+        Ok(())
+    }
 }
 
 impl <'a>Tokenizer<'a> {
     pub fn new(input: &'a str) -> Self {
-        let mut token_list = vec![];
-        let mut start = None;
-        let mut chars  = input.char_indices().peekable();
+        let ins = Self {
+            input,
+            tokens: vec![],
+        };
+        let segs = ins.segment();
 
-        while let Some((idx, ch)) = chars.next() {
-            if ch.is_whitespace() {
-                if let Some(s) = start.take() {
-                    let end = idx;
-                    token_list.push(Token {
-                        raw: &input[s..end],
-                        kind: Self::classify(&input[s..end]),
-                        sep: Some(' '),
-                    });
-                }
-                continue;
-            }
+        debug!("{:?}", segs);
 
-            if is_delimiter(ch) {
-                if let Some(s) = start.take() {
-                    token_list.push(Token {
-                        raw: &input[s..idx],
-                        kind: Self::classify(&input[s..idx]),
-                        sep: Some(ch),
-                    });
-                } else {
-                    let end = idx + ch.len_utf8();
-                    token_list.push(Token {
-                        raw: &input[idx..idx + end],
-                        kind: TokenKind::Symbol,
-                        sep: None,
-                    });
-                }
-                continue;
-            }
-
-            if ch == '"' {
-                if let Some(s) = start.take() {
-                    let end = read_string(input, &idx);
-                    token_list.push(Token {
-                        raw: &input[s..end],
-                        kind: TokenKind::Word,
-                        sep: Some(ch),
-                    });
-                }
-
-                let start_str = idx;
-                let mut end_str = idx + 1;
-
-                while let Some(&(next_idx, next_ch)) = chars.peek() {
-                    end_str = next_idx + next_ch.len_utf8();
-                    chars.next();
-                    if next_ch == '"' && input.as_bytes()[next_idx - 1] != b'\\' {
-                        break;
-                    }
-                }
-                token_list.push(Token {
-                    raw: &input[start_str..end_str],
-                    kind: TokenKind::Word,
-                    sep: None,
-                });
-                continue;
-            }
-
-            if (start.is_none()) {
-                start = Some(idx);
-            }
-
-            if chars.peek().is_none() {
-                if let Some(s) = start.take() {
-                    let end = idx + ch.len_utf8();
-                    token_list.push(Token {
-                        raw: &input[s..end],
-                        kind: Self::classify(&input[s..end]),
-                        sep: None,
-                    });
-                }
-            }
-        }
-
-        Self {
-            tokens: token_list,
-        }
+        ins
     }
+
+    fn segment(&self) -> Vec<Segment<'a>> {
+        let mut segments = Vec::new();
+
+        let mut start = 0;
+        let mut is_atom = None;
+
+        for (idx, ch) in self.input.char_indices() {
+            let ch_is_atom = ch.is_ascii_alphanumeric();
+
+            match is_atom {
+                None => {
+                    is_atom = Some(ch_is_atom);
+                }
+                Some(prev) if prev != ch_is_atom => {
+                    let s = &self.input[start..idx];
+                    segments.push(if prev {
+                        Segment::Atom(s)
+                    } else {
+                        Segment::Text(s)
+                    });
+                    start = idx;
+                    is_atom = Some(ch_is_atom);
+                }
+                _ => {}
+            }
+        }
+
+        if start < self.input.len() {
+            let s = &self.input[start..];
+            segments.push(if is_atom.unwrap_or(false) {
+                Segment::Atom(s)
+            } else {
+                Segment::Text(s)
+            });
+        }
+
+        segments
+    }
+
 
     pub fn normalize(&self) -> String {
         let mut str = String::new();
@@ -119,9 +122,7 @@ impl <'a>Tokenizer<'a> {
             };
             str.push_str(word);
 
-            if let Some(sep) = t.sep {
-                str.push(sep);
-            }
+            str.push_str(t.sep);
         }
 
         str

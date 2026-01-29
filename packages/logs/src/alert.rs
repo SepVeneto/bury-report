@@ -441,7 +441,7 @@ pub fn normalize_error(error: &ErrorRaw) -> (String, String) {
         debug!("应用{}存在分组{:?}", appid, col.group);
         if let Some(pattern) = col.group.get("pattern") {
             let match_rule = pattern.iter().find(|p| {
-                debug!("匹配规则: {:?}, 内容: {:?}", p, tokens);
+                debug!("匹配规则: {:?}, 内容: {:?}", p, tokenizer);
                 p.is_match(&tokens)
             });
             debug!("命中规则: {:?}", match_rule);
