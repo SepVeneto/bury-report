@@ -95,11 +95,17 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
 
 function normalizeError(reason: any) {
   if (reason instanceof Error) {
+    let extra = null
+    try {
+      extra = JSON.stringify(reason)
+    } catch {
+      extra = '[object with circular structre]'
+    }
     return {
       name: reason.name,
       message: reason.message || 'Unknown Error',
       stack: reason.stack || '',
-      extra: null,
+      extra,
     }
   } else if (typeof reason === 'string') {
     return {
