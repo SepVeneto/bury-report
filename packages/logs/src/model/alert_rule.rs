@@ -1,7 +1,8 @@
 use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
-use crate::{model::{BaseModel, QueryModel}, utils::{Token, TokenKind, cal_md5}};
+use crate::model::{BaseModel, QueryModel};
+use crate::alert::group::PatternType;
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CollectionType {
@@ -28,88 +29,6 @@ impl ToString for AlertStrategy {
         }.into()
     }
 
-}
-
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "type", content = "value")]
-pub enum PatternType {
-    Literal(String),
-    Number,
-    Uuid,
-}
-
-impl PatternType {
-    fn matches(&self, token: &Token) -> bool {
-        match &self {
-            PatternType::Literal(s) => token.raw == *s,
-            PatternType::Number => token.kind == TokenKind::Number,
-            PatternType::Uuid => token.kind == TokenKind::Uuid,
-        }
-    }
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct Condition {
-    pub kind: TokenKind,
-    pub pattern: PatternType,
-}
-
-impl Condition {
-    pub fn matches(&self, token: &Token) -> bool {
-        self.pattern.matches(token)
-    }
-}
-
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct GroupPattern {
-    pub fp: String,
-    pub condition: Vec<Condition>,
-}
-impl GroupPattern {
-    pub fn new (id: ObjectId, list: Vec<PatternType>) -> Self {
-        let id_str = id.to_hex();
-        println!("id: {}, md5: {:?}", id_str, cal_md5(&id_str));
-        GroupPattern {
-            fp: cal_md5(&id_str),
-            condition: list.iter().map(|item| {
-                let pre_kind = match item {
-                    PatternType::Literal(_) => TokenKind::Word,
-                    PatternType::Number => TokenKind::Number,
-                    PatternType::Uuid => TokenKind::Uuid,
-                };
-                Condition {
-                    kind: pre_kind,
-                    pattern: item.clone(),
-                }
-            }).collect(),
-        }
-    }
-
-    pub fn is_match(&self, tokens: &Vec<Token>) -> bool {
-        let conds = &self.condition;
-        let mut pattern_idx = 0;
-
-        for token in tokens {
-            if pattern_idx == conds.len() {
-                break; //匹配结束
-            }
-
-            let cond = &conds[pattern_idx];
-
-            if cond.kind != token.kind {
-                continue;
-            }
-
-            if cond.matches(token) {
-                pattern_idx += 1;
-            }
-        }
-
-        pattern_idx == conds.len()
-    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -176,6 +95,7 @@ impl AlertNotify {
 
 #[derive(Clone, Debug)]
 pub struct CollectionRule  {
+    pub id: ObjectId,
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,
@@ -184,6 +104,7 @@ pub struct CollectionRule  {
 
 #[derive(Clone, Debug)]
 pub struct FingerprintRule {
+    pub id: ObjectId,
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,
@@ -191,6 +112,7 @@ pub struct FingerprintRule {
 
 #[derive(Clone, Debug)]
 pub struct TypeRule {
+    pub id: ObjectId,
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,

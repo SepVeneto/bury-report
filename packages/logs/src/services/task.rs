@@ -6,7 +6,7 @@ use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
 use serde_json::Value;
 
 use crate::{
-    alert::{AlertRuleMap, RULE_MAP},
+    alert::model::{AlertRuleMap, RULE_MAP},
     model::{QueryModel, alert_rule, logs},
     services::{ServiceResult, record_logs::RecordList}
 };
