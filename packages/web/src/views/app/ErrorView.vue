@@ -78,6 +78,7 @@ const tableConfig = shallowRef([
   { label: '错误概述', prop: 'error' },
 ])
 const searchConfig = shallowRef([
+  { catalog: 'input', name: '会话ID', prop: 'session', width: 300 },
   { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
   { catalog: 'input', name: '指纹', prop: 'fingerprint', width: 300 },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
