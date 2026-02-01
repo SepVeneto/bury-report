@@ -131,7 +131,10 @@
           ]"
           :clearable="false"
         />
-        <BcInput v-model="cond.value" />
+        <BcInput
+          v-model="cond.value"
+          :disabled="cond.type !== 'literal'"
+        />
         <BcButton
           text
           type="danger"

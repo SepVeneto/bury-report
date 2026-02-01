@@ -40,12 +40,12 @@ async fn collect_summary(client: &Client) -> QueryResult<()> {
                     "fingerprint": value.fingerprint.clone(),
                     "summary": value.summary.clone(),
                     "name": value.name.clone(),
-                    "message": value.message.clone(),
                     "page": page.as_str(),
                     "first_seen": value.first_seen,
                 },
                 "$set": {
                     "rule_id": value.rule_id.clone(),
+                    "message": value.message.clone(),
                     "last_seen": value.last_seen,
                 },
                 "$inc": {

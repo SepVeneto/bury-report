@@ -121,17 +121,23 @@ mod test {
 
     #[test]
     fn test_common_tonkeizer() {
-        let tokenizer = Tokenizer::new("route webviewId 13 not found");
-        assert_eq!(tokenizer.tokens.len(), 9);
-        assert_eq!(tokenizer.tokens[0], Token::Atom("route"));
+        let tokenizer = Tokenizer::new("routeDone with a webviewId 4 is not found");
+        assert_eq!(tokenizer.tokens.len(), 15);
+        assert_eq!(tokenizer.tokens[0], Token::Atom("routeDone"));
         assert_eq!(tokenizer.tokens[1], Token::Text(" "));
-        assert_eq!(tokenizer.tokens[2], Token::Atom("webviewId"));
+        assert_eq!(tokenizer.tokens[2], Token::Atom("with"));
         assert_eq!(tokenizer.tokens[3], Token::Text(" "));
-        assert_eq!(tokenizer.tokens[4], Token::Atom("13"));
+        assert_eq!(tokenizer.tokens[4], Token::Atom("a"));
         assert_eq!(tokenizer.tokens[5], Token::Text(" "));
-        assert_eq!(tokenizer.tokens[6], Token::Atom("not"));
+        assert_eq!(tokenizer.tokens[6], Token::Atom("webviewId"));
         assert_eq!(tokenizer.tokens[7], Token::Text(" "));
-        assert_eq!(tokenizer.tokens[8], Token::Atom("found"));
+        assert_eq!(tokenizer.tokens[8], Token::Atom("4"));
+        assert_eq!(tokenizer.tokens[9], Token::Text(" "));
+        assert_eq!(tokenizer.tokens[10], Token::Atom("is"));
+        assert_eq!(tokenizer.tokens[11], Token::Text(" "));
+        assert_eq!(tokenizer.tokens[12], Token::Atom("not"));
+        assert_eq!(tokenizer.tokens[13], Token::Text(" "));
+        assert_eq!(tokenizer.tokens[14], Token::Atom("found"));
     }
 
     #[test]

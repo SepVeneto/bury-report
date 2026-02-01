@@ -71,7 +71,7 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '发生时间', prop: 'create_time', width: 200 },
+  { label: '发生时间', prop: 'device_time', width: 200 },
   { label: '触发地址', prop: 'data.page', width: 200 },
   { label: '会话ID', prop: 'session', width: 220 },
   { label: '设备ID', prop: 'uuid', width: 220 },

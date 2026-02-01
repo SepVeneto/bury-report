@@ -14,16 +14,21 @@ pub fn is_uuid(s: &str) -> bool {
 }
 
 pub fn is_number(s: &str) -> bool {
-    if s.is_empty() {
+    let bytes = s.as_bytes();
+    if bytes.is_empty() {
         return false;
     }
 
-    let mut chars = s.chars();
-    if let Some('-') = chars.next() {
-        chars.all(|c| c.is_numeric())
+    let start = if bytes[0] == b'-' {
+        if bytes.len() == 1 {
+            return false;
+        }
+        1
     } else {
-        chars.all(|c| c.is_numeric())
-    }
+        0
+    };
+
+    bytes[start..].iter().all(|s| s.is_ascii_digit())
 }
 
 // mod tests {

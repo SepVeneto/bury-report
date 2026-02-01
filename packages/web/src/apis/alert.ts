@@ -1,4 +1,5 @@
 import { reportRequest as request } from '@/util/request'
+import { Query } from '.'
 
 export function getAlertRuleList(params: { page: number, size: number }) {
   return request({
@@ -49,4 +50,13 @@ export function toggleAlertRule(id: string, enabled: boolean) {
       enabled,
     },
   }, true)
+}
+
+export function getHistoryErrorList(params: { page: number, size: number }) {
+  const _params = new Query(params).build()
+  return request({
+    url: '/alert/history/list',
+    params: _params,
+    raw: 'data',
+  })
 }
