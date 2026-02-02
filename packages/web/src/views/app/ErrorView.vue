@@ -11,6 +11,12 @@
       :config="tableConfig"
       :api="getList"
     >
+      <template #device_time-header>
+        <div style="display: flex; align-items: center;">
+          <span style="margin-right: 10px;">发生时间</span>
+          <IconTips content="该时间为设备的系统时间，仅供参考" />
+        </div>
+      </template>
       <template #uuid="{ row }">
         <DeviceLink
           :uuid="row.uuid"
@@ -54,6 +60,7 @@
 </template>
 
 <script setup lang="ts">
+import IconTips from '@/components/IconTips.vue'
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'

@@ -119,9 +119,11 @@ pub fn alert_error(
 
     if let Some(rule) = &rule {
         let (need_notify, fact) = check_notify(&rule, &appid, &fp);
-        debug!("通知策略{:?}, 是否通知{}, 告警次数{}", rule.strategy(), need_notify, fact.count);
         if need_notify {
-            notify::trigger(producer, &rule, summary, &fact);
+            debug!("通知策略{:?}, 是否通知{}, 告警次数{:?}", rule.strategy(), need_notify, fact);
+            if let Some(fact) = fact {
+                notify::trigger(producer, &rule, summary, &fact);
+            }
         }
     }
 

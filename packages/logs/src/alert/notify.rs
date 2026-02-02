@@ -10,7 +10,11 @@ pub fn check_notify(
     rule: &UnionRule,
     appid: &str,
     fp: &str
-) -> (bool, AlertFactInfo) {
+) -> (bool, Option<AlertFactInfo>) {
+    if rule.url().is_none() {
+        return (false, None);
+    }
+
     let alert_fact = ALERT_MAP 
         .entry(appid.to_string())
         .or_insert_with(|| AlertFact {
@@ -85,7 +89,7 @@ pub fn check_notify(
             trigger
         }
     };
-    (need_notify, fact.clone())
+    (need_notify, Some(fact.clone()))
 }
 
 pub fn trigger(

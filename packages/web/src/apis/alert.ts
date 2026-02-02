@@ -14,7 +14,7 @@ export type AlertRule = {
   name: string,
   enabled: boolean,
   source: {
-    type: 'collection' | 'fingerprint' | 'errorType' | 'group',
+    type: 'collection' | 'fingerprint' | 'group',
     log_type?: 'error' | 'api' | 'log',
     fingerprint?: string
     text?: string

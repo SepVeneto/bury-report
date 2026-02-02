@@ -67,10 +67,6 @@
           value="fingerprint"
         />"
         <ElRadio
-          label="错误类型"
-          value="errorType"
-        />
-        <ElRadio
           label="分组"
           value="group"
         />
@@ -104,13 +100,6 @@
       prop="fingerprint"
     >
       <BcInput v-model="model.source.fingerprint" />
-    </ElFormItem>
-
-    <ElFormItem
-      v-else-if="model.source.type === 'errorType'"
-      label="匹配内容"
-    >
-      <BcInput v-model="model.source.text" />
     </ElFormItem>
 
     <ElFormItem

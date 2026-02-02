@@ -65,15 +65,6 @@ impl AlertRuleMap {
                     };
                     fingerprints.insert(fingerprint, rule);
                 }
-                AlertSource::ErrorType { text } => {
-                    let rule = TypeRule {
-                        id: model._id,
-                        name: model.model.name,
-                        enabled: model.model.enabled,
-                        notify: model.model.notify,
-                    };
-                    types.insert(text, rule);
-                }
                 AlertSource::Group { condition } => {
                     let rule = FingerprintRule {
                         id: model._id,
@@ -123,7 +114,7 @@ impl UnionRule {
         }
     }
 
-    pub fn url(&self) -> String {
+    pub fn url(&self) -> Option<String> {
         match self {
             UnionRule::Collection(rule) => rule.notify.url(),
             UnionRule::Fingerprint(rule) => rule.notify.url(),
