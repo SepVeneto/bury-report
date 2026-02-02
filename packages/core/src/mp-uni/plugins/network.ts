@@ -33,6 +33,8 @@ export class NetworkPlugin implements BuryReportPlugin {
       const _fail = fail
       const _complete = complete
 
+      const page = getCurrentPages().map(page => page.route).slice(-1)[0]
+
       _request({
         ...options,
         success: (res) => {
@@ -40,7 +42,9 @@ export class NetworkPlugin implements BuryReportPlugin {
             const duration = Date.now() - start
             const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
             const info = collectInfo(options, 'success', {
+              page,
               duration,
+              profile: res.profile,
               status: res.statusCode,
               responseHeaders: res.header,
               response: normalizeResponse(response, network.responseLimit),
@@ -52,6 +56,7 @@ export class NetworkPlugin implements BuryReportPlugin {
         fail: (res) => {
           if (error) {
             const info = collectInfo(options, 'fail', {
+              page,
               timeout: options.timeout,
               err: res.errMsg,
             })
@@ -73,7 +78,6 @@ export class NetworkPlugin implements BuryReportPlugin {
     ) {
       return {
         type,
-        page: getCurrentPages().map(page => page.route).slice(-1)[0],
         url: options.url,
         method: options.method,
         body: options.data,
