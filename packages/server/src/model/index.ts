@@ -1,4 +1,11 @@
-import { Collection, Db, ObjectId, Filter as MongoFilter, OptionalUnlessRequiredId, WithId} from "mongodb"
+import {
+  Collection,
+  Db,
+  ObjectId,
+  Filter as MongoFilter,
+  OptionalUnlessRequiredId,
+  WithId,
+} from "mongodb"
 import dayjs from 'dayjs'
 import { escapeRegExp } from "../utils/tools.ts";
 
@@ -33,7 +40,19 @@ export class Filter<M extends BaseType> {
   }
   like(key: string, value?: string) {
     if (!value) return
+
+    if (this.model[key])
     Object.assign(this.model, { [key]: { $regex: escapeRegExp(value) }})
+  }
+  custom(key: string, value: (string | number)[]) {
+    if (!value || value.length === 0) return
+
+    // deno-lint-ignore no-explicit-any
+    const model = this.model as Record<string, any>
+    if (!model[key]) {
+      model[key] = value
+    }
+    Object.assign(this.model[key], { $nin: value })
   }
   build() {
     return this.model as Filter<M>
