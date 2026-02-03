@@ -110,9 +110,9 @@ function getNetworkProfile(url: string) {
     // HTTP（TCP） 完成建立连接的时间（完成握手），如果是持久连接，则与 fetchStart 值相等。注意如果在传输层发生了错误且重新建立连接，则这里显示的是新建立的连接完成的时间。注意这里握手结束，包括安全连接建立完成、SOCKS 授权通过
     connectEnd: entry.connectEnd,
     // SSL建立连接的时间,如果不是安全连接,则值为 0
-    SSLConnectionStart: entry.secureConnectionStart || 0,
+    SSLconnectionStart: entry.secureConnectionStart || 0,
     // SSL建立完成的时间,如果不是安全连接,则值为 0
-    SSLConnectionEnd: entry.secureConnectionStart ? entry.connectEnd : 0,
+    SSLconnectionEnd: entry.secureConnectionStart ? entry.connectEnd : 0,
     // HTTP请求读取真实文档开始的时间（完成建立连接），包括从本地读取缓存。连接错误重连时，这里显示的也是新建立连接的时间
     requestStart: entry.requestStart,
     // HTTP请求读取真实文档结束的时间
