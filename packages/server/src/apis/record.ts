@@ -66,6 +66,8 @@ router.get('/record/networks', async (ctx) => {
     delete item.data.body
     // @ts-expect-error: ignore
     delete item.data.responseHeaders
+    // @ts-expect-error: ignore
+    delete item.data.profile
   })
   ctx.resBody = res
 })

@@ -191,7 +191,9 @@ function filterUpIcon(up: DeviceInfo['up']) {
     'mp-weixin': IconWeixin,
   }[up] || IconUnknown
 }
-function filterBnIcon(bn: DeviceInfo['bn']) {
+function filterBnIcon(bn?: DeviceInfo['bn']) {
+  if (!bn) return IconUnknown
+
   return {
     edge: IconEdge,
     chrome: IconChrome,
