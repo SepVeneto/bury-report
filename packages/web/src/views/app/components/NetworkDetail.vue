@@ -58,6 +58,15 @@
           </template>
         </ElSkeleton>
       </ElTabPane>
+      <ElTabPane
+        v-if="detail?.data.profile"
+        label="计时"
+      >
+        <Timeline
+          :profile="detail.data.profile"
+          :duration="detail.data.duration"
+        />
+      </ElTabPane>
     </ElTabs>
   </div>
 </template>
@@ -67,6 +76,7 @@ import JsonView from './JsonView.vue'
 import { ref } from 'vue'
 import { getAppNetworkDetail } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'
+import Timeline from './NetworkDetail.timeline.vue'
 
 const props = defineProps({
   networkId: {

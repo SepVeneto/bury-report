@@ -40,7 +40,7 @@
       </template>
       <template #page="{ row }">
         <UrlBlock
-          :url="row.data.page"
+          :url="row.data.page || ''"
           simple
         />
       </template>
