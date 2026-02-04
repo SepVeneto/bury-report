@@ -1,6 +1,8 @@
+use bson::oid::ObjectId;
 use serde::{Deserialize, Serialize};
 
 use crate::model::{BaseModel, QueryModel};
+use crate::alert::group::PatternType;
 
 #[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum CollectionType {
@@ -29,7 +31,6 @@ impl ToString for AlertStrategy {
 
 }
 
-
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum AlertSource {
@@ -39,8 +40,8 @@ pub enum AlertSource {
     Fingerprint {
         fingerprint: String,
     },
-    ErrorType {
-        text: String,
+    Group {
+        condition: Vec<PatternType>,
     }
 }
 
@@ -48,15 +49,15 @@ pub enum AlertSource {
 #[serde(tag = "strategy", rename_all = "camelCase")]
 pub enum AlertNotify {
     Once {
-        url: String
+        url: Option<String>
     },
     Window {
-        url: String,
+        url: Option<String>,
         // 告警窗口，单位秒。也就是下Once一次会发送告警的时间
         window_sec: i64,
     },
     Limit {
-        url: String,
+        url: Option<String>,
         // 告警阈值，即窗口期内到达阈值时，开始发送告警
         limit: i64,
         // 节流窗口，单位秒。窗口时间内到达
@@ -80,17 +81,18 @@ impl AlertNotify {
         }
     }
 
-    pub fn url(&self) -> String {
+    pub fn url(&self) -> Option<String> {
         match *self {
             AlertNotify::Once { ref url, .. }
             | AlertNotify::Window { ref url, .. }
             | AlertNotify::Limit { ref url, .. } => url,
-        }.into()
+        }.clone()
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct CollectionRule  {
+    pub id: ObjectId,
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,
@@ -99,6 +101,7 @@ pub struct CollectionRule  {
 
 #[derive(Clone, Debug)]
 pub struct FingerprintRule {
+    pub id: ObjectId,
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,
@@ -106,11 +109,11 @@ pub struct FingerprintRule {
 
 #[derive(Clone, Debug)]
 pub struct TypeRule {
+    pub id: ObjectId,
     pub name: String,
     pub enabled: bool,
     pub notify: AlertNotify,
 }
-
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Model {

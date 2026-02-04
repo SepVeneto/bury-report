@@ -26,3 +26,12 @@ export class Alert extends Model<IAlert> {
     super(db, 'alert_rule')
   }
 }
+
+export interface IAlertError extends BaseType {
+
+}
+export class AlertError extends Model<IAlertError> {
+  constructor(db: Db) {
+    super(db, 'history_error')
+  }
+}

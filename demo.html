@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户行为追踪可视化 Demo</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7f9; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        h2 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        /* 时间轴样式 */
+        .timeline-container { position: relative; margin-top: 50px; border-left: 2px solid #e0e0e0; padding: 10px 0; }
+        .page-track { height: 60px; display: flex; align-items: center; border-bottom: 1px dashed #eee; position: relative; }
+        .track-label { width: 120px; font-size: 12px; font-weight: bold; color: #666; flex-shrink: 0; }
+        
+        /* 条形块样式 */
+        .bar { height: 30px; border-radius: 4px; position: absolute; display: flex; align-items: center; justify-content: center; font-size: 11px; color: white; transition: transform 0.2s; cursor: pointer; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .bar:hover { transform: scaleY(1.1); filter: brightness(1.1); }
+        .bar-page { background-color: #4A90E2; z-index: 1; }
+        .bar-app-hide { background-color: #adb5bd; z-index: 2; height: 10px; opacity: 0.8; } /* 后台状态 */
+        
+        /* 标记点样式 */
+        .marker { position: absolute; width: 2px; height: 100%; background: #ff4d4f; z-index: 10; }
+        .marker::after { content: attr(data-label); position: absolute; top: -25px; left: -50%; transform: translateX(-50%); font-size: 10px; background: #ff4d4f; color: #fff; padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
+
+        /* 统计 */
+        .stats { display: flex; gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: #f8f9fa; padding: 15px; border-radius: 8px; flex: 1; border: 1px solid #eee; }
+        .stat-card span { display: block; font-size: 24px; font-weight: bold; color: #4A90E2; }
+        
+        /* 日志 */
+        .log-box { margin-top: 30px; background: #2d2d2d; color: #ccc; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; }
+        .log-line { border-bottom: 1px solid #3d3d3d; padding: 4px 0; }
+        .t-launch { color: #52c41a; }
+        .t-page { color: #40a9ff; }
+        .t-app { color: #faad14; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>用户路径与停留时长分析</h2>
+    
+    <div class="stats" id="stats">
+        <div class="stat-card">总停留时长 (s)<span id="total-time">0</span></div>
+        <div class="stat-card">页面跳转次数<span id="nav-count">0</span></div>
+        <div class="stat-card">App 前台活跃 (s)<span id="active-time">0</span></div>
+    </div>
+
+    <div id="viz-root" class="timeline-container">
+        <!-- 动态生成时间轴轨道 -->
+    </div>
+
+    <div class="log-box" id="event-log">
+        <!-- 原始事件日志 -->
+    </div>
+</div>
+
+<script>
+/**
+ * 1. 模拟原始事件数据 (模拟用户在3分钟内的操作)
+ */
+const mockEvents = [
+    { type: 'appLaunch', ts: 0, page: null },
+    { type: 'pageLoad',   ts: 100,  page: '/home' },
+    { type: 'appShow',    ts: 200,  page: null },
+    { type: 'pageShow',   ts: 200,  page: '/home' },
+    
+    // 首页停留 30秒后跳转详情页
+    { type: 'pageHide',   ts: 3200, page: '/home' },
+    { type: 'pageLoad',   ts: 3200, page: '/detail/001' },
+    { type: 'pageShow',   ts: 3300, page: '/detail/001' },
+    
+    // 在详情页时，用户切出 App 去回微信 (后台 20秒)
+    { type: 'appHide',    ts: 5000, page: null },
+    { type: 'appShow',    ts: 7000, page: null },
+    
+    // 回到详情页继续看 10秒
+    { type: 'pageHide',   ts: 8000, page: '/detail/001' },
+    { type: 'pageUnload', ts: 8100, page: '/detail/001' },
+    
+    // 返回首页
+    { type: 'pageShow',   ts: 8100, page: '/home' },
+    { type: 'pageHide',   ts: 10000, page: '/home' },
+    { type: 'appHide',    ts: 10000, page: null },
+];
+
+/**
+ * 2. 逻辑处理：将事件流转化为“段” (Segments)
+ */
+function processEvents(events) {
+    const pages = {}; // 存储每个页面的轨道数据
+    const appStatus = { isForeground: false, lastShow: 0, totalActive: 0, hides: [] };
+    let totalDuration = events[events.length - 1].ts;
+    
+    let currentPage = null;
+    let pageStartTime = 0;
+
+    events.forEach(ev => {
+        // 处理 App 活跃状态
+        if (ev.type === 'appShow') {
+            appStatus.isForeground = true;
+            appStatus.lastShow = ev.ts;
+        } else if (ev.type === 'appHide') {
+            appStatus.isForeground = false;
+            appStatus.totalActive += (ev.ts - appStatus.lastShow);
+            appStatus.hides.push({ start: appStatus.lastShow, end: ev.ts });
+        }
+
+        // 处理页面停留
+        if (ev.type === 'pageShow') {
+            currentPage = ev.page;
+            pageStartTime = ev.ts;
+            if (!pages[ev.page]) pages[ev.page] = [];
+        } else if (ev.type === 'pageHide' && currentPage === ev.page) {
+            pages[ev.page].push({
+                start: pageStartTime,
+                end: ev.ts,
+                duration: ev.ts - pageStartTime
+            });
+        }
+    });
+
+    return { pages, appStatus, totalDuration };
+}
+
+/**
+ * 3. 渲染视图
+ */
+function render(data) {
+    const root = document.getElementById('viz-root');
+    const logBox = document.getElementById('event-log');
+    const pxPerMs = (root.offsetWidth - 150) / data.totalDuration;
+
+    // 更新统计
+    document.getElementById('total-time').innerText = (data.totalDuration / 100).toFixed(1);
+    document.getElementById('nav-count').innerText = Object.keys(data.pages).length;
+    document.getElementById('active-time').innerText = (data.appStatus.totalActive / 100).toFixed(1);
+
+    // 渲染页面轨道
+    Object.keys(data.pages).forEach((path, index) => {
+        const track = document.createElement('div');
+        track.className = 'page-track';
+        
+        const label = document.createElement('div');
+        label.className = 'track-label';
+        label.innerText = path;
+        track.appendChild(label);
+
+        data.pages[path].forEach(seg => {
+            const bar = document.createElement('div');
+            bar.className = 'bar bar-page';
+            bar.style.left = (120 + seg.start * pxPerMs) + 'px';
+            bar.style.width = (seg.duration * pxPerMs) + 'px';
+            bar.innerText = (seg.duration / 100).toFixed(1) + 's';
+            bar.title = `停留: ${seg.duration}ms`;
+            track.appendChild(bar);
+        });
+
+        root.appendChild(track);
+    });
+
+    // 渲染 App Hide (覆盖在所有轨道上方的阴影或专门的轨道)
+    // 这里为了清晰，我们在页面轨道中标记出“后台”时段
+    data.appStatus.hides.forEach(h => {
+        const hideBar = document.createElement('div');
+        hideBar.className = 'bar bar-app-hide';
+        hideBar.style.left = (120 + h.start * pxPerMs) + 'px';
+        hideBar.style.width = ((h.end - h.start) * pxPerMs) + 'px';
+        hideBar.style.top = "0"; // 简易处理
+        hideBar.innerText = '后台';
+        root.appendChild(hideBar);
+    });
+
+    // 渲染事件日志
+    mockEvents.forEach(ev => {
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        let cls = ev.type.startsWith('app') ? 't-app' : (ev.type.startsWith('page') ? 't-page' : 't-launch');
+        line.innerHTML = `[${ev.ts.toString().padStart(5, '0')}ms] <span class="${cls}">${ev.type.padEnd(12)}</span> ${ev.page || '-'}`;
+        logBox.appendChild(line);
+    });
+}
+
+// 执行
+const analyzedData = processEvents(mockEvents);
+render(analyzedData);
+
+</script>
+</body>
+</html>

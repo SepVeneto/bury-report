@@ -8,7 +8,7 @@ router.get('/record/logs', async (ctx) => {
   const record = new RecordLog(ctx.db)
 
   const { page, size, ...query } = ctx.request.query
-  const { uuid, data, type, session } = query
+  const { uuid, data, type, session, start_time, end_time } = query
 
   const filter = new Filter()
   filter.model.$and = [{
@@ -18,6 +18,7 @@ router.get('/record/logs', async (ctx) => {
   filter.equal('uuid', uuid)
   filter.like('type', type)
   filter.like('data', data)
+  filter.rangeTime('create_time', start_time, end_time)
 
   // if (data) {
   //   filter.model.$and?.push({
