@@ -82,7 +82,7 @@ function createProxy(options: Options) {
     options: { immediate?: boolean } = {},
   ) => {
     const { immediate = false } = options
-    const record = storageReport(type, data)
+    const record = storageReport(type, data, Date.now())
 
     writeMemory(record)
 
