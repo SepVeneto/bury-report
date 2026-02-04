@@ -51,6 +51,7 @@ const TYPE_LOG: &'static str = "__BR_COLLECT_INFO__";
 const TYPE_NETWORK: &'static str = "__BR_API__";
 const TYPE_ERROR: &'static str = "__BR_COLLECT_ERROR__";
 const TYPE_TRACK: &'static str = "__BR_TRACK__";
+const MP_TRACK: &'static str = "__BR_TRACK_EVENT__";
 
 #[derive(Clone, Debug)]
 pub enum RecordItem {
@@ -59,6 +60,7 @@ pub enum RecordItem {
     Network(logs_network::Model),
     Error(logs_error::Model),
     Track(logs::Model),
+    MpTrack(logs::MpTrack),
     Custom(Model),
 }
 impl RecordV1 {
@@ -70,6 +72,17 @@ impl RecordV1 {
                 session: self.session.clone(),
                 appid: self.appid.to_string(),
                 data: self.data.clone(),
+                create_time: DateTime::now(),
+                device_time: self.time.clone(),
+            })
+        } else if self.r#type == MP_TRACK {
+            RecordItem::MpTrack(logs::MpTrack {
+                r#type: self.r#type.to_string(),
+                uuid: self.uuid.to_string(),
+                session: self.session.clone(),
+                appid: self.appid.to_string(),
+                data: self.data.clone(),
+                stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
             })
@@ -200,3 +213,24 @@ impl BaseModel for Session {
 }
 impl CreateModel for Session {}
 impl QueryModel for Session {}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct MpTrack {
+  pub r#type: String,
+  pub appid: String,
+  pub data: Map<String, Value>,
+  pub uuid: String,
+  pub session: Option<String>,
+  pub stamp: Option<f64>,
+  #[serde(serialize_with = "serialize_time")]
+  pub create_time: DateTime,
+  pub device_time: Option<String>,
+}
+
+
+impl BaseModel for MpTrack {
+    const NAME: &'static str = "records_mp_track";
+    type Model = MpTrack;
+}
+impl QueryModel for MpTrack {}
+impl CreateModel for MpTrack {}

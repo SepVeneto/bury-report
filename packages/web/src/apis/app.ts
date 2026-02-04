@@ -282,9 +282,48 @@ export async function getSessionDetail(sessionId: string) {
     err: SessionLog[],
     log: SessionLog[],
   }>({
-    url: `/session/${sessionId}`,
+    url: `/session/${sessionId}/web`,
   })
   return res
+}
+
+type MpAppLoad = {
+  type: 'AppLaunch' | 'AppShow',
+  data: {
+    query: string
+    path: string
+    scene: number
+    referrerInfo: Record<string, any>
+    apiCategory: string
+    mode: string
+  }
+}
+type MpPageLoad = {
+  type: 'PageLoad' | 'PageShow'
+  data: {
+    query?: string
+    path: string
+  }
+}
+type MpPageUnload = {
+  type: 'PageUnload' | 'PageHide'
+  data: {
+    path: string
+    duration: number
+  }
+}
+type MpAppHide = {
+  type: 'AppHide'
+}
+export type MpTrack = MpPageLoad | MpAppLoad | MpPageUnload | MpAppHide
+export type MpRecord = {
+  data: MpTrack,
+  device_time: string,
+}
+export function getMpSession(sessionId: string) {
+  return request<{ list: MpRecord[] }>({
+    url: `/session/${sessionId}/mp`,
+  })
 }
 
 export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {

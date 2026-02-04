@@ -20,6 +20,7 @@
     </template>
     <template #operate="{ row }">
       <BcButton
+        v-if="type === 'web'"
         text
         type="primary"
         @click="handleSync(row.session)"
@@ -35,7 +36,11 @@
     style="min-height: 700px;"
   >
     <SessionH5
-      v-if="session.type === 'h5'"
+      v-if="type === 'web'"
+      :session="session.id"
+    />
+    <SessionMp
+      v-if="type === 'mp-weixin'"
       :session="session.id"
     />
   </ElDialog>
@@ -43,11 +48,13 @@
 
 <script lang="ts" setup>
 import SessionH5 from './components/SessionH5.vue'
+import SessionMp from './components/SessionMp.vue'
 import { getSessionList, syncSession } from '@/apis'
 import { ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import DeviceLink from './components/DeviceLink.vue'
 
+defineProps<{ type?: string }>()
 const route = useRoute()
 const refTable = useTemplateRef('tableRef')
 
@@ -85,14 +92,12 @@ function getList() {
 const session = ref({
   show: false,
   id: '',
-  type: 'h5',
 })
 
 async function handleOpen(row: any) {
   session.value = {
-    show: false,
+    show: true,
     id: row.session,
-    type: 'h5',
   }
 }
 </script>

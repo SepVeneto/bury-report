@@ -84,3 +84,11 @@ export class Session extends Model<ISession> {
     super(db, 'records_session')
   }
 }
+
+export interface IMpTrack extends BaseType {
+}
+export class MpTrack extends Model<IMpTrack> {
+  constructor(db: Db) {
+    super(db, 'records_mp_track')
+  }
+}

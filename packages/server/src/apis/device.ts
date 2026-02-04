@@ -1,5 +1,5 @@
 import { Router } from '@oak/oak'
-import { Session, DeviceLog } from "../model/device.ts";
+import { Session, DeviceLog, MpTrack } from "../model/device.ts";
 import { RecordApi, RecordError } from '../model/record.ts'
 import { RecordLog } from "../model/record.ts";
 import { Filter } from "../model/index.ts";
@@ -72,7 +72,17 @@ router.get('/device/:deviceId/session/list', async (ctx) => {
   ctx.resBody = list
 })
 
-router.get('/session/:sessionId', async ctx => {
+router.get('/session/:sessionId/mp', async ctx => {
+  const session = new MpTrack(ctx.db)
+  const filter = new Filter()
+  filter.equal('session', ctx.params.sessionId)
+  const detail = await session.getAll(filter)
+  ctx.resBody = {
+    list: detail ?? [],
+  }
+})
+
+router.get('/session/:sessionId/web', async ctx => {
   const log = new RecordLog(ctx.db)
   const networkLog = new RecordApi(ctx.db)
   const errorLog = new RecordError(ctx.db)
@@ -105,7 +115,6 @@ router.get('/session/:sessionId', async ctx => {
     err: err,
     log: logs,
   }
-
 })
 
 router.post('/session/:sessionId/sync', async ctx => {
