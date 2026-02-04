@@ -1,4 +1,5 @@
 import { reportRequest as request } from '@/util/request'
+import { Query } from '.'
 
 export function getAlertRuleList(params: { page: number, size: number }) {
   return request({
@@ -13,10 +14,11 @@ export type AlertRule = {
   name: string,
   enabled: boolean,
   source: {
-    type: 'collection' | 'fingerprint' | 'errorType',
+    type: 'collection' | 'fingerprint' | 'group',
     log_type?: 'error' | 'api' | 'log',
     fingerprint?: string
     text?: string
+    condition?: { type: 'literal' | 'number' | 'uuid', value?: string }[]
   },
   notify: {
     strategy: 'once' | 'window' | 'limit',
@@ -48,4 +50,13 @@ export function toggleAlertRule(id: string, enabled: boolean) {
       enabled,
     },
   }, true)
+}
+
+export function getHistoryErrorList(params: { page: number, size: number }) {
+  const _params = new Query(params).build()
+  return request({
+    url: '/alert/history/list',
+    params: _params,
+    raw: 'data',
+  })
 }

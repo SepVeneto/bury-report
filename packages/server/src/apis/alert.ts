@@ -1,5 +1,6 @@
 import { Router } from "@oak/oak";
-import { Alert } from "../model/alert.ts";
+import { Alert, AlertError } from "../model/alert.ts";
+import { Filter } from "../model/index.ts";
 
 const router = new Router()
 
@@ -84,7 +85,31 @@ router.delete('/alert/rule/:ruleId', async (ctx) => {
 
   const ruleId = ctx.params.ruleId
   await alert.deleteOne(ruleId)
+
+  await fetch(`${Deno.env.get("NOTIFY_URL")}/notify/sync-alert-rule`, {
+    headers: {
+      "appid": ctx.request.headers.get('appid') || '',
+      "notify-token": Deno.env.get("NOTIFY_TOKEN") || '',
+    }
+  })
+
   ctx.resMsg = '删除成功'
+})
+
+router.get('/alert/history/list', async (ctx) => {
+  const error = new AlertError(ctx.db)
+
+  const { page = 1, size = 10, ...query } = ctx.request.query
+  const { start_time, summary, end_time, fingerprint } = query
+  const filter = new Filter()
+
+  filter.like('fingerprint', fingerprint)
+  filter.rangeTime('last_seen', start_time, end_time)
+  filter.like('summary', summary)
+
+  const res = await error.pagination(Number(page), Number(size), filter)
+  ctx.resBody = res
+
 })
 
 export default router

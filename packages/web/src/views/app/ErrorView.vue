@@ -11,6 +11,12 @@
       :config="tableConfig"
       :api="getList"
     >
+      <template #device_time-header>
+        <div style="display: flex; align-items: center;">
+          <span style="margin-right: 10px;">发生时间</span>
+          <IconTips content="该时间为设备的系统时间，仅供参考" />
+        </div>
+      </template>
       <template #uuid="{ row }">
         <DeviceLink
           :uuid="row.uuid"
@@ -54,6 +60,7 @@
 </template>
 
 <script setup lang="ts">
+import IconTips from '@/components/IconTips.vue'
 import { ref, shallowRef } from 'vue'
 import { getAppErrors } from '@/apis'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
@@ -71,13 +78,14 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '发生时间', prop: 'create_time', width: 200 },
+  { label: '发生时间', prop: 'device_time', width: 200 },
   { label: '触发地址', prop: 'data.page', width: 200 },
   { label: '会话ID', prop: 'session', width: 220 },
   { label: '设备ID', prop: 'uuid', width: 220 },
   { label: '错误概述', prop: 'error' },
 ])
 const searchConfig = shallowRef([
+  { catalog: 'input', name: '会话ID', prop: 'session', width: 300 },
   { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
   { catalog: 'input', name: '指纹', prop: 'fingerprint', width: 300 },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },

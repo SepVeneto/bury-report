@@ -111,7 +111,7 @@ const mockMenus = [
       {
         pid: 35,
         id: 352,
-        name: '告警列表',
+        name: '告警摘要',
         path: 'list',
         route: 'AlertView',
       },

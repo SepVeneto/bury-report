@@ -145,7 +145,7 @@ router.patch('/app', async (ctx) => {
         icon: icon || randomColor(),
       } }),
       projects.updateMany(
-        { 'apps.id': appId },
+        { 'apps.id': id },
         { $set: { 'apps.$.name': name }},
       )
     ])

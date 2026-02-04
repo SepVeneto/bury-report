@@ -1,4 +1,4 @@
-use bson::DateTime;
+use bson::{DateTime, oid::ObjectId};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,6 +15,7 @@ pub struct Model {
     pub first_seen: DateTime,
     pub last_seen: DateTime,
     pub count: i64,
+    pub rule_id: Option<ObjectId>,
 }
 
 impl BaseModel for Model {
