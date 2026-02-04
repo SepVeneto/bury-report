@@ -127,7 +127,9 @@
       label="会话记录"
       name="session"
     >
-      <DeviceSession />
+      <DeviceSession
+        :type="info?.up"
+      />
     </ElTabPane>
   </ElTabs>
 </template>

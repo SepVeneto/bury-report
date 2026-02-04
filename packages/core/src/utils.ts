@@ -96,14 +96,14 @@ export function resetSessionId() {
 export function getSessionId() {
   let sessionId
   try {
-    sessionId = 'window' in globalThis
+    sessionId = ('window' in globalThis && window.sessionStorage)
       ? window.sessionStorage.getItem(SESSIONID_KEY)
       : getLocalStorage(SESSIONID_KEY)
   } catch {}
   if (!sessionId) {
     sessionId = Date.now().toString(36) + Math.random().toString(36).substring(2, 10)
     try {
-      'window' in globalThis
+      ('window' in globalThis && window.sessionStorage)
         ? window.sessionStorage.setItem(SESSIONID_KEY, sessionId)
         : setLocalStorage(SESSIONID_KEY, sessionId)
     } catch {}
@@ -164,7 +164,7 @@ export function storageReport(
     uuid,
     type,
     data,
-    time: new Date().toLocaleString(),
+    time: String(Date.now()),
     stamp,
   }
 
