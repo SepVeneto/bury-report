@@ -177,7 +177,6 @@ const realDuration = computed(() => {
 function genRow(start: number, end: number) {
   const duration = end - start
   const left = (start - (props.profile.invokeStart || props.profile.fetchStart)) / total.value * 100
-  console.log(left, start, total.value)
   const isZero = duration <= 0
   const width = isZero ? 0 : duration / total.value * 100
   const displayValue = isZero ? '0ms' : (duration.toFixed(1) + 'ms')
