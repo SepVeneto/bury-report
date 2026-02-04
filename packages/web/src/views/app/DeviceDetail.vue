@@ -77,6 +77,7 @@
             </ElDescriptions>
 
             <ElDescriptions
+              v-if="isBrowser"
               title="浏览器信息"
               :column="1"
             >
@@ -151,7 +152,7 @@ import DeviceScreen from './components/DeviceScreen.vue'
 
 import type { DeviceInfo } from '@/apis'
 import { getAppDevice } from '@/apis'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 const active = ref('device')
@@ -237,6 +238,7 @@ if (route.query.session) {
 const deviceId = route.params.id as string | undefined
 
 const info = ref<DeviceInfo>()
+const isBrowser = computed(() => info.value?.up === 'web')
 
 if (deviceId) {
   getAppDevice(deviceId).then(res => {
