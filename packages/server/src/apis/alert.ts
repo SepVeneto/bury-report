@@ -107,7 +107,12 @@ router.get('/alert/history/list', async (ctx) => {
   filter.rangeTime('last_seen', start_time, end_time)
   filter.like('summary', summary)
 
-  const res = await error.pagination(Number(page), Number(size), filter)
+  const res = await error.pagination(
+    Number(page),
+    Number(size),
+    filter,
+    { last_seen: -1 },
+  )
   ctx.resBody = res
 
 })
