@@ -40,6 +40,8 @@ async fn main() -> std::io::Result<()> {
   let producer: BaseProducer = ClientConfig::new()
     .set("bootstrap.servers", std::env::var("KAFKA_BROKERS").expect("enviroment missing KAFKA_BROKERS"))
     .set("compression.type", "gzip")
+    // 允许发送的最大消息大小10MB
+    .set("message.max.bytes", "10485760")
     .set("message.timeout.ms", "5000")
     .create()
     .expect("Producer creation error");
