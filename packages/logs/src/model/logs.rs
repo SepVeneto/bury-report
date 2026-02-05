@@ -60,7 +60,6 @@ pub enum RecordItem {
     Network(logs_network::Model),
     Error(logs_error::Model),
     Track(logs::Model),
-    MpTrack(logs::MpTrack),
     Custom(Model),
 }
 impl RecordV1 {
@@ -76,7 +75,7 @@ impl RecordV1 {
                 device_time: self.time.clone(),
             })
         } else if self.r#type == MP_TRACK {
-            RecordItem::MpTrack(logs::MpTrack {
+            RecordItem::Track(logs::Model {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),

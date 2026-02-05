@@ -33,7 +33,6 @@ pub enum RecordList {
     NetworkList(Vec<logs_network::Model>),
     ErrorList(Vec<logs_error::Model>),
     TrackList(Vec<logs::Model>),
-    MpTrackList(Vec<logs::MpTrack>),
     CustomList(Vec<logs::Model>),
 }
 pub async fn record(
@@ -55,9 +54,6 @@ pub async fn record(
         logs::RecordPayload::V1(v1) => {
             let db = &db::DbApp::get_by_appid(client, &appid);
             match v1.normalize_from(ip) {
-                logs::RecordItem::MpTrack(mp) => {
-                    logs::MpTrack::insert_one(db, &mp).await?;
-                }
                 logs::RecordItem::Device(device) => {
                     let uuid = &device.uuid;
                     let session = &device.session;
@@ -114,7 +110,6 @@ pub async fn record(
                 insert_group(db, &group["network"]),
                 insert_group(db, &group["error"]),
                 insert_group(db, &group["device"]),
-                insert_group(db, &group["mp_track"])
             ];
 
             join_all(futures).await.into_iter().collect::<anyhow::Result<(), ServiceError>>()?;
@@ -190,12 +185,6 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
             }
             logs_error::Model::insert_many(db, data).await?;
         },
-        RecordList::MpTrackList(mp) => {
-            if mp.len() == 0 {
-                return Ok(());
-            }
-            logs::MpTrack::insert_many(db, mp).await?;
-        }
         RecordList::CustomList(data) => {
             if data.len() == 0 {
                 return Ok(());
@@ -212,15 +201,11 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
     let mut list_network = vec![];
     let mut list_error = vec![];
     let mut list_track = vec![];
-    let mut list_mp_track = vec![];
 
     list.iter().for_each(|item| {
         match item.normalize_from(ip.clone()) {
             logs::RecordItem::Device(log) => {
                 list_device.push(log);
-            },
-            logs::RecordItem::MpTrack(mp) => {
-                list_mp_track.push(mp);
             },
             logs::RecordItem::Network(net) => {
                 list_network.push(net);
@@ -244,7 +229,6 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
         "network" => RecordList::NetworkList(list_network),
         "error" => RecordList::ErrorList(list_error),
         "track" => RecordList::TrackList(list_track),
-        "mp_track" => RecordList::MpTrackList(list_mp_track),
         "custom" => RecordList::CustomList(vec![]),
     }
 }
