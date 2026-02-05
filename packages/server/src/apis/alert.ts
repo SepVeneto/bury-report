@@ -10,7 +10,9 @@ router.get("/alert/rule/list", async (ctx) => {
 
   const { page = 1, size = 10, name, id } = ctx.request.query
   const filter = new Filter()
-  filter.equal('_id',  new ObjectId(String(id)))
+  if (id) {
+    filter.equal('_id',  new ObjectId(String(id)))
+  }
   filter.like('name', name)
   const res = await alert.pagination(page, size, filter)
   ctx.resBody = res
