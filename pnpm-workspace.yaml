@@ -1,2 +1,10 @@
 packages:
   - packages/**
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - '@swc/core'
+  - canvas
+  - core-js
+  - esbuild
+  - vue-demi

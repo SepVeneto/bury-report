@@ -290,7 +290,7 @@ export async function getSessionDetail(sessionId: string) {
 type MpAppLoad = {
   type: 'AppLaunch' | 'AppShow',
   data: {
-    query: string
+    query: Record<string, any>
     path: string
     scene: number
     referrerInfo: Record<string, any>
@@ -301,11 +301,11 @@ type MpAppLoad = {
 type MpPageLoad = {
   type: 'PageLoad' | 'PageShow'
   data: {
-    query?: string
+    query?: Record<string, any>
     path: string
   }
 }
-type MpPageUnload = {
+export type MpPageUnload = {
   type: 'PageUnload' | 'PageHide'
   data: {
     path: string
