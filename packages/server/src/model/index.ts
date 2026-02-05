@@ -101,7 +101,7 @@ export class Model<M extends BaseType> {
     page: number,
     size: number,
     filter: Filter<M> = new Filter(),
-    sort: Record<string, SortDirection> = {_id: 1}
+    sort: Record<string, SortDirection> = {_id: -1}
   ) {
     if (typeof size === 'string') {
       size = Number(size)
