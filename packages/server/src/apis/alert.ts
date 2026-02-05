@@ -1,14 +1,18 @@
 import { Router } from "@oak/oak";
 import { Alert, AlertError } from "../model/alert.ts";
 import { Filter } from "../model/index.ts";
+import { ObjectId } from 'mongodb'
 
 const router = new Router()
 
 router.get("/alert/rule/list", async (ctx) => {
   const alert = new Alert(ctx.db)
 
-  const { page = 1, size = 10 } = ctx.request.query
-  const res = await alert.pagination(page, size)
+  const { page = 1, size = 10, name, id } = ctx.request.query
+  const filter = new Filter()
+  filter.equal('_id',  new ObjectId(String(id)))
+  filter.like('name', name)
+  const res = await alert.pagination(page, size, filter)
   ctx.resBody = res
 })
 

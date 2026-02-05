@@ -35,7 +35,7 @@ export class Filter<M extends BaseType> {
       Object.assign(this.model[key], { $lte: dayjs(to).toDate() })
     }
   }
-  equal(key: string, value?: string | number) {
+  equal(key: string, value?: string | number | ObjectId) {
     if (!value) return
     Object.assign(this.model, { [key]: value })
   }

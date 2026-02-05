@@ -63,9 +63,11 @@ import RxSwitch from '@/components/switch/rxSwitch.vue'
 import type { WithDetail } from '@/util/tools'
 
 const searchConfig = shallowRef([
+  { catalog: 'input', name: '规则ID', prop: 'id' },
   { catalog: 'input', name: '规则名称', prop: 'name' },
 ])
 const tableConfig = shallowRef([
+  { label: 'ID', prop: 'id' },
   { label: '名称', prop: 'name' },
   { label: '日志类型', prop: 'source.log_type', filter: (val: string) => ({ error: '错误日志', api: '接口日志', log: '自定义日志' }[val]) },
   { label: '触发源', prop: 'source.type', filter: (val: string) => ({ collection: '日志集合', fingerprint: '指纹', group: '分组' }[val]) },
