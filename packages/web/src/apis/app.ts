@@ -282,7 +282,7 @@ export async function getSessionDetail(sessionId: string) {
     err: SessionLog[],
     log: SessionLog[],
   }>({
-    url: `/session/${sessionId}/web`,
+    url: `/session/${sessionId}`,
   })
   return res
 }
@@ -320,10 +320,17 @@ export type MpRecord = {
   data: MpTrack,
   device_time: string,
 }
-export function getMpSession(sessionId: string) {
-  return request<{ list: MpRecord[] }>({
-    url: `/session/${sessionId}/mp`,
+export async function getMpSessionEvents(urls: string[]) {
+  const futures = urls.map(url => fetch(url).then(response => response.text()))
+  const list: MpRecord[] = []
+  await Promise.all(futures).then(res => {
+    res.forEach(item => {
+      const records = JSON.parse(item) as any[]
+      const events = records.map(item => item).flat()
+      list.push(...events)
+    })
   })
+  return list
 }
 
 export function getDeviceList(params: { page: number, size: number, timerange?: string[]}) {

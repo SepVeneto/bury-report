@@ -63,7 +63,7 @@
 
 <script lang="ts" setup>
 import type { MpPageUnload, MpRecord } from '@/apis'
-import { getMpSession } from '@/apis'
+import { getMpSessionEvents, getSessionDetail } from '@/apis'
 import { shallowRef } from 'vue'
 import { dayjs } from 'element-plus'
 
@@ -102,8 +102,9 @@ function formatTime(timeStr: string) {
   return dayjs(timeStr).format('HH:mm:ss')
 }
 async function init() {
-  const res = await getMpSession(props.session)
-  events.value = normalizeEvents(res.list)
+  const res = await getSessionDetail(props.session)
+  const list = await getMpSessionEvents(res.event_urls)
+  events.value = normalizeEvents(list)
 }
 
 function normalizeEvents(events: MpRecord[]) {

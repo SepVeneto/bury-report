@@ -20,7 +20,6 @@
     </template>
     <template #operate="{ row }">
       <BcButton
-        v-if="type === 'web'"
         text
         type="primary"
         @click="handleSync(row.session)"
