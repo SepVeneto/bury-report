@@ -40,8 +40,8 @@ const tableConfig = shallowRef([
   { label: '来源规则', prop: 'rule_id', width: 200 },
 ])
 const searchConfig = shallowRef([
-  { catalog: 'input', name: '指纹', prop: 'fingerprint' },
-  { catalog: 'input', name: '摘要', prop: 'summary' },
+  { catalog: 'input', name: '指纹', prop: 'fingerprint', placeholder: '支持模糊查询' },
+  { catalog: 'input', name: '摘要', prop: 'summary', placeholder: '支持模糊查询' },
   {
     catalog: 'datepicker',
     prop: 'time',

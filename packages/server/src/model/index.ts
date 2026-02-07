@@ -42,7 +42,6 @@ export class Filter<M extends BaseType> {
   like(key: string, value?: string) {
     if (!value) return
 
-    if (this.model[key])
     Object.assign(this.model, { [key]: { $regex: escapeRegExp(value) }})
   }
   custom(key: string, value: (string | number)[]) {

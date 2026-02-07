@@ -10,11 +10,11 @@ router.get("/alert/rule/list", async (ctx) => {
 
   const { page = 1, size = 10, name, id } = ctx.request.query
   const filter = new Filter()
-  if (id) {
+  if (id && id.length === 24) {
     filter.equal('_id',  new ObjectId(String(id)))
   }
   filter.like('name', name)
-  const res = await alert.pagination(page, size, filter)
+  const res = await alert.pagination(page, size, { filter })
   ctx.resBody = res
 })
 
@@ -116,8 +116,7 @@ router.get('/alert/history/list', async (ctx) => {
   const res = await error.pagination(
     Number(page),
     Number(size),
-    filter,
-    { last_seen: -1 },
+    { filter, sort: { last_seen: -1 } },
   )
   ctx.resBody = res
 
