@@ -26,7 +26,11 @@ router.get('/record/logs', async (ctx) => {
   //   })
   // }
 
-  const res = await record.pagination(Number(page), Number(size), filter)
+  const res = await record.pagination(
+    Number(page),
+    Number(size),
+    { filter, count: false },
+  )
   ctx.resBody = res
 })
 
@@ -40,7 +44,11 @@ router.get('/record/errors', async (ctx) => {
   filter.equal('uuid', uuid)
   filter.rangeTime('create_time', start_time, end_time)
   filter.equal('session', session)
-  const res = await record.pagination(Number(page), Number(size), filter)
+  const res = await record.pagination(
+    Number(page),
+    Number(size),
+    { filter, count: false }
+  )
   ctx.resBody = res
 })
 
@@ -59,7 +67,11 @@ router.get('/record/networks', async (ctx) => {
   filter.rangeTime('create_time', start_time, end_time)
   filter.equal('session', session)
 
-  const res = await record.pagination(Number(page), Number(size), filter)
+  const res = await record.pagination(
+    Number(page),
+    Number(size),
+    { filter, count: false },
+  )
   res.list.forEach(item => {
     // @ts-expect-error: ignore
     delete item.data.response

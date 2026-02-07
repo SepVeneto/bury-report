@@ -100,9 +100,13 @@ export class Model<M extends BaseType> {
   async pagination(
     page: number,
     size: number,
-    filter: Filter<M> = new Filter(),
-    sort: Record<string, SortDirection> = {_id: -1}
+    options: { filter?: Filter<M>, sort?: Record<string, SortDirection>, count?: boolean } = {},
   ) {
+    const {
+      filter = new Filter(),
+      sort = {_id: -1},
+      count = true,
+    } = options
     if (typeof size === 'string') {
       size = Number(size)
     }
@@ -115,11 +119,17 @@ export class Model<M extends BaseType> {
       .skip(skip)
       .limit(size)
       .toArray()).map(processData)
-    const total = await this.col.countDocuments(_filter)
 
-    return {
-      list,
-      total
+    if (count) {
+      const total = await this.col.countDocuments(_filter)
+      return {
+        list,
+        total
+      }
+    } else {
+      return {
+        list
+      }
     }
   }
 
