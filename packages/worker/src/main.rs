@@ -187,8 +187,6 @@ async fn process_message(
     match msg.get_payload::<String>() {
       Ok(key) => {
         debug!("expired key: {}", key);
-        // TODO: 暂时不上传session数据
-        return Ok(());
         if let Some(session) = extract_session(&key) {
           match upload_session(&mut conn, &cos, &client, &session).await {
             Ok(store_key) => {
@@ -308,23 +306,23 @@ async fn upload_session(
       match compress_gzip(bytes) {
         Ok(res) => {
                 
-          let mut acl_header = AclHeader::new();
-          acl_header.insert_object_x_cos_acl(qcos::acl::ObjectAcl::PRIVATE);
-          let res = cos_clone.put_object_binary(
-            res,
-            &path,
-            Some(Mime::from_str("application/gzip").expect("mime failed")),
-            Some(acl_header),
-          ).await;
-          if res.error_no == ErrNo::SUCCESS {
-            debug!("Upload to: {:?}", url);
-            if let Err(err) = update_event(&db, &session, &url).await {
-              error!("Error while updating event: {}", err);
-            }
-            info!("put object success");
-          } else {
-            error!("put object failed, [{}]: {}", res.error_no, res.error_message);
-          }
+          // let mut acl_header = AclHeader::new();
+          // acl_header.insert_object_x_cos_acl(qcos::acl::ObjectAcl::PRIVATE);
+          // let res = cos_clone.put_object_binary(
+          //   res,
+          //   &path,
+          //   Some(Mime::from_str("application/gzip").expect("mime failed")),
+          //   Some(acl_header),
+          // ).await;
+          // if res.error_no == ErrNo::SUCCESS {
+          //   debug!("Upload to: {:?}", url);
+          //   if let Err(err) = update_event(&db, &session, &url).await {
+          //     error!("Error while updating event: {}", err);
+          //   }
+          //   info!("put object success");
+          // } else {
+          //   error!("put object failed, [{}]: {}", res.error_no, res.error_message);
+          // }
         },
         Err(e) => {
           error!("Error while compressing payload: {}", e);
