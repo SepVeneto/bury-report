@@ -187,6 +187,8 @@ async fn process_message(
     match msg.get_payload::<String>() {
       Ok(key) => {
         debug!("expired key: {}", key);
+        // TODO: 暂时不上传session数据
+        return Ok(());
         if let Some(session) = extract_session(&key) {
           match upload_session(&mut conn, &cos, &client, &session).await {
             Ok(store_key) => {
