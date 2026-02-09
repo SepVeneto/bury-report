@@ -30,7 +30,7 @@ router.get('/device', async (ctx) => {
   filter.equal('uuid', uuid)
   filter.equal('session', session)
 
-  const list = await device.pagination(page, size, filter)
+  const list = await device.pagination(page, size, { filter })
   ctx.resBody = list
 })
 
@@ -67,7 +67,7 @@ router.get('/device/:deviceId/session/list', async (ctx) => {
   const filter = new Filter()
   filter.equal('uuid', uuid)
   filter.equal('session', query.session)
-  const list = await session.pagination(page, size, filter)
+  const list = await session.pagination(page, size, { filter })
   list.list.forEach(item => delete item.event_urls)
   ctx.resBody = list
 })
