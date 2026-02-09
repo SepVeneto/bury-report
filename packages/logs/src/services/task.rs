@@ -11,6 +11,13 @@ use crate::{
     services::{ServiceResult, record_logs::RecordList}
 };
 
+#[derive(Debug)]
+pub struct RawRecord {
+    pub appid: String,
+    pub sessionid: String,
+    pub data: Vec<u8>,
+}
+
 pub fn send_json_to_kafka(
     producer: &BaseProducer,
     topic: &str,
@@ -94,4 +101,28 @@ pub async fn sync_alert_rule(
     RULE_MAP.insert(app.to_string(), AlertRuleMap::from_models(rules));
     info!("sync alert rule success");
     Ok(())
+}
+
+pub async fn send_raw_to_kafak(
+    producer: &BaseProducer,
+    raw: &RawRecord
+) {
+    let appid = &raw.appid;
+    let sessionid = &raw.sessionid;
+    let data = &raw.data;
+    let key = format!("{}/{}", appid, sessionid);
+    let record = BaseRecord::to("rrweb")
+        .key(&key)
+        .payload(&data);
+    let send_res = producer.send(record);
+
+    match send_res {
+        Ok(_) => {
+            debug!("Message sent");
+        }
+        Err((kafka_err, join_err)) => {
+            error!("Message failed to send: {}", kafka_err);
+            error!("Error joining send task: {:?}", join_err);
+        }
+    }
 }

@@ -115,16 +115,32 @@ function createProxy(options: Options) {
     flushMemoryToStorage()
 
     const list = readQueue()
-    if (!list.length) return
 
-    window.__BR_WORKER__.postMessage({
-      type: 'report',
-      appid,
-      sessionid: getSessionId(),
-      deviceid: getUuid(),
-      store: [...list, ...BuryReport.cache],
-      keepalive,
-    })
+    if (list.length) {
+      fetch(options.url, {
+        method: 'post',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+        },
+        keepalive,
+        cache: 'no-store',
+        credentials: 'omit',
+        priority: 'low',
+        body: JSON.stringify(list),
+      })
+    }
+
+    if (BuryReport.cache.length) {
+      window.__BR_WORKER__.postMessage({
+        type: 'report',
+        appid,
+        sessionid: getSessionId(),
+        deviceid: getUuid(),
+        store: BuryReport.cache,
+        keepalive,
+      })
+    }
 
     // 不管上报的成功与否，都需要清除定时器，保证新的上报流程正常执行
     // 都需要把上报队列清空，防止过度使用用户缓存

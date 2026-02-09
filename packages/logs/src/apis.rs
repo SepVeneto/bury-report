@@ -23,6 +23,26 @@ pub enum ApiError {
     #[error("FOO!")]
     InvalidError(),
 }
+impl From<std::io::Error> for ApiError {
+    fn from(err: std::io::Error) -> Self {
+        ApiError::ValidateError {
+            err: err.to_string(),
+            col: column!(),
+            line: line!(),
+            file: file!().to_string()
+        }
+    }
+}
+impl From<serde_json::Error> for ApiError {
+    fn from(err: serde_json::Error) -> Self {
+        ApiError::ValidateError {
+            err: err.to_string(),
+            col: column!(),
+            line: line!(),
+            file: file!().to_string()
+        }
+    }
+}
 impl actix_web::error::ResponseError for ApiError {
     fn error_response(&self) -> HttpResponse {
         match self {

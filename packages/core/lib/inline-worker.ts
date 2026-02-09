@@ -31,7 +31,7 @@ export function InlineWorkerPlugin(): EsbuildPlugin {
         // 将 worker 代码包装成 factory
         const wrapped = `
           export default function WorkerFactory(vars = {}) {
-            const code = \`${code}\`;
+            const code = ${JSON.stringify(code)};
 
             // 简单变量替换（如 BR_URL）
             const finalCode = code.replace(/BR_URL/g, vars.url || '');
