@@ -79,12 +79,7 @@ async fn payload_handler(payload: web::Payload) -> Result<ProcessedPayload, ApiE
     }
 
     if body[0] == 1 {
-        let mut decoder = GzDecoder::new(&body[1..]);
-        let mut decompressed = Vec::new();
-        decoder.read_to_end(&mut decompressed)?;
-
-        let record = serde_json::from_slice::<RecordPayload>(&decompressed)?;
-        Ok(ProcessedPayload::JsonRecord(record))
+        return Err(ApiError::InvalidError());
     } else if body[0] == 0 {
         let protocol_data = &body[1..];
 
