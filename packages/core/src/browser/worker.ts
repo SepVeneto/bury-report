@@ -72,11 +72,13 @@ function degradationReport(body: any, keepalive: boolean, type: 'json' | 'gzip' 
       const { sessionid, data, appid } = body
       const gzipData = pako.gzip(JSON.stringify(data))
       const encoder = new TextEncoder()
-      const str = `0${sessionid}:${appid}|`
+      const str = `${sessionid}:${appid}|`
       const protocolBytes = encoder.encode(str)
-      const out = new Uint8Array(data.length + protocolBytes.length)
-      out.set(protocolBytes)
-      out.set(gzipData, protocolBytes.length)
+      out = new Uint8Array(gzipData.length + protocolBytes.length + 1)
+      out.set(0)
+      out.set(protocolBytes, 1)
+      out.set(gzipData, protocolBytes.length + 1)
+      break
     }
   }
 

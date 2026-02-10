@@ -71,21 +71,20 @@ async fn main() -> redis::RedisResult<()> {
           debug!("Received message: {:?}", &m);
           if let Some(session) = m.key() {
             let session = String::from_utf8_lossy(session).to_string();
-            match m.payload_view::<str>() {
+            match m.payload_view::<[u8]>() {
               Some(Ok(s)) => {
-                debug!("enter?, {}", s);
                 let session_key = gen_key(&session);
-                let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-                let _ = encoder.write_all(s.as_bytes()).expect("gzip encoder write fail");
-                let compressed = encoder.finish().expect("gzip failed");
-                let _: Result<String, RedisError> = conn.rpush(&session_key, compressed).await;
+                // let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+                // let _ = encoder.write_all(s).expect("gzip encoder write fail");
+                // let compressed = encoder.finish().expect("gzip failed");
+                let _: Result<String, RedisError> = conn.rpush(&session_key, s).await;
                 // 会话数据的过期时间是shadow key的两倍，默认是20分钟
                 let _: Result<(), RedisError> = conn.expire(&session_key, expire_time as i64 * 2).await;
                 let _: Result<(), RedisError> = conn.set_ex(gen_shadow_key(&session), "",  expire_time).await;
                 let _: Result<(), RedisError> = conn.zadd(REDIS_ZSET, &session, get_expire_time(expire_time)).await;
               },
               Some(Err(e)) => {
-                error!("Error while decoding payload: {}", e);
+                error!("Error while decoding payload: {:?}", e);
               },
               None => {
                 error!("Message payload is null");
@@ -231,11 +230,23 @@ fn extract_session(key: &str) -> Option<String> {
   }
 }
 
-fn decompress_gzip(data: &[u8]) -> Result<String, std::io::Error> {
+fn decompress_gzip(data: &[u8]) -> Result<Option<String>, std::io::Error> {
   let mut decoder = flate2::read::GzDecoder::new(data);
-  let mut decompressed_data = String::new();
-  decoder.read_to_string(&mut decompressed_data)?;
-  Ok(decompressed_data)
+  let mut decompressed_data = Vec::new();
+  decoder.read_to_end(&mut decompressed_data)?;
+
+  let start = decompressed_data.iter().position(|&b| b == b'[').unwrap_or(0);
+  let end = decompressed_data.iter().rposition(|&b| b == b']').unwrap_or(decompressed_data.len());
+
+  let mut content = &decompressed_data[start + 1..end];
+
+  if content.is_empty() {
+    return Ok(None);
+  }
+
+  let mut res = String::new();
+  content.read_to_string(&mut res);
+  Ok(Some(res))
 }
 
 fn compress_gzip(data: &[u8]) -> Result<Vec<u8>, std::io::Error> {
@@ -292,13 +303,23 @@ async fn upload_session(
     tokio::spawn(async move {
       let mut decompressed_list = Vec::new();
       for batch in res {
-        match decompress_gzip(&batch) {
-          Ok(decompressed) => {
-            decompressed_list.push(decompressed);
+        let is_gzip = check_gzip(&batch);
+        if is_gzip {
+          match decompress_gzip(&batch) {
+            Ok(decompressed) => {
+              if let Some(res) = decompressed {
+                decompressed_list.push(res);
+              } else {
+                continue;
+              }
+            }
+            Err(e) => {
+              error!("Error while decompressing payload: {}", e);
+            }
           }
-          Err(e) => {
-            error!("Error while decompressing payload: {}", e);
-          }
+        } else {
+          let res = String::from_utf8_lossy(&batch).to_string();
+          decompressed_list.push(res);
         }
       }
       let joined = format!("[{}]", decompressed_list.join(","));
@@ -306,23 +327,23 @@ async fn upload_session(
       match compress_gzip(bytes) {
         Ok(res) => {
                 
-          // let mut acl_header = AclHeader::new();
-          // acl_header.insert_object_x_cos_acl(qcos::acl::ObjectAcl::PRIVATE);
-          // let res = cos_clone.put_object_binary(
-          //   res,
-          //   &path,
-          //   Some(Mime::from_str("application/gzip").expect("mime failed")),
-          //   Some(acl_header),
-          // ).await;
-          // if res.error_no == ErrNo::SUCCESS {
-          //   debug!("Upload to: {:?}", url);
-          //   if let Err(err) = update_event(&db, &session, &url).await {
-          //     error!("Error while updating event: {}", err);
-          //   }
-          //   info!("put object success");
-          // } else {
-          //   error!("put object failed, [{}]: {}", res.error_no, res.error_message);
-          // }
+          let mut acl_header = AclHeader::new();
+          acl_header.insert_object_x_cos_acl(qcos::acl::ObjectAcl::PRIVATE);
+          let res = cos_clone.put_object_binary(
+            res,
+            &path,
+            Some(Mime::from_str("application/gzip").expect("mime failed")),
+            Some(acl_header),
+          ).await;
+          if res.error_no == ErrNo::SUCCESS {
+            debug!("Upload to: {:?}", url);
+            if let Err(err) = update_event(&db, &session, &url).await {
+              error!("Error while updating event: {}", err);
+            }
+            info!("put object success");
+          } else {
+            error!("put object failed, [{}]: {}", res.error_no, res.error_message);
+          }
         },
         Err(e) => {
           error!("Error while compressing payload: {}", e);
@@ -339,4 +360,12 @@ fn parse_key(session: &str) -> Option<(String, String)> {
     [appid, session] => Some((appid.to_string(), session.to_string())),
     _ => None
   }
+}
+
+fn check_gzip(bin: &Vec<u8>) -> bool {
+  let id1 = bin[0];
+  let id2 = bin[1];
+  let cm = bin[2];
+
+  return id1 == 31 && id2 == 139 && cm == 8;
 }

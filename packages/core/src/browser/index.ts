@@ -127,7 +127,7 @@ function createProxy(options: Options) {
         cache: 'no-store',
         credentials: 'omit',
         priority: 'low',
-        body: JSON.stringify(list),
+        body: JSON.stringify({ appid, data: list.map(item => ({ appid, ...item })) }),
       })
     }
 

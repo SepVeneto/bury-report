@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use log::debug;
 
 use actix_web::{HttpRequest, post, web};
 use flate2::read::GzDecoder;
@@ -39,7 +40,18 @@ async fn record_log(
     if let Some(val) = req.headers().get("X-Real-IP") {
         ip = Some(val.to_str().unwrap_or("").to_string());
     }
-    let json = payload_handler(json_body).await?;
+    let json = match payload_handler(json_body).await {
+        Ok(json) => json,
+        Err(e) => {
+            debug!("json error: {:?}", e);
+            return Err(ApiError::ValidateError {
+                err: e.to_string(),
+                col: column!(),
+                line: line!(),
+                file: file!().to_string(),
+            });
+        }
+    };
 
     match json {
         ProcessedPayload::JsonRecord(json) => {
@@ -96,6 +108,8 @@ async fn payload_handler(payload: web::Payload) -> Result<ProcessedPayload, ApiE
         
         let data = protocol_data[pipe_pos + 1..].to_vec();
 
+    //    let raw_str = decompress_gzip(&data)?;
+
         Ok(ProcessedPayload::RawData(RawRecord {
             appid: app_id,
             sessionid: session_id,
@@ -105,4 +119,15 @@ async fn payload_handler(payload: web::Payload) -> Result<ProcessedPayload, ApiE
         let record = serde_json::from_slice::<RecordPayload>(&body)?;
         Ok(ProcessedPayload::JsonRecord(record))
     }
+}
+
+fn decompress_gzip(data: &[u8]) -> Result<String, std::io::Error> {
+  let mut decoder = flate2::read::GzDecoder::new(data);
+  let mut decompressed_data = Vec::new();
+  decoder.read_to_end(&mut decompressed_data)?;
+  // 2. 尝试转为 String，使用 lossy 可以看到脏数据长什么样
+  let result = String::from_utf8_lossy(&decompressed_data);
+    
+  println!("解压内容预览: {}", &result[..result.len().min(100)]);
+  Ok(result.into_owned())
 }
