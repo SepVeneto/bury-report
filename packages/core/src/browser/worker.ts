@@ -75,7 +75,7 @@ function degradationReport(body: any, keepalive: boolean, type: 'json' | 'gzip' 
       const str = `${sessionid}:${appid}|`
       const protocolBytes = encoder.encode(str)
       out = new Uint8Array(gzipData.length + protocolBytes.length + 1)
-      out.set(0)
+      out.set([0])
       out.set(protocolBytes, 1)
       out.set(gzipData, protocolBytes.length + 1)
       break
