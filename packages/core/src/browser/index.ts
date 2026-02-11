@@ -128,6 +128,8 @@ function createProxy(options: Options) {
         credentials: 'omit',
         priority: 'low',
         body: JSON.stringify({ appid, data: list.map(item => ({ appid, ...item })) }),
+      }).catch(err => {
+        console.warn('[report-core] fetch error: ' + err)
       })
     }
 

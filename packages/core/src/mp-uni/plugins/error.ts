@@ -153,19 +153,19 @@ function normalizeConsoleError(args: any[]) {
   if (typeof args[0] === 'string') {
     const message = args[0]
 
-    let extra = null
+    let stack = ''
     if (args.length > 1) {
       try {
-        extra = JSON.stringify(args.slice(1))
+        stack = JSON.stringify(args.slice(1))
       } catch {
-        extra = '[unserializable extra]'
+        stack = '[unserializable stack]'
       }
     }
 
     return {
       message,
-      stack: '',
-      extra,
+      stack,
+      extra: null,
     }
   }
 
