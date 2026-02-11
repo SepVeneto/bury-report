@@ -42,7 +42,13 @@ const props = defineProps({
 const icon = computed(() => props.name.slice(0, 1))
 
 function handleDetail() {
-  window.open(`${window.origin}/#/${props.appId}`, '_blank')
+  const nw = window.open(`${window.origin}/#/${props.appId}`, '_blank')
+  if (!nw) {
+    throw new Error('请允许浏览器打开新窗口')
+  }
+  nw.addEventListener('load', () => {
+    nw.document.title = `${props.name}|${document.title}`
+  })
 }
 </script>
 
