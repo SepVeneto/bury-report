@@ -1,5 +1,5 @@
 import { copyText } from '@sepveneto/basic-comp'
-import { ElMessage } from 'element-plus'
+import { dayjs, ElMessage } from 'element-plus'
 
 export async function copyContent(text: string) {
   try {
@@ -51,3 +51,11 @@ export function walkRoute<T extends Array<any>>(
 }
 
 export type WithDetail<T> = T & { id: string }
+
+export function formatDatetime(timeStr: string | number) {
+  const timeNum = Number(timeStr)
+  if (isNaN(timeNum)) {
+    return timeStr
+  }
+  return dayjs(timeNum).format('YYYY-MM-DD HH:mm:ss')
+}

@@ -41,6 +41,7 @@ import { getLogList } from '@/apis'
 import DeviceLink from './components/DeviceLink.vue'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
+import { formatDatetime } from '@/util/tools'
 
 defineOptions({
   name: 'LogView',
@@ -54,7 +55,7 @@ const tableRef = ref()
 const tableConfig = shallowRef([
   { label: '日志类型', prop: 'type', width: 300 },
   { label: '上报时间', prop: 'create_time', width: 180 },
-  { label: '发起时间', prop: 'device_time', width: 180 },
+  { label: '发起时间', prop: 'device_time', width: 180, filter: formatDatetime },
   { label: '会话ID', prop: 'session', width: 240 },
   { label: '设备ID', prop: 'uuid', width: 240 },
   { label: '上报数据', prop: 'data' },

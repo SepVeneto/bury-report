@@ -66,6 +66,7 @@ import { getAppErrors } from '@/apis'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
 import DeviceLink from './components/DeviceLink.vue'
+import { formatDatetime } from '@/util/tools'
 
 defineOptions({
   name: 'ErrorView',
@@ -78,7 +79,7 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '发生时间', prop: 'device_time', width: 200 },
+  { label: '发生时间', prop: 'device_time', width: 200, filter: formatDatetime },
   { label: '触发地址', prop: 'data.page', width: 200 },
   { label: '会话ID', prop: 'session', width: 220 },
   { label: '设备ID', prop: 'uuid', width: 220 },

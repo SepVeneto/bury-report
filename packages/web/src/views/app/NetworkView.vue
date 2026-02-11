@@ -80,6 +80,7 @@ import { getAppNetworks } from '@/apis'
 import StatusIcon from '@/components/statusIcon.vue'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
+import { formatDatetime } from '@/util/tools'
 
 defineOptions({ name: 'NetworkView' })
 
@@ -90,7 +91,7 @@ const params = ref({
 const tableRef = ref()
 const tableConfig = shallowRef([
   { type: 'expand' },
-  { label: '发起时间', prop: 'device_time', width: 160 },
+  { label: '发起时间', prop: 'device_time', width: 160, filter: formatDatetime },
   { label: '设备ID', prop: 'uuid', width: 220 },
   { label: '会话ID', prop: 'session', width: 180 },
   { label: '请求', prop: 'url' },
