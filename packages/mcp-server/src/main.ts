@@ -48,14 +48,17 @@ const getServer = () => {
         inputSchema: {
           name: z.string().describe('任务名称（支持模糊查询），可能是简称'),
         },
+        outputSchema: {
+          code: z.number(),
+          msg: z.string(),
+        }
       },
       async ({ name }, context) => {
-        console.log(context._meta)
         const appid = context.requestInfo?.headers['x-appid']
         const userid = context.requestInfo?.headers['x-wecom-user-id']
         if (!appid) {
           return {
-            content: [{ type: 'text', text: '当前插件没有配置appid'}]
+            content: [{ type: 'text', text: JSON.stringify({code: 1, msg: '当前插件没有配置appid'})}]
           }
         }
         try {
@@ -67,16 +70,16 @@ const getServer = () => {
 
           if (!list.length) {
             return {
-              content: [ { type: 'text', text: `[注意，不需要你对内容做任何修饰或解释，直接返回json]${JSON.stringify({ code: 1, msg: '没有找到相关任务' })}`}]
+              content: [ { type: 'text', text: JSON.stringify({ code: 1, msg: '没有找到相关任务' })}]
             }
           } else if (list.length === 1) {
             return {
-              content: [{ type: 'text', text: `[注意，不需要你对内容做任何修饰或解释，直接返回json]${JSON.stringify({ code: 0, data: list[0].name})}`}]
+              content: [{ type: 'text', text: JSON.stringify({ code: 0, data: list[0].name})}]
             }
 
           } else {
             return {
-              content: [{ type: 'text', text: `[注意，不需要你对内容做任何修饰或解释，直接返回以下内容]${JSON.stringify({ code: 2, msg: '查询到多个符合条件的任务' })}` }]
+              content: [{ type: 'text', text: JSON.stringify({ code: 2, msg: '查询到多个符合条件的任务' }) }]
             }
           }
         } catch (err) {
