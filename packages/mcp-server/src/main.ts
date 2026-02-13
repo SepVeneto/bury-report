@@ -50,6 +50,7 @@ const getServer = () => {
         },
         outputSchema: {
           code: z.number(),
+          data: z.any(),
           msg: z.string(),
         }
       },
@@ -58,7 +59,11 @@ const getServer = () => {
         const userid = context.requestInfo?.headers['x-wecom-user-id']
         if (!appid) {
           return {
-            content: [{ type: 'text', text: JSON.stringify({code: 1, msg: '当前插件没有配置appid'})}]
+            content: [{ type: 'text', text: JSON.stringify({
+              code: 1,
+              data: null,
+              msg: '当前插件没有配置appid',
+            })}]
           }
         }
         try {
@@ -70,22 +75,41 @@ const getServer = () => {
 
           if (!list.length) {
             return {
-              content: [ { type: 'text', text: JSON.stringify({ code: 1, msg: '没有找到相关任务' })}]
+              content: [ { type: 'text', text: JSON.stringify({
+                code: 1,
+                data: null,
+                msg: '没有找到相关任务',
+              })}]
             }
           } else if (list.length === 1) {
             return {
-              content: [{ type: 'text', text: JSON.stringify({ code: 0, data: list[0].name})}]
+              content: [{ type: 'text', text: JSON.stringify({
+                code: 0,
+                data: list[0].name,
+                msg: '',
+              })}]
             }
 
           } else {
             return {
-              content: [{ type: 'text', text: JSON.stringify({ code: 2, msg: '查询到多个符合条件的任务' }) }]
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  code: 2,
+                  data: list.map(item => item.name),
+                  msg: '查询到多个符合条件的任务',
+                })
+              }]
             }
           }
         } catch (err) {
           return {
             content: [
-              { type: 'text', text: `遇到了错误：${err}`}
+              { type: 'text', text: JSON.stringify({
+                code: 1,
+                data: null,
+                msg: `遇到了错误：${err}`,
+              })}
             ]
           }
         }
