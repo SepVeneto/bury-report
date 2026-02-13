@@ -148,4 +148,4 @@ COPY ./packages/mcp-server/package*.json ./
 RUN npm i -g pnpm && pnpm i
 COPY ./packages/mcp-server .
 EXPOSE 3000
-CMD ["npx", "tsx", "packages/mcp-server/src/main.ts"]
+CMD ["npx", "tsx", "src/main.ts"]
