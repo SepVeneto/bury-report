@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import * as z from 'zod/v4';
 import {
   CallToolResult,
+  ElicitResultSchema,
   GetPromptResult,
   isInitializeRequest,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -43,17 +44,72 @@ const getServer = () => {
       'query-task',
       {
         title: '查询部署任务',
-        description: '。',
+        description: '查询需要部署或发版的任务。',
         inputSchema: {
           name: z.string().describe('任务名称（支持模糊查询），可能是简称'),
         },
       },
       async ({ name }, context) => {
         console.log(context._meta)
-
-        return {
-          content: [{ type: 'text', text: `${name} Comming Soon`}]
+        const appid = context.requestInfo?.headers['x-appid']
+        const userid = context.requestInfo?.headers['x-wecom-user-id']
+        if (!appid) {
+          return {
+            content: [{ type: 'text', text: '当前插件没有配置appid'}]
+          }
         }
+        try {
+          const db = client.db(`app_${appid}`)
+          const col = db.collection('app_task')
+          const list = await col.find({
+            name: { $regex: name }
+          }).toArray()
+
+          if (!list.length) {
+            return {
+              content: [ { type: 'text', text: '没有找到相关任务'}]
+            }
+          } else if (list.length === 1) {
+            const result = await context.sendRequest({
+              method: 'elicitation/create',
+              params: {
+                mode: 'form',
+                message: `是否立即执行部署任务${list[0].name}？`,
+                requestedSchema: {
+                  type: 'object',
+                  properties: {},
+                  required: [],
+                }
+              }
+            }, ElicitResultSchema)
+
+            if (result.action === 'accept') {
+              console.log('foo', 'mock accept')
+              return {
+                content: [
+                  { type: 'text', text: '任务开始执行' },
+                ]
+              }
+            } else {
+              return {
+                content: [
+                  { type: 'text', text: '任务已取消执行' }
+                ]
+              }
+            }
+          } else {
+            return {
+              content: [{ type: 'text', text: '查询到多个符合条件的任务' }]
+            }
+          }
+        } catch (err) {
+          return {
+            content: [
+              { type: 'text', text: `遇到了错误：${err}`}
+            ]
+          }
+        }
+
       }
     )
 
