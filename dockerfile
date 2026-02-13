@@ -144,8 +144,13 @@ FROM node:20.17-alpine AS mcp-deploy
 
 WORKDIR /app
 
-COPY ./packages/mcp-server/package*.json ./
+COPY ./.npmrc ./pnpm-* ./package.json ./
+COPY ./packages/mcp-server/package*.json  ./packages/mcp-server/
+
+COPY ./packages/mcp-server ./packages/mcp-server
+
+WORKDIR /app/packages/mcp-server
+
 RUN npm i -g pnpm && pnpm i
-COPY ./packages/mcp-server .
 EXPOSE 3000
 CMD ["npx", "tsx", "src/main.ts"]
