@@ -12,6 +12,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0"
+  },
   "devDependencies": {
     "bumpp": "^9.2.1"
   }
