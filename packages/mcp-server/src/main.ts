@@ -13,7 +13,11 @@ import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/in
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
 import { client } from './db'
 
-const app = createMcpExpressApp({ allowedHosts: ['']});
+const DOMAIN = process.env.DOMAIN
+if (!DOMAIN) {
+  throw new Error('missing allowed host')
+}
+const app = createMcpExpressApp({ allowedHosts: [DOMAIN]});
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 // Create shared task store for demonstration
