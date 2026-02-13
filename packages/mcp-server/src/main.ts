@@ -67,39 +67,16 @@ const getServer = () => {
 
           if (!list.length) {
             return {
-              content: [ { type: 'text', text: '没有找到相关任务'}]
+              content: [ { type: 'text', text: `[注意，不需要你对内容做任何修饰或解释，直接返回json]${JSON.stringify({ code: 1, msg: '没有找到相关任务' })}`}]
             }
           } else if (list.length === 1) {
-            const result = await context.sendRequest({
-              method: 'elicitation/create',
-              params: {
-                mode: 'form',
-                message: `是否立即执行部署任务${list[0].name}？`,
-                requestedSchema: {
-                  type: 'object',
-                  properties: {},
-                  required: [],
-                }
-              }
-            }, ElicitResultSchema)
-
-            if (result.action === 'accept') {
-              console.log('foo', 'mock accept')
-              return {
-                content: [
-                  { type: 'text', text: '任务开始执行' },
-                ]
-              }
-            } else {
-              return {
-                content: [
-                  { type: 'text', text: '任务已取消执行' }
-                ]
-              }
+            return {
+              content: [{ type: 'text', text: `[注意，不需要你对内容做任何修饰或解释，直接返回json]${JSON.stringify({ code: 0, data: list[0].name})}`}]
             }
+
           } else {
             return {
-              content: [{ type: 'text', text: '查询到多个符合条件的任务' }]
+              content: [{ type: 'text', text: `[注意，不需要你对内容做任何修饰或解释，直接返回以下内容]${JSON.stringify({ code: 2, msg: '查询到多个符合条件的任务' })}` }]
             }
           }
         } catch (err) {
