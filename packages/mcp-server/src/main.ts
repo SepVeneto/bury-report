@@ -41,29 +41,33 @@ const getServer = () => {
     );
 
     server.registerTool(
-      'query-task',
+      'create-task',
       {
-        title: '查询部署任务',
-        description: '查询需要部署或发版的任务。',
+        title: '创建部署任务',
+        description: '根据输的任务名称及时间创建定时任务',
         inputSchema: {
-          name: z.string().describe('任务名称（支持模糊查询），可能是简称'),
+          name: z.string().describe('任务名称（支持模糊查询），可能是简称，或者是代指某一平台'),
+          immediate: z.boolean().describe('该任务是否立即执行, 如果没有明确指定执行时间，可以认为是立即执行'),
+          date: z.string().describe('非立即执行的任务会有一个定时时间, 需要将这个时间转换为YYYY-MM-DD HH:mm:ss格式'),
         },
         outputSchema: {
           code: z.number(),
-          data: z.any(),
+          data: z.any().nullable(),
           msg: z.string(),
         }
       },
-      async ({ name }, context) => {
+      async ({ name, immediate, date }, context) => {
         const appid = context.requestInfo?.headers['x-appid']
         const userid = context.requestInfo?.headers['x-wecom-user-id']
+        console.log('appid', appid)
         if (!appid) {
           return {
-            content: [{ type: 'text', text: JSON.stringify({
+            content: [],
+            structuredContent: {
               code: 1,
               data: null,
               msg: '当前插件没有配置appid',
-            })}]
+            },
           }
         }
         try {
@@ -75,68 +79,140 @@ const getServer = () => {
 
           if (!list.length) {
             return {
-              content: [ { type: 'text', text: JSON.stringify({
+              content: [],
+              structuredContent: {
                 code: 1,
                 data: null,
                 msg: '没有找到相关任务',
-              })}]
+              }
             }
           } else if (list.length === 1) {
+            const task = list[0]
+            console.log(task._id, task.name, immediate, date)
             return {
-              content: [{ type: 'text', text: JSON.stringify({
+              content: [],
+              structuredContent: {
                 code: 0,
-                data: list[0].name,
-                msg: '',
-              })}]
+                data: immediate ? {
+                  name: list[0].name,
+                } : { name: list[0].name, date },
+                msg: '执行成功',
+              }
             }
 
           } else {
             return {
-              content: [{
-                type: 'text',
-                text: JSON.stringify({
+              content: [],
+              structuredContent: {
                   code: 2,
                   data: list.map(item => item.name),
                   msg: '查询到多个符合条件的任务',
-                })
-              }]
+                }
             }
           }
         } catch (err) {
           return {
-            content: [
-              { type: 'text', text: JSON.stringify({
+            content: [],
+            structuredContent: {
                 code: 1,
                 data: null,
                 msg: `遇到了错误：${err}`,
-              })}
-            ]
+              }
           }
         }
-
       }
     )
 
-    server.registerPrompt(
+    server.registerTool(
       'query-task',
       {
-        title: '部署任务查询模板',
-        description: '查询部署任务的提示词模板',
-        argsSchema: {
-          name: z.string().describe('任务名称, 可能简写'),
+        title: '查询部署任务状态',
+        description: '根据任务名称查询指定部署任务的状态，比如当前是否待执行，下一次执行是什么时候',
+        inputSchema: {
+          name: z.string().describe('需要查询的部署任务的名称'),
+        },
+      },
+      async ({ name }, context) => {
+        const appid = context.requestInfo?.headers['x-appid']
+        if (!appid) {
+          return {
+            content: [{ type: 'text', text: '当前插件没有配置appid'}],
+          }
+        }
+
+        try {
+          const db = client.db(`app_${appid}`)
+          const col = db.collection('app_task')
+          const list = await col.find({
+            name: { $regex: name }
+          }).toArray()
+          
+          if (!list.length) {
+            return {
+              content: [{ type: 'text', text: '没有找到相的任务'}],
+            }
+          } else if (list.length === 1) {
+            return {
+              content: [{ type: 'text', text: JSON.stringify(list[0])}],
+            }
+          } else {
+            return {
+              content: [{ type: 'text', text: `找到多个相似的任务：${list.map(item => item.name)}`}]
+            }
+          }
+        } catch (err) {
+          return {
+            content: [{ type: 'text', text: `遇到了错误：${err}` }],
+          }
+        }
+      }
+    )
+
+    server.registerTool(
+      'cancel-task',
+      {
+        title: '取消部署任务',
+        description: '根据任务名称取消设定好的指定部署任务的定时任务',
+        inputSchema: {
+          name: z.string().describe('需要取消的部署任务的名称'),
         }
       },
-      async ({ name }): Promise<GetPromptResult> => {
-        return {
-          messages: [
-            {
-              role: 'assistant',
-              content: {
-                type: 'text',
-                text: '不需要任何额外的修改，如果只查到一个对应的部署任务就把json直接返回出去。如果查到多个，返回所有的任务名称。如果没有查询就返回false',
-              }
+      async ({ name }, context) => {
+        const appid = context.requestInfo?.headers['x-appid']
+        const userid = context.requestInfo?.headers['x-wecom-user-id']
+        console.log('appid', appid)
+        if (!appid) {
+          return {
+            content: [{ type: 'text', text: '当前插件没有配置appid' }],
+          }
+        }
+
+        try {
+          const db = client.db(`app_${appid}`)
+          const col = db.collection('app_task')
+          const list = await col.find({
+            name: { $regex: name }
+          }).toArray()
+          
+          if (!list.length) {
+            return {
+              content: [{ type: 'text', text: '没有找到相的任务'}],
             }
-          ]
+          } else if (list.length === 1) {
+            const task = list[0]
+            console.log('cancel task', task)
+            return {
+              content: [{ type: 'text', text: '取消成功'}],
+            }
+          } else {
+            return {
+              content: [{ type: 'text', text: `找到多个相似的任务：${list.map(item => item.name)}`}]
+            }
+          }
+        } catch (err) {
+          return {
+            content: [{ type: 'text', text: `遇到了错误：${err}` }],
+          }
         }
       }
     )
