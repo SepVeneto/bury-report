@@ -29,6 +29,7 @@ export async function init(apps: string[]) {
         device_time VARCHAR,
         content VARCHAR,
         create_time TIMESTAMP,
+        is_delete BOOLEAN DEFAULT FALSE,
         PRIMARY KEY (_id, source_app)
       );
     `)
@@ -58,7 +59,7 @@ export async function run() {
   }
 }
 
-async function getConn(dbName: string) {
+export async function getConn(dbName: string) {
   let conn: DuckDBConnection
   if (connMap.has(dbName)) {
     conn = connMap.get(dbName)!
@@ -97,7 +98,8 @@ async function syncCol(dbName: string, colName: string) {
       $session,
       $device_time,
       $content,
-      $create_time
+      $create_time,
+      $is_delete
     )
   `)
   for (const item of list) {
@@ -108,7 +110,8 @@ async function syncCol(dbName: string, colName: string) {
       session: item.session,
       device_time: item.device_time,
       content: JSON.stringify(item.data),
-      create_time: new Date().toISOString(),
+      create_time: (item.create_time as Date).toISOString(),
+      is_delete: Boolean(item.is_delete),
     })
     await insert.run()
   }
@@ -142,23 +145,18 @@ export async function safeClose() {
 
 export async function archiveData(dbName: string) {
   const conn = await getConn(dbName)
-  const end = dayjs().add(1, 'day').startOf('day')
-  const start = dayjs().startOf('day')
+  const start = dayjs().subtract(1, 'day').startOf('day')
+  const end = dayjs().startOf('day')
   const date = start.format('YYYY_MM_DD')
-  fs.mkdirSync(`data/archive/${date}`, { recursive: true })
-  const list = await conn.run(`
-    SELECT *
-    FROM network_recent
-    WHERE create_time < TIMESTAMP '${end.format('YYYY-MM-DD HH:mm:ss')}'
-  `)
-  console.log((await list.getRowObjects()))
+  fs.mkdirSync(`data/archive/${dbName}`, { recursive: true })
   await conn.run(`
     COPY (
       SELECT *
       FROM network_recent
-      WHERE create_time < TIMESTAMP '${end.format('YYYY-MM-DD HH:mm:ss')}'
+      WHERE create_time >= TIMESTAMP '${start.format('YYYY-MM-DD HH:mm:ss')}'
+        AND create_time < TIMESTAMP '${end.format('YYYY-MM-DD HH:mm:ss')}'
     )
-    TO 'data/archive/${date}/${dbName}.network_recent.parquet'
+    TO 'data/archive/${dbName}/${date}.network_recent.parquet'
   `)
   await conn.run('BEGIN')
   await conn.run(`
