@@ -2,7 +2,6 @@
 import { State } from "@oak/oak";
 import { RouteParams } from "@oak/oak";
 import { Db } from "mongodb";
-import { DuckDBConnection } from "@duckdb/node-api";
 
 declare module '@oak/oak' {
   interface RouterContext<
@@ -15,7 +14,6 @@ declare module '@oak/oak' {
     resBody?: unknown
     resCode?: number
     db: Db
-    duck: DuckDBConnection
   }
 
   interface Request {

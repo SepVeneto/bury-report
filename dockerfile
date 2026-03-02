@@ -140,17 +140,3 @@ COPY --from=proxy-build /app/target/release/bury-report-proxy ./
 
 CMD ["/app/bury-report-proxy"]
 
-FROM node:20.17-alpine AS mcp-deploy
-
-WORKDIR /app
-
-COPY ./.npmrc ./pnpm-* ./package.json ./
-COPY ./packages/mcp-server/package*.json  ./packages/mcp-server/
-
-COPY ./packages/mcp-server ./packages/mcp-server
-
-WORKDIR /app/packages/mcp-server
-
-RUN npm i -g pnpm && pnpm i
-EXPOSE 3000
-CMD ["npx", "tsx", "src/main.ts"]

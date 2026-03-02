@@ -104,7 +104,7 @@ function formatTime(timeStr: string) {
 async function init() {
   const res = await getSessionDetail(props.session)
   const list = await getMpSessionEvents(res.event_urls)
-  events.value = normalizeEvents(list) || []
+  events.value = normalizeEvents(list)
 }
 
 function normalizeEvents(events: MpRecord[]) {
@@ -150,7 +150,6 @@ function normalizeEvents(events: MpRecord[]) {
     } else if (['PageUnload', 'PageHide'].includes(event.data.type)) {
       // 前进，tabbar切换都会触发，视为离开页面，只更新duration
       // 作为路由栈出入是成对的，所以把duration更新到上一个事件中
-      if (normalized.length === 0) return
       normalized[normalized.length - 1].duration = (event.data as MpPageUnload).data.duration
     } else if (event.data.type === 'PageLoad') {
       normalized.push({

@@ -1,6 +1,5 @@
 import { CollectionInfo, Db, MongoClient } from 'mongodb'
 import process from "node:process"
-import * as sync from './utils/sync.ts'
 
 // const client = new MongoClient('mongodb://db:27017')
 export const client = new MongoClient(`mongodb://${process.env.DB_NAME || 'root'}:${process.env.DB_PWD || 'root_123'}@${process.env.REPORT_DB_URL}`)
@@ -9,11 +8,9 @@ export const client = new MongoClient(`mongodb://${process.env.DB_NAME || 'root'
 const db = client.db('reporter')
 init()
 
-async function init() {
-  const apps = await initClient()
-  await initDb()
-  await sync.init(apps)
-  sync.run()
+function init() {
+  initClient()
+  initDb()
 }
 
 export async function initApp(db: Db) {
@@ -60,15 +57,12 @@ export async function initApp(db: Db) {
 }
 async function initClient() {
   const apps = await client.db().admin().listDatabases()
-  const appList: string[] = []
   apps.databases.forEach(db => {
     if (db.name.startsWith('app_')) {
       const app = client.db(db.name)
-      appList.push(db.name)
       initApp(app)
     }
   })
-  return appList
 }
 
 async function initDb() {
@@ -95,26 +89,3 @@ function createCollection(name: string, collections: (CollectionInfo| Pick<Colle
     db.createCollection(name)
   }
 }
-
-process.on('SIGINT', async () => {
-  console.log('Received SIGINT (Ctrl-C), shutting down...')
-
-  try {
-    await sync.safeClose()
-    process.exit(0)
-  } catch (err) {
-    console.error('Error during shutdown:', err);
-    process.exit(381)
-  }
-})
-
-process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, shutting down...');
-  try {
-    await sync.safeClose()
-    process.exit(0)
-  } catch (err) {
-    console.error('Error during shutdown:', err);
-    process.exit(381)
-  }
-});

@@ -20,9 +20,6 @@
 		},
     {
 			"path": "packages/proxy"
-		},
-    {
-			"path": "packages/mcp-server"
 		}
 	],
   "settings": {}
