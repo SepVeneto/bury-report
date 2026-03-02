@@ -247,24 +247,16 @@ export class Model<M extends BaseType> {
 
     const conn = await getConn(appName)
     const query= await conn.prepare(`
-      WITH filtered_ids AS (
-        SELECT _id FROM network_recent
-        ${hasArchive ? `UNION ALL
-          SELECT _id FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
-          : ''
-        }
-        ${where}
-      )
-      SELECT nr.*
-      FROM (
+      WITH combined_data AS (
         SELECT * FROM network_recent
         ${hasArchive ? `UNION ALL
           SELECT * FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
           : ''
         }
-      ) AS nr
-      JOIN filtered_ids f ON nr._id = f._id
-      ORDER BY nr.create_time DESC
+      )
+      SELECT * FROM combined_data
+      ${where}
+      ORDER BY create_time DESC
       LIMIT ${size} OFFSET ${skip}
     `)
     query.bind(params)

@@ -20,6 +20,7 @@ export async function init(apps: string[]) {
     const conn = await instance.connect()
     connMap.set(app, conn)
     await conn.run(`PRAGMA memory_limit='2GB';`);
+    await conn.run('PRAGMA threads=4;');
 
     await conn.run(`
       CREATE TABLE IF NOT EXISTS network_recent(
@@ -73,6 +74,7 @@ export async function getConn(dbName: string) {
     }
     conn = await instance.connect()
     await conn.run(`PRAGMA memory_limit='2GB';`);
+    await conn.run('PRAGMA threads=4;');
     console.warn(`${dbName}数据库未连接`)
     connMap.set(dbName, conn)
   }
