@@ -238,7 +238,6 @@ export class Model<M extends BaseType> {
     const { filter = new Filter() } = options
     const { where, params } = filter.sql()
     const skip = Math.max(0, (page - 1)) * size
-    const keys = Object.keys(params).join(',')
 
     const appName = this.db.namespace
     const dir = `data/archive/${appName}`
@@ -248,16 +247,24 @@ export class Model<M extends BaseType> {
 
     const conn = await getConn(appName)
     const query= await conn.prepare(`
-      WITH combined_data AS (
-        SELECT ${keys} FROM network_recent
+      WITH filtered_ids AS (
+        SELECT * FROM network_recent
         ${hasArchive ? `UNION ALL
-          SELECT ${keys} FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
+          SELECT * FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
           : ''
         }
+        ${where}
       )
-      SELECT * FROM combined_data
-      ${where}
-      ORDER BY create_time DESC
+      SELECT nr.*
+      FROM (
+        SELECT * FROM network_recent
+        ${hasArchive ? `UNION ALL
+          SELECT * FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
+          : ''
+        }
+      ) AS nr
+      JOIN filtered_ids f ON nr._id = f._id
+      ORDER BY nr.create_time DESC
       LIMIT ${size} OFFSET ${skip}
     `)
     query.bind(params)
