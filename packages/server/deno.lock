@@ -14,6 +14,7 @@
     "jsr:@std/internal@^1.0.10": "1.0.12",
     "jsr:@std/media-types@1": "1.1.0",
     "jsr:@std/path@1": "1.1.2",
+    "npm:@duckdb/node-api@^1.4.4-r.1": "1.4.4-r.1",
     "npm:@types/node@*": "24.2.0",
     "npm:cos-nodejs-sdk-v5@^2.15.4": "2.15.4",
     "npm:croner@*": "9.1.0",
@@ -24,6 +25,7 @@
     "npm:jsonwebtoken@^9.0.2": "9.0.2",
     "npm:md5@^2.3.0": "2.3.0",
     "npm:mongodb@^6.3.0": "6.21.0",
+    "npm:p-queue@^9.1.0": "9.1.0",
     "npm:path-to-regexp@^6.3.0": "6.3.0",
     "npm:uuid@13": "13.0.0"
   },
@@ -92,6 +94,47 @@
     }
   },
   "npm": {
+    "@duckdb/node-api@1.4.4-r.1": {
+      "integrity": "sha512-oqaH9DXTJNwyLkd2FgJwmSnWVqjB5irbESeTeNVMBnM03iRaNY545BhfBDumu1TnOV2koIdG1mNsmjgq/ZTIkA==",
+      "dependencies": [
+        "@duckdb/node-bindings"
+      ]
+    },
+    "@duckdb/node-bindings-darwin-arm64@1.4.4-r.1": {
+      "integrity": "sha512-/NtbkCgCAOJDxw41XvSGV/mxQAlsx+2xUvhIVUj6fxoOfTG4jTttRhuphwE3EXNoWzJOjZxCZ5LwhC/qb6ZwLg==",
+      "os": ["darwin"],
+      "cpu": ["arm64"]
+    },
+    "@duckdb/node-bindings-darwin-x64@1.4.4-r.1": {
+      "integrity": "sha512-lzFRDrZwc1EoV513vmKufasiAQ2WlhEb0O6guRBarbvOKKVhRb8tQ5H7LPVTrIewjTI3XDgHrnK+vfh9L+xQcA==",
+      "os": ["darwin"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings-linux-arm64@1.4.4-r.1": {
+      "integrity": "sha512-wq92/EcTiOTRW1RSDOwjeLyMMXWwNVNwU21TQdfu3sgS86+Ih3raaK68leDgY5cWgf72We3J2W7HYz8GwxcMYw==",
+      "os": ["linux"],
+      "cpu": ["arm64"]
+    },
+    "@duckdb/node-bindings-linux-x64@1.4.4-r.1": {
+      "integrity": "sha512-fjYNc+t4/T7mhzZ57oJoIQaWvbYVvxhidcNNansQFiWnd6/JMLCULd4qnt8XI3Tt2BrZsraH690KSBIS3QPt0w==",
+      "os": ["linux"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings-win32-x64@1.4.4-r.1": {
+      "integrity": "sha512-+J+MUYGvYWfX0balWToDIy3CBYg7hHI0KQUQ39+SniinXlMF8+puRW6ebyQ+AXrcrKkwuj4wzJuEBD0AdhHGtw==",
+      "os": ["win32"],
+      "cpu": ["x64"]
+    },
+    "@duckdb/node-bindings@1.4.4-r.1": {
+      "integrity": "sha512-NFm0AMrK3kiVLQhgnGUEjX5c8Elm93dYePZ9BUCvvd0AVVTKEBeRhBp9afziuzP3Sl5+7XQ1TyaBLsZJKKBDBQ==",
+      "optionalDependencies": [
+        "@duckdb/node-bindings-darwin-arm64",
+        "@duckdb/node-bindings-darwin-x64",
+        "@duckdb/node-bindings-linux-arm64",
+        "@duckdb/node-bindings-linux-x64",
+        "@duckdb/node-bindings-win32-x64"
+      ]
+    },
     "@ioredis/commands@1.4.0": {
       "integrity": "sha512-aFT2yemJJo+TZCmieA7qnYGQooOS7QfNmYrzGtsYd3g9j5iDP8AimYYAesf79ohjbLG12XxC4nG5DyEnC88AsQ=="
     },
@@ -288,6 +331,9 @@
     },
     "env-paths@2.2.1": {
       "integrity": "sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A=="
+    },
+    "eventemitter3@5.0.4": {
+      "integrity": "sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw=="
     },
     "extend@3.0.2": {
       "integrity": "sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g=="
@@ -541,6 +587,16 @@
         "p-limit"
       ]
     },
+    "p-queue@9.1.0": {
+      "integrity": "sha512-O/ZPaXuQV29uSLbxWBGGZO1mCQXV2BLIwUr59JUU9SoH76mnYvtms7aafH/isNSNGwuEfP6W/4xD0/TJXxrizw==",
+      "dependencies": [
+        "eventemitter3",
+        "p-timeout"
+      ]
+    },
+    "p-timeout@7.0.1": {
+      "integrity": "sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg=="
+    },
     "p-try@2.2.0": {
       "integrity": "sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ=="
     },
@@ -736,6 +792,7 @@
     ],
     "packageJson": {
       "dependencies": [
+        "npm:@duckdb/node-api@^1.4.4-r.1",
         "npm:cos-nodejs-sdk-v5@^2.15.4",
         "npm:cross-env@^7.0.3",
         "npm:dayjs@^1.11.19",
@@ -744,6 +801,7 @@
         "npm:jsonwebtoken@^9.0.2",
         "npm:md5@^2.3.0",
         "npm:mongodb@^6.3.0",
+        "npm:p-queue@^9.1.0",
         "npm:uuid@13"
       ]
     }

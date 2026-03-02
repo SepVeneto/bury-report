@@ -56,31 +56,32 @@ router.get('/record/networks', async (ctx) => {
   const record = new RecordApi(ctx.db)
 
   const { page, size, ...query } = ctx.request.query
-  const { uuid, start_time, end_time, payload, response,send_page ,status, url, session } = query
+  const { uuid, start_time, end_time, content,send_page ,status, url, session } = query
   const filter = new Filter()
   filter.equal('uuid', uuid)
-  filter.like('data.body', payload)
-  filter.like('data.url', url)
-  filter.like('data.response', response)
-  filter.like('data.page', send_page)
-  filter.equal('data.status', Number(status))
+  filter.like('url', url)
+  filter.like('page', send_page)
+  filter.equal('status', Number(status))
   filter.rangeTime('create_time', start_time, end_time)
   filter.equal('session', session)
+  filter.like('content', content)
 
-  const res = await record.pagination(
+  const res = await record.paginationFromDuckdb(
     Number(page),
     Number(size),
     { filter, count: false },
   )
   res.list.forEach(item => {
-    // @ts-expect-error: ignore
-    delete item.data.response
-    // @ts-expect-error: ignore
-    delete item.data.body
-    // @ts-expect-error: ignore
-    delete item.data.responseHeaders
-    // @ts-expect-error: ignore
-    delete item.data.profile
+    const data = JSON.parse(item.content)
+    item.data = {
+      url: data.url,
+      method: data.method,
+      page: data.page,
+      status: data.status,
+      type: data.type,
+      duration: data.duration,
+    }
+    delete item.content
   })
   ctx.resBody = res
 })
@@ -88,7 +89,7 @@ router.get('/record/networks', async (ctx) => {
 router.get('/record/networks/:id', async (ctx) => {
   const record = new RecordApi(ctx.db)
   const id = ctx.params.id
-  const res = await record.findById(id)
+  const res = await record.findByIdFromDuckdb(id)
   ctx.resBody = res
 })
 
