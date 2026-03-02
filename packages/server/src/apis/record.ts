@@ -66,11 +66,13 @@ router.get('/record/networks', async (ctx) => {
   filter.equal('session', session)
   filter.like('content', content)
 
+  console.time('query from duckdb')
   const res = await record.paginationFromDuckdb(
     Number(page),
     Number(size),
     { filter, count: false },
   )
+  console.timeEnd('query from duckdb')
   res.list.forEach(item => {
     const data = JSON.parse(item.content)
     item.data = {
