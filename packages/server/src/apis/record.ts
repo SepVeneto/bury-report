@@ -16,9 +16,7 @@ router.get('/record/logs', async (ctx) => {
   filter.like('type', type)
   filter.like('data', data)
   filter.rangeTime('create_time', start_time, end_time)
-  filter.model.type = {
-    "$nin": ["__BR_COLLECT_INFO__", "__BR_TRACK_EVENT__"]
-  }
+  filter.custom('type', { $nin: ["__BR_COLLECT_INFO__", "__BR_TRACK_EVENT__"] })
 
   // if (data) {
   //   filter.model.$and?.push({
