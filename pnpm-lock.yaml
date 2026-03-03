@@ -207,6 +207,9 @@ importers:
 
   packages/mcp-server:
     dependencies:
+      dayjs:
+        specifier: ^1.11.19
+        version: 1.11.19
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -229,6 +232,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@duckdb/node-api':
+        specifier: ^1.4.4-r.1
+        version: 1.4.4-r.2
       cos-nodejs-sdk-v5:
         specifier: ^2.15.4
         version: 2.15.4
@@ -250,6 +256,9 @@ importers:
       mongodb:
         specifier: ^6.3.0
         version: 6.3.0
+      p-queue:
+        specifier: ^9.1.0
+        version: 9.1.0
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
@@ -1465,6 +1474,27 @@ packages:
     hasBin: true
     peerDependencies:
       vite: ^4.0.0
+
+  '@duckdb/node-api@1.4.4-r.2':
+    resolution: {integrity: sha512-nfOXZPp+2cIVXUCuq9TfbZrLrSUnxuh42zZx5IpBkdlMjoeqpqEdughnGcDULoAhn1H1j5+h30orjmV9rJ9xEw==}
+
+  '@duckdb/node-bindings-linux-arm64@1.4.4-r.2':
+    resolution: {integrity: sha512-htSCwC66pkCLQdWUZHaNm4YrXQ0IWQInD2IjAi6Mgc6Bp9VVaeqzZddK+//kh2zvbgyyl3qWSIp8vCq5MxiUgg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@duckdb/node-bindings-linux-x64@1.4.4-r.2':
+    resolution: {integrity: sha512-ZbmL+QOhTnuUIQztgFNOWo2KNP6ukDnhYUWxQl8zZ3nHeaLcsydWTfHLxvDDxLAQqA46M3iZSVyc9tL/zDkjtw==}
+    cpu: [x64]
+    os: [linux]
+
+  '@duckdb/node-bindings-win32-x64@1.4.4-r.2':
+    resolution: {integrity: sha512-K8l934jxpTkc/JmNIu4jrTJMLzc60Ziqo6OCcrtYU7hhXkrQod5FCFWMe4JFIKrBhwNsd/VHQQ4RQ6gOT9gY2w==}
+    cpu: [x64]
+    os: [win32]
+
+  '@duckdb/node-bindings@1.4.4-r.2':
+    resolution: {integrity: sha512-6c2hU7hPYEpI1Ynf4VVVQbdeqXngr5TqCm6raJQ/Ne+4L0uqVVQKhZonzgkzOLML4f99qs23FX3cN9IaB9A7xw==}
 
   '@element-plus/icons-vue@2.3.1':
     resolution: {integrity: sha512-XxVUZv48RZAd87ucGS48jPf6pKu0yV5UCg9f4FFwtrYxXOwWuVJo6wOvSLKEoMQKjv8GsX/mhP6UsC1lRwbUWg==}
@@ -5740,6 +5770,9 @@ packages:
   eventemitter3@4.0.7:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
 
+  eventemitter3@5.0.4:
+    resolution: {integrity: sha512-mlsTRyGaPBjPedk6Bvw+aqbsXDtoAyAzm5MO7JgU+yVRyMQ5O8bD4Kcci7BS85f93veegeCPkL8R4GLClnjLFw==}
+
   events@3.3.0:
     resolution: {integrity: sha512-mQw+2fkQbALzQ7V0MY0IqdnXNOeTtP4r0lN9z7AAawCXgqea7bDii20AYrIBrFd/Hx0M2Ocz6S111CaFkUcb0Q==}
     engines: {node: '>=0.8.x'}
@@ -7498,6 +7531,14 @@ packages:
   p-locate@5.0.0:
     resolution: {integrity: sha512-LaNjtRWUBY++zB5nE/NwcaoMylSPk+S+ZHNB1TzdbMJMny6dynpAGt7X/tl/QYq3TIeE6nxHppbo2LGymrG5Pw==}
     engines: {node: '>=10'}
+
+  p-queue@9.1.0:
+    resolution: {integrity: sha512-O/ZPaXuQV29uSLbxWBGGZO1mCQXV2BLIwUr59JUU9SoH76mnYvtms7aafH/isNSNGwuEfP6W/4xD0/TJXxrizw==}
+    engines: {node: '>=20'}
+
+  p-timeout@7.0.1:
+    resolution: {integrity: sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg==}
+    engines: {node: '>=20'}
 
   p-try@2.2.0:
     resolution: {integrity: sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==}
@@ -11951,6 +11992,25 @@ snapshots:
       - supports-color
       - ts-node
       - vue
+
+  '@duckdb/node-api@1.4.4-r.2':
+    dependencies:
+      '@duckdb/node-bindings': 1.4.4-r.2
+
+  '@duckdb/node-bindings-linux-arm64@1.4.4-r.2':
+    optional: true
+
+  '@duckdb/node-bindings-linux-x64@1.4.4-r.2':
+    optional: true
+
+  '@duckdb/node-bindings-win32-x64@1.4.4-r.2':
+    optional: true
+
+  '@duckdb/node-bindings@1.4.4-r.2':
+    optionalDependencies:
+      '@duckdb/node-bindings-linux-arm64': 1.4.4-r.2
+      '@duckdb/node-bindings-linux-x64': 1.4.4-r.2
+      '@duckdb/node-bindings-win32-x64': 1.4.4-r.2
 
   '@element-plus/icons-vue@2.3.1(vue@3.5.17(typescript@5.8.3))':
     dependencies:
@@ -16944,6 +17004,8 @@ snapshots:
 
   eventemitter3@4.0.7: {}
 
+  eventemitter3@5.0.4: {}
+
   events@3.3.0: {}
 
   eventsource-parser@3.0.6: {}
@@ -19069,6 +19131,13 @@ snapshots:
   p-locate@5.0.0:
     dependencies:
       p-limit: 3.1.0
+
+  p-queue@9.1.0:
+    dependencies:
+      eventemitter3: 5.0.4
+      p-timeout: 7.0.1
+
+  p-timeout@7.0.1: {}
 
   p-try@2.2.0: {}
 
