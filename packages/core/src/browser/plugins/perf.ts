@@ -59,6 +59,7 @@ export class PerfPlugin implements BuryReportPlugin {
       this.ctx!.report?.(PERF_INFO, {
         fcp: formatTime(fcpEntry.startTime),
         if: isInIframe(),
+        stamp: this.ctx?.options.stamp || ''
       })
       if (this.observer) {
         this.observer.disconnect()
