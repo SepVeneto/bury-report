@@ -35,7 +35,8 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
   const platform = process.env.UNI_PLATFORM
   const isH5 = !platform || platform.toUpperCase() === 'H5'
   const config = withDefault(options)
-  const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify(config))
+  const { entry: _entry, ...client } = config
+  const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify(client))
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',
