@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { Db } from "mongodb";
 import { createDebug } from "../utils/tools.ts";
 import { Filter } from "../model/index.ts";
+import dayjs from "dayjs";
 
 const log = createDebug('task')
 
@@ -180,13 +181,23 @@ async function issue(
     if (notify) {
       await triggerNotify(notify.webhook, { name: taskRes.name }, TaskStatus.Success)
     }
-    task.updateOne({ id: taskId, job_id: undefined, status: TaskStatus.Success })
+    task.updateOne({
+      id: taskId,
+      job_id: undefined,
+      status: TaskStatus.Success,
+      execute_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    })
   } catch (e) {
     console.error(e)
     if (notify) {
       await triggerNotify(notify.webhook, { name }, TaskStatus.Fail).catch(() => { })
     }
-    task.updateOne({ id: taskId, job_id: undefined, status: TaskStatus.Fail })
+    task.updateOne({
+      id: taskId,
+      job_id: undefined,
+      status: TaskStatus.Fail,
+      execute_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    })
   }
 }
 

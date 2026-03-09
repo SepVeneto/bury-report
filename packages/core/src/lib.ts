@@ -31,11 +31,28 @@ export function isEntry(id: string, entryFile: string) {
   }
 }
 
+function getStamp() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth() + 1
+  const day = now.getDate()
+  const hour = now.getHours()
+  const minute = now.getMinutes()
+  const sec = now.getSeconds()
+
+  const addZero = (val: number) => val > 9 ? val : `0${val}`
+
+  return `${year}${addZero(month)}${addZero(day)}${addZero(hour)}${addZero(minute)}${addZero(sec)}`
+}
+
 export const unpluginFactory: UnpluginFactory<Options> = options => {
   const platform = process.env.UNI_PLATFORM
   const isH5 = !platform || platform.toUpperCase() === 'H5'
   const config = withDefault(options)
-  const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify(config))
+  const { entry: _entry, ...client } = config
+  const stamp = getStamp()
+  // @ts-expect-error: allow
+  const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify({ stamp, ...client }))
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',

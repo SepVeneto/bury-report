@@ -19,6 +19,10 @@ export interface Options {
    */
   url: string
   /**
+   * 构建时的时间戳
+   */
+  stamp?: string
+  /**
    * 是否自动上报应用的环境信息
    * @default true
    */

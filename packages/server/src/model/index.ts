@@ -47,7 +47,7 @@ export class Filter<M extends BaseType> {
 
     Object.assign(this.model, { [key]: { $regex: escapeRegExp(value) }})
   }
-  custom(key: string, value: (string | number)[]) {
+  custom(key: string, value: Record<string, any>) {
     if (!value || value.length === 0) return
 
     // deno-lint-ignore no-explicit-any
@@ -55,7 +55,7 @@ export class Filter<M extends BaseType> {
     if (!model[key]) {
       model[key] = value
     }
-    Object.assign(this.model[key], { $nin: value })
+    Object.assign(this.model[key], value)
   }
   build() {
     return this.model as Filter<M>

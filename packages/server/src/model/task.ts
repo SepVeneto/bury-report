@@ -28,6 +28,7 @@ export interface ITask extends BaseType {
   job_id?: string,
   status: TaskStatus,
   notify_id?: string,
+  operator?: 'web' | number,
 }
 
 export class Task extends Model<ITask> {
