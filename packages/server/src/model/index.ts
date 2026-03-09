@@ -9,6 +9,9 @@ import {
 } from "mongodb"
 import dayjs from 'dayjs'
 import { escapeRegExp } from "../utils/tools.ts";
+import { getConn } from "../utils/sync.ts";
+import { DuckDBValue } from "@duckdb/node-api";
+import fs from 'node:fs'
 
 export type BaseType = {
   is_delete: boolean
@@ -57,6 +60,69 @@ export class Filter<M extends BaseType> {
   build() {
     return this.model as Filter<M>
   }
+  sql() {
+    const clauses: string[] = []
+    const params: Record<string, DuckDBValue> = {}
+
+    const model = this.model as Record<string, any>
+
+    for (const [key, value] of Object.entries(model)) {
+      if (value === undefined) continue
+
+      // 等值查询（非操作符对象）
+      if (
+        typeof value !== 'object' ||
+        value instanceof Date
+      ) {
+        clauses.push(`${key} = $${key}`)
+        params[`${key}`] = value
+        continue
+      }
+
+      const operators = value as Record<string, any>
+
+      for (const [op, v] of Object.entries(operators)) {
+        switch (op) {
+          case '$ne':
+            clauses.push(`${key} <> $${key}`)
+            params[`${key}`] = v
+            break
+
+          case '$gte':
+            clauses.push(`${key} >= $${key}`)
+            params[`${key}`] = v
+            break
+
+          case '$lte':
+            clauses.push(`${key} <= $${key}`)
+            params[`${key}`] = v
+            break
+
+          case '$regex':
+            // 如果你想额外支持模糊匹配
+            clauses.push(`${key} ILIKE $${key}`)
+            params[`${key}`] = `%${v}%`
+            break
+
+          // case '$nin':
+          //   if (Array.isArray(v) && v.length > 0) {
+          //     const placeholders = v.map(() => '?').join(', ')
+          //     clauses.push(`${key} NOT IN (${placeholders})`)
+          //     params.push(...v)
+          //   }
+          //   break
+
+          default:
+            throw new Error(`Unsupported operator: ${op}`)
+        }
+      }
+    }
+
+    const where =
+      clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : ''
+
+    return { where, params }
+  }
 }
 
 export class Model<M extends BaseType> {
@@ -77,6 +143,35 @@ export class Model<M extends BaseType> {
     const _id = ObjectId.createFromHexString(id)
     const _filter = new Filter({ _id }).build()
     return await this.col.findOne(_filter)
+  }
+
+  async findByIdFromDuckdb(id: string) {
+    const appName = this.db.namespace
+    const dir = `data/archive/${appName}`
+    const conn = await getConn(appName)
+
+    const hasArchive =
+      fs.existsSync(dir) &&
+      fs.readdirSync(dir).some(f => f.endsWith('.parquet'))
+
+    const res = await conn.run(`
+      WITH combined_data AS (
+        SELECT * 
+        FROM network_recent
+        ${hasArchive ? `UNION ALL
+          SELECT *
+          FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
+          : ''
+        }
+      )
+      SELECT content AS data
+      FROM combined_data WHERE _id='${id}'
+    `)
+
+    const _res = (await res.getRowObjects())?.[0]
+    return {
+      data: JSON.parse(_res.data as string),
+    }
   }
   async getAll(filter: Filter<M> = new Filter()) {
     return (await this.col.find(filter.build()).toArray()).map(processData)
@@ -132,6 +227,49 @@ export class Model<M extends BaseType> {
     }
   }
 
+  async paginationFromDuckdb(
+    page: number,
+    size: number,
+    options: { filter?: Filter<M>, sort?: Record<string, SortDirection>, count?: boolean } = {},
+  ) {
+    if (typeof size === 'string') {
+      size = Number(size)
+    }
+    const { filter = new Filter() } = options
+    const { where, params } = filter.sql()
+    const skip = Math.max(0, (page - 1)) * size
+
+    const appName = this.db.namespace
+    const dir = `data/archive/${appName}`
+    const hasArchive =
+      fs.existsSync(dir) &&
+      fs.readdirSync(dir).some(f => f.endsWith('.parquet'))
+
+    const conn = await getConn(appName)
+    const query= await conn.prepare(`
+      WITH combined_data AS (
+        SELECT * FROM network_recent
+        ${hasArchive ? `UNION ALL
+          SELECT * FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
+          : ''
+        }
+      )
+      SELECT * FROM combined_data
+      ${where}
+      ORDER BY create_time DESC
+      LIMIT ${size} OFFSET ${skip}
+    `)
+    query.bind(params)
+    const list = await query.run()
+
+
+    const res = await list.getRowObjects()
+
+      return {
+        list: res.map(item => processData(item as any))
+      }
+  }
+
   async paginationWithCursor(lastId: string | null, size: number, direction: 'next' | 'prev' = 'next') {
     let list
     if (lastId) {
@@ -171,7 +309,7 @@ export class Model<M extends BaseType> {
 }
 
 function processData<T extends {
-  _id: ObjectId
+  _id: ObjectId | string
   create_time?: string 
   update_time?: string
   is_delete?: boolean
@@ -180,8 +318,10 @@ function processData<T extends {
   const { _id, is_delete, create_time, update_time, ...rest } = data
   const res: Record<string, unknown> = rest
 
-  if (_id) {
+  if (_id && typeof _id === 'object') {
     res.id = _id.toHexString()
+  } else {
+    res.id = _id
   }
   if (create_time) {
     res.create_time = dayjs(create_time).format('YYYY-MM-DD HH:mm:ss')

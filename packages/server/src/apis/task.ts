@@ -5,6 +5,7 @@ import { Cron } from "croner";
 import { v4 as uuidv4 } from 'uuid'
 import { Db } from "mongodb";
 import { createDebug } from "../utils/tools.ts";
+import { Filter } from "../model/index.ts";
 import dayjs from "dayjs";
 
 const log = createDebug('task')
@@ -81,7 +82,10 @@ router.post('/task', async (ctx) => {
   const oid = res.insertedId.toHexString()
   if (immediate) {
     await issue(ctx.db, oid)
-  } else if (execute_time) {
+  } else {
+    if (!execute_time) {
+      return
+    }
     // TODO: 时间校准
     const jobId = uuidv4()
     const cron = new Cron(execute_time, () => {
@@ -140,9 +144,11 @@ router.post('/task/:taskId/trigger', async (ctx) => {
 router.get('/task/list', async (ctx) => {
   const task = new Task(ctx.db)
 
-  const { page, size } = ctx.request.query
+  const { page, size, name } = ctx.request.query
+  const filter = new Filter()
+  filter.like('name', name)
 
-  const res = await task.pagination(page, size)
+  const res = await task.pagination(page, size, { filter })
   ctx.resBody = res
 })
 

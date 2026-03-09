@@ -10,6 +10,7 @@ import { Db } from "mongodb";
 import { RecordApi, RecordLog, RecordError } from "./model/record.ts";
 import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Device } from "./model/device.ts";
+import { archiveData } from "./utils/sync.ts";
 
 process.env.TZ = 'Asia/Shanghai'
 
@@ -32,14 +33,18 @@ function initSched() {
     const res = await app.getAll()
 
     const appids = res.map(item => item.id)
-
-    appids.forEach(appid => {
-      const appDb = client.db(`app_${appid}`)
-      clearInfo(appDb, 1)
-      clearApi(appDb, _config.cycle_api)
-      clearError(appDb, _config.cycle_error)
-      clearLog(appDb, _config.cycle_log)
-    })
+    
+    await Promise.all(appids.map(async (appid) => {
+      const name = `app_${appid}`
+      const appDb = client.db(name)
+      await Promise.all([
+        clearInfo(appDb, 1),
+        clearApi(appDb, _config.cycle_api),
+        clearError(appDb, _config.cycle_error),
+        clearLog(appDb, _config.cycle_log),
+        archiveData(name),
+      ])
+    }))
   })
   task.name = 'CYCLE_GC'
   TaskManager.add('CYCLE_GC', task)
