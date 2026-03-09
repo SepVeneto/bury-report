@@ -5,6 +5,7 @@ import { Cron } from "croner";
 import { v4 as uuidv4 } from 'uuid'
 import { Db } from "mongodb";
 import { createDebug } from "../utils/tools.ts";
+import dayjs from "dayjs";
 
 const log = createDebug('task')
 
@@ -80,7 +81,7 @@ router.post('/task', async (ctx) => {
   const oid = res.insertedId.toHexString()
   if (immediate) {
     await issue(ctx.db, oid)
-  } else {
+  } else if (execute_time) {
     // TODO: 时间校准
     const jobId = uuidv4()
     const cron = new Cron(execute_time, () => {
@@ -174,13 +175,23 @@ async function issue(
     if (notify) {
       await triggerNotify(notify.webhook, { name: taskRes.name }, TaskStatus.Success)
     }
-    task.updateOne({ id: taskId, job_id: undefined, status: TaskStatus.Success })
+    task.updateOne({
+      id: taskId,
+      job_id: undefined,
+      status: TaskStatus.Success,
+      execute_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    })
   } catch (e) {
     console.error(e)
     if (notify) {
       await triggerNotify(notify.webhook, { name }, TaskStatus.Fail).catch(() => { })
     }
-    task.updateOne({ id: taskId, job_id: undefined, status: TaskStatus.Fail })
+    task.updateOne({
+      id: taskId,
+      job_id: undefined,
+      status: TaskStatus.Fail,
+      execute_time: dayjs().format('YYYY-MM-DD HH:mm:ss'),
+    })
   }
 }
 
