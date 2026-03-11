@@ -66,6 +66,7 @@ router.get('/record/networks', async (ctx) => {
     session,
     start_stamp,
     end_stamp,
+    full,
   } = query
   const filter = new Filter()
   filter.equal('uuid', uuid)
@@ -83,16 +84,18 @@ router.get('/record/networks', async (ctx) => {
     Number(size),
     { filter, count: false },
   )
-  res.list.forEach(item => {
-    // @ts-expect-error: ignore
-    delete item.data.response
-    // @ts-expect-error: ignore
-    delete item.data.body
-    // @ts-expect-error: ignore
-    delete item.data.responseHeaders
-    // @ts-expect-error: ignore
-    delete item.data.profile
-  })
+  if (!full) {
+    res.list.forEach(item => {
+      // @ts-expect-error: ignore
+      delete item.data.response
+      // @ts-expect-error: ignore
+      delete item.data.body
+      // @ts-expect-error: ignore
+      delete item.data.responseHeaders
+      // @ts-expect-error: ignore
+      delete item.data.profile
+    })
+  }
   ctx.resBody = res
 })
 
