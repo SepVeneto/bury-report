@@ -28,23 +28,25 @@ export class Filter<M extends BaseType> {
   }
 
   rangeNumber(key: string, from?: number, to?: number) {
-    if (from && to) {
+    const _from = Number(from)
+    const _to = Number(to)
+    if (!isNaN(_from) && !isNaN(_to)) {
       Object.assign(this.model, {
         [key]: {
-          $gte: from,
-          $lte: to
+          $gte: _from,
+          $lte: _to,
         }
       })
-    } else if (from) {
+    } else if (isNaN(_to)) {
       Object.assign(this.model, {
         [key]: {
-          $gte: from
+          $gte: _from,
         }
       })
-    } else if (to) {
+    } else if (isNaN(_from)) {
       Object.assign(this.model, {
         [key]: {
-          $lte: to
+          $lte: _to
         }
       })
     }
