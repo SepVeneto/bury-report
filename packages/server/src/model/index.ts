@@ -9,7 +9,6 @@ import {
 } from "mongodb"
 import dayjs from 'dayjs'
 import { escapeRegExp } from "../utils/tools.ts";
-import { getConn } from "../utils/sync.ts";
 import { DuckDBValue } from "@duckdb/node-api";
 import fs from 'node:fs'
 
@@ -145,34 +144,6 @@ export class Model<M extends BaseType> {
     return await this.col.findOne(_filter)
   }
 
-  async findByIdFromDuckdb(id: string) {
-    const appName = this.db.namespace
-    const dir = `data/archive/${appName}`
-    const conn = await getConn(appName)
-
-    const hasArchive =
-      fs.existsSync(dir) &&
-      fs.readdirSync(dir).some(f => f.endsWith('.parquet'))
-
-    const res = await conn.run(`
-      WITH combined_data AS (
-        SELECT * 
-        FROM network_recent
-        ${hasArchive ? `UNION ALL
-          SELECT *
-          FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
-          : ''
-        }
-      )
-      SELECT content AS data
-      FROM combined_data WHERE _id='${id}'
-    `)
-
-    const _res = (await res.getRowObjects())?.[0]
-    return {
-      data: JSON.parse(_res.data as string),
-    }
-  }
   async getAll(filter: Filter<M> = new Filter()) {
     return (await this.col.find(filter.build()).toArray()).map(processData)
   }
@@ -225,49 +196,6 @@ export class Model<M extends BaseType> {
         list
       }
     }
-  }
-
-  async paginationFromDuckdb(
-    page: number,
-    size: number,
-    options: { filter?: Filter<M>, sort?: Record<string, SortDirection>, count?: boolean } = {},
-  ) {
-    if (typeof size === 'string') {
-      size = Number(size)
-    }
-    const { filter = new Filter() } = options
-    const { where, params } = filter.sql()
-    const skip = Math.max(0, (page - 1)) * size
-
-    const appName = this.db.namespace
-    const dir = `data/archive/${appName}`
-    const hasArchive =
-      fs.existsSync(dir) &&
-      fs.readdirSync(dir).some(f => f.endsWith('.parquet'))
-
-    const conn = await getConn(appName)
-    const query= await conn.prepare(`
-      WITH combined_data AS (
-        SELECT * FROM network_recent
-        ${hasArchive ? `UNION ALL
-          SELECT * FROM read_parquet('data/archive/${appName}/*.parquet', union_by_name=true)`
-          : ''
-        }
-      )
-      SELECT * FROM combined_data
-      ${where}
-      ORDER BY create_time DESC
-      LIMIT ${size} OFFSET ${skip}
-    `)
-    query.bind(params)
-    const list = await query.run()
-
-
-    const res = await list.getRowObjects()
-
-      return {
-        list: res.map(item => processData(item as any))
-      }
   }
 
   async paginationWithCursor(lastId: string | null, size: number, direction: 'next' | 'prev' = 'next') {
