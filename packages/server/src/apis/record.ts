@@ -75,7 +75,7 @@ router.get('/record/networks', async (ctx) => {
   filter.like('data.page', send_page)
   filter.equal('data.status', Number(status))
   filter.rangeTime('create_time', start_time, end_time)
-  filter.rangeNumber('data.stamp', start_stamp, end_stamp)
+  filter.rangeNumber('stamp', start_stamp, end_stamp)
   filter.equal('session', session)
 
   const res = await record.pagination(
