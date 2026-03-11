@@ -26,6 +26,29 @@ export class Filter<M extends BaseType> {
       }
     }
   }
+
+  rangeNumber(key: string, from?: number, to?: number) {
+    if (from && to) {
+      Object.assign(this.model, {
+        [key]: {
+          $gte: from,
+          $lte: to
+        }
+      })
+    } else if (from) {
+      Object.assign(this.model, {
+        [key]: {
+          $gte: from
+        }
+      })
+    } else if (to) {
+      Object.assign(this.model, {
+        [key]: {
+          $lte: to
+        }
+      })
+    }
+  }
   rangeTime(key: string, from?: string, to?: string) {
     if (!from && !to) return
 

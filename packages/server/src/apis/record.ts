@@ -54,7 +54,19 @@ router.get('/record/networks', async (ctx) => {
   const record = new RecordApi(ctx.db)
 
   const { page, size, ...query } = ctx.request.query
-  const { uuid, start_time, end_time, payload, response,send_page ,status, url, session } = query
+  const {
+    uuid,
+    start_time,
+    end_time,
+    payload,
+    response,
+    send_page,
+    status,
+    url,
+    session,
+    start_stamp,
+    end_stamp,
+  } = query
   const filter = new Filter()
   filter.equal('uuid', uuid)
   filter.like('data.body', payload)
@@ -63,6 +75,7 @@ router.get('/record/networks', async (ctx) => {
   filter.like('data.page', send_page)
   filter.equal('data.status', Number(status))
   filter.rangeTime('create_time', start_time, end_time)
+  filter.rangeNumber('data.stamp', start_stamp, end_stamp)
   filter.equal('session', session)
 
   const res = await record.pagination(
