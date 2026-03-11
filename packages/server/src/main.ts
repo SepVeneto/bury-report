@@ -10,7 +10,6 @@ import { Db } from "mongodb";
 import { RecordApi, RecordLog, RecordError } from "./model/record.ts";
 import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Device } from "./model/device.ts";
-import { archiveData } from "./utils/sync.ts";
 
 process.env.TZ = 'Asia/Shanghai'
 
@@ -42,7 +41,6 @@ function initSched() {
         clearApi(appDb, _config.cycle_api),
         clearError(appDb, _config.cycle_error),
         clearLog(appDb, _config.cycle_log),
-        archiveData(name),
       ])
     }))
   })
