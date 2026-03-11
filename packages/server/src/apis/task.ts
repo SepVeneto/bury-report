@@ -130,8 +130,15 @@ router.post('/task/:taskId/stop', async (ctx) => {
   if (!res?.job_id) {
     throw new Error('任务未运行')
   }
+
+  const data = await ctx.request.body.json()
   TaskManager.remove(res.job_id)
-  task.updateOne({ id: taskId, job_id: undefined, status: TaskStatus.Abort })
+  task.updateOne({
+    id: taskId,
+    job_id: undefined,
+    status: TaskStatus.Abort,
+    operator: data.operator,
+  })
   ctx.resMsg = '任务已停止'
 })
 

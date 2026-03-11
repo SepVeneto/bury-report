@@ -26,7 +26,9 @@ router.use(async (ctx, next) => {
 })
 
 router.use(async (ctx, next) => {
-  if (whiteList.includes(ctx.request.url.pathname)) {
+  const internal = ctx.request.headers.get('x-internal-token')
+  const isInternal = internal === Deno.env.get('INTERNAL_TOKEN')
+  if (whiteList.includes(ctx.request.url.pathname) || isInternal) {
     await next()
     return
   }

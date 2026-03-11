@@ -1,3 +1,4 @@
+import dotenv from 'dotenv'
 import { Request, Response } from 'express';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
@@ -14,6 +15,8 @@ import { InMemoryEventStore } from '@modelcontextprotocol/sdk/examples/shared/in
 import { createMcpExpressApp } from '@modelcontextprotocol/sdk/server/express.js';
 import { client } from './db'
 import dayjs from 'dayjs'
+
+dotenv.config()
 
 const DOMAIN = process.env.DOMAIN
 if (!DOMAIN) {
@@ -42,6 +45,34 @@ const getServer = () => {
     );
 
     server.registerTool(
+      'query-datetime',
+      {
+        title: '查询时间',
+        description: '查询当前时间',
+        inputSchema: {},
+        outputSchema: {
+          code: z.number(),
+          data: z.string(),
+          msg: z.string(),
+        }
+      },
+      async (_, context) => {
+        const userid = context.requestInfo?.headers['x-wecom-user-id']
+
+        const datetime = dayjs().format('YYYY-MM-DD HH:mm:ss')
+
+        return {
+          content: [{ type: 'text', text: datetime }],
+          structuredContent: {
+            code: 0,
+            data: datetime,
+            msg: '查询成功',
+          }
+        }
+      }
+    )
+
+    server.registerTool(
       'deploy-task',
       {
         title: '执行部署任务',
@@ -50,7 +81,8 @@ const getServer = () => {
           action: z.enum(['create', 'cancel', 'query']).describe('具体的操作，支持创建取消和查询'),
           name: z.string().describe('任务名称（支持模糊查询），可能是简称，或者是代指某一平台'),
           immediate: z.boolean().describe('该任务是否立即执行, 如果没有明确指定执行时间，可以认为是立即执行'),
-          date: z.string().describe('非立即执行的任务会有一个定时时间, 需要将这个时间转换为YYYY-MM-DD HH:mm:ss格式'),
+          date: z.string().optional().describe('非立即执行的任务会有一个定时时间, 需要将这个时间转换为YYYY-MM-DD HH:mm:ss格式'),
+          appid: z.string(),
         },
         outputSchema: {
           code: z.number(),
@@ -58,24 +90,16 @@ const getServer = () => {
           msg: z.string(),
         }
       },
-      async ({ action, name, immediate, date }, context) => {
-        const appid = context.requestInfo?.headers['x-appid']
+      async ({ action, name, immediate, date, appid }, context) => {
         const userid = context.requestInfo?.headers['x-wecom-user-id']
-        console.log('appid', appid)
-        if (!appid) {
-          return {
-            content: [],
-            structuredContent: {
-              code: 1,
-              data: null,
-              msg: '当前插件没有配置appid',
-            },
-          }
-        }
         try {
-          const res = await request('/task/list', {
+          const res = await request(appid, `/task/list`, {
             method: 'get',
-            body: { name },
+            params: {
+              page: 1,
+              size: 99,
+              name,
+            }
           })
           const list = res.list as any[]
 
@@ -94,20 +118,25 @@ const getServer = () => {
             console.log(task._id, task.name, immediate, date)
             switch (action) {
               case 'create': {
-                await request(`/task/${task.id}`, {
+                await request(appid, `/task/${task.id}`, {
                   method: 'PUT',
                   body: {
                     immediate,
                     execute_time: dayjs(date).format('YYYY-MM-DD HH:mm:ss'),
+                    operator: userid,
                   }
                 })
                 data = { name: list[0].name, date }
+                break
               }
               case 'cancel': {
-                await request(`/task/${task.id}/stop`, {
+                await request(appid, `/task/${task.id}/stop`, {
                   method: 'POST',
-                  body: {}
+                  body: {
+                    operator: userid,
+                  }
                 })
+                break
               }
               case 'query': {
                 data = task
@@ -147,154 +176,61 @@ const getServer = () => {
     )
 
     server.registerTool(
-      'query-task',
+      'query-fp-info',
       {
-        title: '查询部署任务状态',
-        description: '根据任务名称查询指定部署任务的状态，比如当前是否待执行，下一次执行是什么时候',
+        title: '指纹信息查询',
+        description: '根据指纹查询告警相关的信息',
         inputSchema: {
-          name: z.string().describe('需要查询的部署任务的名称'),
+          appid: z.string().describe('应用ID'),
+          fp: z.string().describe('告警指纹'),
         },
         outputSchema: {
           code: z.number(),
           data: z.any().nullable(),
           msg: z.string(),
-        },
-      },
-      async ({ name }, context) => {
-        const appid = context.requestInfo?.headers['x-appid']
-        if (!appid) {
-          return {
-            content: [],
-            structuredContent: {
-              code: 1,
-              data: null,
-              msg: '当前插件没有配置appid',
-            },
-          }
         }
-
-        try {
-          const db = client.db(`app_${appid}`)
-          const col = db.collection('app_task')
-          const list = await col.find({
-            name: { $regex: name }
-          }).toArray()
-          
-          if (!list.length) {
-            return {
-              content: [],
-              structuredContent: {
-                code: 1,
-                data: null,
-                msg: '没有找到相关任务',
-              }
-            }
-          } else if (list.length === 1) {
-            return {
-              content: [],
-              structuredContent: {
-                code: 0,
-                data: list[0],
-                msg: 'success',
-              }
-            }
-          } else {
-            return {
-              content: [],
-              structuredContent: {
-                code: 2,
-                data: list,
-                msg: '查询到多个符合条件的任务',
-              }
+      },
+      async ({ appid, fp }, context) => {
+        const summary = await request(
+          appid,
+          `/server/alert/history/list`,
+          {
+            method: 'get',
+            params: {
+              page: 1,
+              size: 1,
+              fingerprint: fp,
             }
           }
-        } catch (err) {
-          return {
-            content: [],
-            structuredContent: {
-              code: 1,
-              data: null,
-              msg: `遇到了错误：${err}`,
+        )
+
+        const error = await request(
+          appid,
+          `/server/record/errors`,
+          {
+            method: 'get',
+            params: {
+              page: 1,
+              size: 1,
+              fingerprint: fp,
+            }
+          }
+        )
+        console.log(summary, error, )
+
+        return {
+          content: [],
+          structuredContent: {
+            code: 0,
+            data: {
+              summary,
+              error,
             },
+            msg: '执行成功',
           }
         }
       }
     )
-
-    server.registerTool(
-      'cancel-task',
-      {
-        title: '取消部署任务',
-        description: '根据任务名称取消设定好的指定部署任务的定时任务',
-        inputSchema: {
-          name: z.string().describe('需要取消的部署任务的名称'),
-        },
-        outputSchema: {
-          code: z.number(),
-          data: z.any().nullable(),
-          msg: z.string(),
-        },
-      },
-      async ({ name }, context) => {
-        const appid = context.requestInfo?.headers['x-appid']
-        const userid = context.requestInfo?.headers['x-wecom-user-id']
-        console.log('appid', appid)
-        if (!appid) {
-          return {
-            content: [{ type: 'text', text: '当前插件没有配置appid' }],
-          }
-        }
-
-        try {
-          const db = client.db(`app_${appid}`)
-          const col = db.collection('app_task')
-          const list = await col.find({
-            name: { $regex: name }
-          }).toArray()
-          
-          if (!list.length) {
-            return {
-              content: [],
-              structuredContent: {
-                code: 1,
-                data: null,
-                msg: '没有找到相关任务',
-              }
-            }
-          } else if (list.length === 1) {
-            const task = list[0]
-            console.log('cancel task', task)
-            return {
-              content: [],
-              structuredContent: {
-                code: 0,
-                data: null,
-                msg: '取消成功',
-              }
-            }
-          } else {
-            return {
-              content: [],
-              structuredContent: {
-                code: 2,
-                data: list,
-                msg: '查询到多个符合条件的任务',
-              }
-            }
-          }
-        } catch (err) {
-          return {
-            content: [],
-            structuredContent: {
-              code: 1,
-              data: null,
-              msg: `遇到了错误：${err}`,
-            },
-          }
-        }
-      }
-    )
-
     return server;
 };
 
@@ -444,14 +380,27 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-async function request(url: string, options: { method: string, body?: Record<string, any>}) {
+async function request(appid: string, url: string, options: { method: string, body?: Record<string, any>, params?: Record<string, any> }) {
   const BASE_URL = process.env.SERVER_URL
-  const res = await fetch(BASE_URL + url, {
+  const qs = genQs(options.params)
+  const _url = qs ? `${BASE_URL}${url}?${qs}` : `${BASE_URL}${url}`
+  const res = await fetch(_url, {
     method: options.method,
     headers: {
+      appid,
       'Content-Type': 'application/json',
+      'x-internal-token': process.env.INTERNAL_TOKEN || ''
     },
     body: JSON.stringify(options.body),
   })
-  return await res.json()
+  return (await res.json()).data
+}
+
+function genQs(params?: Record<string, any>) {
+  if (!params) return ''
+
+  return Object.entries(params).reduce<string[]>((acc, [key, value]) => {
+    acc.push(`${key}=${value}`)
+    return acc
+  }, []).join('&')
 }
