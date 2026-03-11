@@ -193,7 +193,7 @@ const getServer = () => {
       async ({ appid, fp }, context) => {
         const summary = await request(
           appid,
-          `/server/alert/history/list`,
+          `/alert/history/list`,
           {
             method: 'get',
             params: {
@@ -204,9 +204,11 @@ const getServer = () => {
           }
         )
 
+        const s = summary.list[0]
+
         const error = await request(
           appid,
-          `/server/record/errors`,
+          `/record/errors`,
           {
             method: 'get',
             params: {
@@ -216,15 +218,40 @@ const getServer = () => {
             }
           }
         )
-        console.log(summary, error, )
+        const e = error.list[0]
+
+        const network = await request(
+          appid,
+          '/record/networks',
+          {
+            method: 'get',
+            params: {
+              page: 1,
+              size: 10,
+              uuid: e.uuid,
+              start_stamp: e.stamp - 20 * 1000,
+              end_stamp: e.stamp + 20 * 1000,
+              full: true,
+            }
+          }
+        )
+        const n = network.list
+
+        const device = await request(
+          appid,
+          `/device/${e.uuid}`,
+          { method: 'get' }
+        )
 
         return {
           content: [],
           structuredContent: {
             code: 0,
             data: {
-              summary,
-              error,
+              summary: s,
+              error: e,
+              network: n,
+              device,
             },
             msg: '执行成功',
           }
