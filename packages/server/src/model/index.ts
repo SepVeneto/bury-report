@@ -37,13 +37,13 @@ export class Filter<M extends BaseType> {
           $lte: _to,
         }
       })
-    } else if (isNaN(_to)) {
+    } else if (!isNaN(_from)) {
       Object.assign(this.model, {
         [key]: {
           $gte: _from,
         }
       })
-    } else if (isNaN(_from)) {
+    } else if (!isNaN(_to)) {
       Object.assign(this.model, {
         [key]: {
           $lte: _to
