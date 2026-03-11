@@ -13,7 +13,6 @@ import task from './task.ts'
 import alert from './alert.ts'
 import statistics from './statistics.ts'
 import { normalizeQuery } from "../utils/tools.ts";
-import { getConn } from "../utils/sync.ts";
 
 const router = new Router()
 
@@ -72,9 +71,7 @@ router.use(async (ctx, next) => {
 
   const name = `app_${appid}`
   const _db = client.db(name)
-  const _duck = await getConn(name)
   ctx.db = _db
-  ctx.duck = _duck
   await next()
 })
 
