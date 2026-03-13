@@ -1,5 +1,7 @@
 import type { Options } from '@/type'
 import { REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
+// @ts-expect-error: ignore
+import globalThis from 'core-js/internals/global-this.js'
 
 const DEFAULT_CONFIG = {
   collect: true,
@@ -23,7 +25,7 @@ export function withDefault(config: Options) {
 
 export function mergeConfig(
   config: Options,
-  defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry'>>,
+  defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry' | 'stamp'>>,
 ) {
   const res: Record<string, any> = {}
 
