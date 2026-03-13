@@ -49,7 +49,8 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
   const platform = process.env.UNI_PLATFORM
   const isH5 = !platform || platform.toUpperCase() === 'H5'
   const config = withDefault(options)
-  const { entry: _entry, ...client } = config
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { entry, ...client } = config
   const stamp = getStamp()
   // @ts-expect-error: allow
   const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify({ stamp, ...client }))

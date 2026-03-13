@@ -1,4 +1,4 @@
-import { COLLECT_API, REPORT_REQUEST } from './constant'
+import { COLLECT_API, CUSTOM_ID, REPORT_REQUEST } from './constant'
 import type { ReportFn } from './type'
 import { storageReport } from './utils'
 // @ts-expect-error: ignore
@@ -23,7 +23,11 @@ export function report(...args: any[]) {
     storageReport(type, data)
     return
   }
-  fn(type, data, immediate)
+  fn(type, data, { immediate })
+}
+
+export function setCustomId(id: string) {
+  report(CUSTOM_ID, { id }, true)
 }
 
 export function reportNetwork(data: object, immediate?: boolean) {
