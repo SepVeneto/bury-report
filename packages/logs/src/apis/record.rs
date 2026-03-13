@@ -2,7 +2,7 @@ use std::sync::Arc;
 use log::debug;
 
 use actix_web::{HttpRequest, post, web};
-use flate2::read::GzDecoder;
+// use flate2::read::GzDecoder;
 use mongodb::{Client, Database};
 use rdkafka::producer::BaseProducer;
 use crate::model::logs::RecordPayload;
@@ -12,7 +12,7 @@ use crate::services::task::send_raw_to_kafak;
 use super::{ApiError, ApiResult};
 use crate::services::record_logs;
 use crate::services::Response;
-use std::io::Read;
+// use std::io::Read;
 
 #[derive(Debug)]
 enum ProcessedPayload {
@@ -116,13 +116,13 @@ async fn payload_handler(payload: web::Payload) -> Result<ProcessedPayload, ApiE
     }
 }
 
-fn decompress_gzip(data: &[u8]) -> Result<String, std::io::Error> {
-  let mut decoder = flate2::read::GzDecoder::new(data);
-  let mut decompressed_data = Vec::new();
-  decoder.read_to_end(&mut decompressed_data)?;
-  // 2. 尝试转为 String，使用 lossy 可以看到脏数据长什么样
-  let result = String::from_utf8_lossy(&decompressed_data);
+// fn decompress_gzip(data: &[u8]) -> Result<String, std::io::Error> {
+//   let mut decoder = flate2::read::GzDecoder::new(data);
+//   let mut decompressed_data = Vec::new();
+//   decoder.read_to_end(&mut decompressed_data)?;
+//   // 2. 尝试转为 String，使用 lossy 可以看到脏数据长什么样
+//   let result = String::from_utf8_lossy(&decompressed_data);
     
-  println!("解压内容预览: {}", &result[..result.len().min(100)]);
-  Ok(result.into_owned())
-}
+//   println!("解压内容预览: {}", &result[..result.len().min(100)]);
+//   Ok(result.into_owned())
+// }

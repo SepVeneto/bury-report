@@ -112,6 +112,13 @@ async fn collect_alert_fact(client: &Client) -> QueryResult<()> {
                         }
                         !expired                       
                     },
+                    AlertStrategy::Limit => {
+                        let expired = is_expired(v.last_seen, ttl, Some(now));
+                        if expired {
+                            expire_fp.insert(fp.clone());
+                        }
+                        !expired                       
+                    },
                     _ => {
                         if let Some(notify) = v.last_notify {
                             let expired = is_expired(notify, ttl, Some(now));
