@@ -42,6 +42,10 @@ function loadScript(reportUrl: string, entry = 'index.global.js') {
   })
 }
 
+if (!Promise.allSettled) {
+  Promise.allSettled = allSettledPolyfill
+}
+
 // @ts-expect-error: replace
 init(SDK_OPTIONS)
 
@@ -57,10 +61,6 @@ interface PromiseRejectedResult {
 }
 
 type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult
-
-if (!Promise.allSettled) {
-  Promise.allSettled = allSettledPolyfill
-}
 
 // 2. 实现 Polyfill
 function allSettledPolyfill<T extends readonly unknown[] | []>(
