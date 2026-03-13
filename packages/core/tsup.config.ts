@@ -63,6 +63,7 @@ const cli: Options = {
             target: 'chrome68',
             write: false,
             outdir: 'out',
+            treeShaking: true,
             bundle: true,
             define: {
               'process.env.DEFINE_VERSION': `'${version}'`,

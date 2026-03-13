@@ -1,6 +1,5 @@
 import type { Options } from '@/type'
 import { ErrorPlugin } from './plugins/error'
-import 'core-js/es/promise/all-settled'
 
 function init(options: Options) {
   try {
@@ -45,3 +44,59 @@ function loadScript(reportUrl: string, entry = 'index.global.js') {
 
 // @ts-expect-error: replace
 init(SDK_OPTIONS)
+
+// 1. 定义返回值的类型结构
+interface PromiseFulfilledResult<T> {
+  status: 'fulfilled';
+  value: T;
+}
+
+interface PromiseRejectedResult {
+  status: 'rejected';
+  reason: any;
+}
+
+type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult
+
+if (!Promise.allSettled) {
+  Promise.allSettled = allSettledPolyfill
+}
+
+// 2. 实现 Polyfill
+function allSettledPolyfill<T extends readonly unknown[] | []>(
+  promises: T,
+): Promise<{ [K in keyof T]: PromiseSettledResult<Awaited<T[K]>> }> {
+  const ps = Array.from(promises)
+
+  return new Promise((resolve) => {
+    const results: any[] = []
+    let completedCount = 0
+
+    if (ps.length === 0) {
+      return resolve([] as any)
+    }
+
+    ps.forEach((p, index) => {
+      // Promise.resolve(p) 处理混合类型（Promise 或具体值）
+      Promise.resolve(p)
+        .then((value) => {
+          results[index] = {
+            status: 'fulfilled',
+            value,
+          }
+        })
+        .catch((reason) => {
+          results[index] = {
+            status: 'rejected',
+            reason,
+          }
+        })
+        .finally(() => {
+          completedCount++
+          if (completedCount === ps.length) {
+            resolve(results as any)
+          }
+        })
+    })
+  })
+}
