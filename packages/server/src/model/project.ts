@@ -23,7 +23,7 @@ export class Project extends Model<IProject> {
     const _id = ObjectId.createFromHexString(pid)
     const { _id: aid, ...app } = data
     const _appId = aid
-    await this.col.updateOne({ _id, 'apps._id': _appId }, {
+    await this.col.updateOne({ _id, 'apps.id': _appId }, {
       $set: app
     })
   }
@@ -32,7 +32,7 @@ export class Project extends Model<IProject> {
     const _aid = ObjectId.createFromHexString(aid)
 
     await this.col.updateOne({ _id }, {
-      $pull: { 'apps._id': _aid } as Document
+      $pull: { 'apps.id': _aid } as Document
     })
   }
 }
