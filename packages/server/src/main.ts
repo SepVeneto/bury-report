@@ -10,9 +10,9 @@ import { Db } from "mongodb";
 import { RecordApi, RecordLog, RecordError } from "./model/record.ts";
 import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Device } from "./model/device.ts";
-import { debug } from './utils/collect.ts'
+// import { debug } from './utils/collect.ts'
 
-debug()
+// debug()
 
 process.env.TZ = 'Asia/Shanghai'
 

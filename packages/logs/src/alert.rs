@@ -3,7 +3,6 @@ use bson::DateTime;
 use mongodb::Client;
 use rdkafka::producer::BaseProducer;
 use dashmap::DashMap;
-use serde_json::{Value, Map};
 use log::{debug, error, info};
 
 use crate::alert::gc::run_flush;
@@ -14,7 +13,7 @@ use crate::model::alert_rule::CollectionType;
 use crate::model::{
     QueryModel, alert_fact, alert_rule
 };
-use crate::utils::cal_md5;
+use crate::utils::{cal_md5, get_string};
 
 mod tokenizer;
 mod notify;
@@ -231,12 +230,7 @@ pub fn normalize_error(error: &ErrorRaw) -> (String, String) {
     (fingerprint, summary)
 }
 
-fn get_string(map: &Map<String, Value>, key: &str) -> String {
-    map.get(key)
-       .and_then(|v| v.as_str())
-       .unwrap_or_default()
-       .to_string()
-}
+
 
 /**
  * 判断时间是否过期

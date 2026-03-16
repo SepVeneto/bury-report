@@ -28,6 +28,11 @@ export async function initApp(db: Db) {
   }
 
   {
+    const col = db.collection('records_custom_id')
+    await col.createIndexes([{ key: { id: 1, }}])
+  }
+
+  {
     const col = db.collection('records_err')
     await col.createIndexes([{ key: { uuid: 1, }}, { key: { session: 1 }}, { key: { fingerprint: 1 }}])
   }

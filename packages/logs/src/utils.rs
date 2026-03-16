@@ -1,5 +1,6 @@
 use once_cell::sync::Lazy;
 use regex::Regex;
+use serde_json::{Map, Value};
 
 static UUID_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[0-9a-zA-Z]{32}$").unwrap());
 
@@ -42,3 +43,16 @@ pub fn is_number(s: &str) -> bool {
 //         assert_eq!(tokens[1], Segment::Atom("with"));
 //     }
 // }
+
+pub fn get_string(map: &Map<String, Value>, key: &str) -> String {
+    map.get(key)
+       .and_then(|v| v.as_str())
+       .unwrap_or_default()
+       .to_string()
+}
+
+pub fn desensitize(s: &str) -> String {
+    let salt_str = format!("{}-sepveneto", s);
+    let res = cal_md5(&salt_str);
+    res
+}

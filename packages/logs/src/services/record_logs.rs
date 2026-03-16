@@ -33,6 +33,7 @@ pub enum RecordList {
     NetworkList(Vec<logs_network::Model>),
     ErrorList(Vec<logs_error::Model>),
     TrackList(Vec<logs::Model>),
+    CustomId(Option<logs::CustomId>),
     CustomList(Vec<logs::Model>),
 }
 pub async fn record(
@@ -93,6 +94,14 @@ pub async fn record(
                 },
                 logs::RecordItem::Track(track) => {
                     send_to_kafka(producer, &track);
+                },
+                logs::RecordItem::SetCustomId(ci) => {
+                    logs::CustomId::update_id(
+                        db,
+                        &ci.id,
+                        &ci.uuid,
+                        &ci.session,
+                    ).await?;
                 }
                 logs::RecordItem::Custom(data) => {
                     logs::Model::insert_one(db, &data).await?;
@@ -110,6 +119,7 @@ pub async fn record(
                 insert_group(db, &group["network"]),
                 insert_group(db, &group["error"]),
                 insert_group(db, &group["device"]),
+                insert_group(db, &group["custom_id"]),
             ];
 
             join_all(futures).await.into_iter().collect::<anyhow::Result<(), ServiceError>>()?;
@@ -185,6 +195,18 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
             }
             logs_error::Model::insert_many(db, data).await?;
         },
+        RecordList::CustomId(data) => {
+            if let Some(data) = data {
+                logs::CustomId::update_id(
+                    db,
+                    &data.id,
+                    &data.uuid,
+                    &data.session,
+                ).await?;
+            } else {
+                return Ok(());
+            }
+        }
         RecordList::CustomList(data) => {
             if data.len() == 0 {
                 return Ok(());
@@ -201,6 +223,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
     let mut list_network = vec![];
     let mut list_error = vec![];
     let mut list_track = vec![];
+    let mut custom_id: Option<logs::CustomId> = None;
 
     list.iter().for_each(|item| {
         match item.normalize_from(ip.clone()) {
@@ -217,6 +240,9 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
                 debug!("track: {:?}", track);
                 list_track.push(track)
             }
+            logs::RecordItem::SetCustomId(id) => {
+                custom_id = Some(id);
+            },
             logs::RecordItem::Custom(log) => {
                 list_collect.push(log);
             }
@@ -229,6 +255,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
         "network" => RecordList::NetworkList(list_network),
         "error" => RecordList::ErrorList(list_error),
         "track" => RecordList::TrackList(list_track),
+        "custom_id" => RecordList::CustomId(custom_id),
         "custom" => RecordList::CustomList(vec![]),
     }
 }
