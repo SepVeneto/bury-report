@@ -52,7 +52,7 @@ function initSched() {
 }
 
 async function clearLog(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit, -limit)
   const logs = new RecordLog(db)
   const filter = {
     "create_time": {
@@ -63,7 +63,7 @@ async function clearLog(db: Db, limit: number) {
 }
 
 async function clearError(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit, -limit)
   const error = new RecordError(db)
   const filter = {
     "create_time": {
@@ -74,7 +74,7 @@ async function clearError(db: Db, limit: number) {
 }
 
 async function clearApi(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit, -limit)
   const apis = new RecordApi(db)
   const filter = {
     "create_time": {
@@ -90,7 +90,7 @@ async function collectDevices(db: Db, limit: number) {
 }
 
 async function clearInfo(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit, -limit)
   console.log('collect devices...')
   await collectDevices(db, limit)
   const filter = {
