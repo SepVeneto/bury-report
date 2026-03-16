@@ -4,7 +4,11 @@
       v-model="params"
       :search="handleSearch"
       :config="searchConfig"
-    />
+    >
+      <template #union>
+        <UnionSearch v-model="params" />
+      </template>
+    </bc-search>
     <bc-table
       ref="tableRef"
       v-model="params"
@@ -33,6 +37,7 @@ import { getDeviceList } from '@/apis'
 import { ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import DeviceLink from './components/DeviceLink.vue'
+import UnionSearch from './components/UnionSearch.vue'
 
 defineOptions({
   name: 'HistoryDevice',
@@ -49,8 +54,8 @@ const tableConfig = shallowRef([
   { label: '最后打开时间', prop: 'update_time' },
 ])
 const searchConfig = shallowRef([
-  { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
-  { catalog: 'input', name: '会话ID', prop: 'session' },
+  { catalog: 'custom', prop: 'union', width: 300 },
+  { catalog: 'input', name: '自定义ID', prop: 'customId', width: 300 },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])
 function getList() {

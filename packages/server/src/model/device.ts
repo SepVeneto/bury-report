@@ -84,3 +84,14 @@ export class Session extends Model<ISession> {
     super(db, 'records_session')
   }
 }
+
+export interface ICustomId extends BaseType {
+  id: string
+  uuid: string
+  session?: string
+}
+export class CustomId extends Model<ICustomId> {
+  constructor(db: Db) {
+    super(db, 'records_custom_id')
+  }
+}

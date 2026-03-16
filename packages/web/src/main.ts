@@ -11,6 +11,7 @@ import microApp from '@micro-zoe/micro-app'
 import 'element-plus/theme-chalk/index.css'
 import '@sepveneto/basic-comp/theme-chalk/index.css'
 import './style/index.css'
+import { autofocus } from './util/directive'
 
 const app = createApp(App)
 app.use(createPinia())
@@ -21,5 +22,6 @@ app.use(BasicComp, {})
 app.use(comps)
 app.use(router)
 app.mount('#app')
+app.directive('focus', autofocus)
 
 import.meta.env.PUBLIC_BASE && microApp.start()

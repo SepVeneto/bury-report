@@ -4,7 +4,11 @@
       v-model="params"
       :search="handleSearch"
       :config="searchConfig"
-    />
+    >
+      <template #union>
+        <UnionSearch v-model="params" />
+      </template>
+    </bc-search>
     <bc-table
       ref="tableRef"
       v-model="params"
@@ -42,12 +46,14 @@ import DeviceLink from './components/DeviceLink.vue'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
 import { formatDatetime } from '@/util/tools'
+import UnionSearch from './components/UnionSearch.vue'
 
 defineOptions({
   name: 'LogView',
 })
 
 const params = ref({
+  uuid: '',
   page: 1,
   size: 20,
 })
@@ -61,9 +67,9 @@ const tableConfig = shallowRef([
   { label: '上报数据', prop: 'data' },
 ])
 const searchConfig = shallowRef([
+  { catalog: 'custom', prop: 'union', style: 'width: 320px' },
   { catalog: 'input', prop: 'type', name: '日志类型' },
-  { catalog: 'input', prop: 'session', name: '会话ID', style: 'width: 320px' },
-  { catalog: 'input', prop: 'uuid', name: '设备ID', style: 'width: 320px' },
+  // { catalog: 'input', prop: 'session', name: '会话ID', style: 'width: 320px' },
   { catalog: 'input', prop: 'data', name: '上报数据', style: 'width: 320px' },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])

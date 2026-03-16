@@ -4,7 +4,11 @@
       v-model="params"
       :search="handleSearch"
       :config="searchConfig"
-    />
+    >
+      <template #union>
+        <UnionSearch v-model="params" />
+      </template>
+    </bc-search>
     <bc-table
       ref="tableRef"
       v-model="params"
@@ -67,6 +71,7 @@ import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
 import DeviceLink from './components/DeviceLink.vue'
 import { formatDatetime } from '@/util/tools'
+import UnionSearch from './components/UnionSearch.vue'
 
 defineOptions({
   name: 'ErrorView',
@@ -86,8 +91,7 @@ const tableConfig = shallowRef([
   { label: '错误概述', prop: 'error' },
 ])
 const searchConfig = shallowRef([
-  { catalog: 'input', name: '会话ID', prop: 'session', width: 300 },
-  { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
+  { catalog: 'custom', prop: 'union', width: 300 },
   { catalog: 'input', name: '指纹', prop: 'fingerprint', width: 300 },
   { catalog: 'datepicker', prop: 'time', type: 'datetimerange' },
 ])

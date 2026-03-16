@@ -1,10 +1,11 @@
 import { Router } from '@oak/oak'
-import { Session, DeviceLog } from "../model/device.ts";
+import { Session, DeviceLog, CustomId, ICustomId } from "../model/device.ts";
 import { RecordApi, RecordError } from '../model/record.ts'
 import { RecordLog } from "../model/record.ts";
 import { Filter } from "../model/index.ts";
 import COS from 'cos-nodejs-sdk-v5'
 import { Redis } from 'ioredis'
+import { desensitize } from "../utils/index.ts";
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -18,6 +19,18 @@ if (!BUCKET || !REGION) {
 }
 
 const router = new Router()
+
+router.get('/custom-id', async (ctx) => {
+  const custom = new CustomId(ctx.db)
+  const { customId } = ctx.request.query
+  const deStr = desensitize(customId)
+  const filter = new Filter<ICustomId>()
+  filter.equal('id', deStr)
+
+  const res = await custom.findOne(filter)
+  ctx.resBody = res
+})
+
 
 router.get('/device', async (ctx) => {
   const device = new DeviceLog(ctx.db)

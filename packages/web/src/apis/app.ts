@@ -357,3 +357,14 @@ export function syncSession(session: string) {
     method: 'post',
   }, true)
 }
+
+export interface IReferer { device: string[], session: string[] }
+export function queryCustomId(id: string) {
+  return request<IReferer>({
+    url: '/custom-id',
+    method: 'get',
+    params: {
+      customId: id,
+    },
+  })
+}

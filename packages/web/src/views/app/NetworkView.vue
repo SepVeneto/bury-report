@@ -4,7 +4,11 @@
       v-model="params"
       :search="handleSearch"
       :config="searchConfig"
-    />
+    >
+      <template #union>
+        <UnionSearch v-model="params" />
+      </template>
+    </bc-search>
     <bc-table
       ref="tableRef"
       v-model="params"
@@ -81,6 +85,7 @@ import StatusIcon from '@/components/statusIcon.vue'
 import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
 import { formatDatetime } from '@/util/tools'
+import UnionSearch from './components/UnionSearch.vue'
 
 defineOptions({ name: 'NetworkView' })
 
@@ -106,8 +111,7 @@ const tableConfig = shallowRef([
   { label: '响应状态', prop: 'responseStatus', width: 140 },
 ])
 const searchConfig = shallowRef([
-  { catalog: 'input', name: '设备ID', prop: 'uuid', width: 300 },
-  { catalog: 'input', name: '会话ID', prop: 'session' },
+  { catalog: 'custom', name: '设备ID', prop: 'union', width: 300 },
   { catalog: 'input', name: '发起地址', prop: 'send_page', width: 300 },
   { catalog: 'input', name: '接口信息', prop: 'content', width: 300 },
   {
