@@ -27,11 +27,13 @@ function init(options: Options) {
   }
 }
 
+const version = process.env.DEFINE_VERSION
 function loadScript(reportUrl: string, entry = 'index.global.js') {
   const script = document.createElement('script')
-  const versionPefix = process.env.DEFINE_VERSION?.replace(/^(\d+\.\d+)\.\d+(-.+)$/, '$1$2')
+  const [major, minor] = version?.split('.') || []
+  const versionPefix = `${major}.${minor}`
   const url = new URL(reportUrl)
-  const coreUrl = `${url.origin}/sdk/${versionPefix}/${entry}`
+  const coreUrl = `${url.origin}/sdk/${versionPefix}/${entry}?v=${version}`
   script.src = process.env.LOG_DEBUG ? `/public/${entry}` : coreUrl
   // script.src = `/public/${entry}`
   script.crossOrigin = 'anonymous'
