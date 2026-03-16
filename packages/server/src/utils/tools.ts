@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { Context } from "@oak/oak";
 import crypto from 'node:crypto'
+import process from 'node:process'
 
 export function normalizeQuery(ctx: Context) {
   return normalize(Array.from(ctx.request.url.searchParams.entries()))
@@ -47,7 +48,8 @@ export function createDebug(name: string) {
 }
 
 export function desensitize(s: string) {
-  const saltStr = `${s}-sepveneto`
+  const salt = process.env.SALT || ''
+  const saltStr = `${s}-${salt}`
   const res = crypto.createHash('md5').update(saltStr).digest('hex').toUpperCase()
   return res
 }

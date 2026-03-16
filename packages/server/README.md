@@ -17,3 +17,4 @@
 | DEBUG | 调试模式 | -- |
 | NETDATA_URL | netdata服务地址 | http://netdata:123456 |
 | NETDATA_PUSH | netdata数据的推送地址 | -- |
+| SALT | 密码盐 | -- |

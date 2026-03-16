@@ -52,7 +52,8 @@ pub fn get_string(map: &Map<String, Value>, key: &str) -> String {
 }
 
 pub fn desensitize(s: &str) -> String {
-    let salt_str = format!("{}-sepveneto", s);
+    let salt = std::env::var("SALT").unwrap_or(String::from(""));
+    let salt_str = format!("{}-{}", s, salt);
     let res = cal_md5(&salt_str);
     res
 }
