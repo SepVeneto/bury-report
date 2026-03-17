@@ -128,7 +128,7 @@ import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
 import { EventType } from '@rrweb/types'
 import type { SessionApi, SessionLog } from '@/apis'
-import { nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef } from 'vue'
+import { onMounted, onUnmounted, ref, shallowRef, useTemplateRef } from 'vue'
 import { useH5Session } from './composable'
 
 const playerRef = useTemplateRef('refPlayer')
@@ -156,9 +156,9 @@ onMounted(async () => {
   apis.value.sort((a, b) => a.stamp - b.stamp)
   logs.value.sort((a, b) => a.stamp - b.stamp)
   errs.value.sort((a, b) => a.stamp - b.stamp)
-  nextTick().then(() => {
-    onOpened()
-  })
+  // nextTick().then(() => {
+  //   onOpened()
+  // })
 })
 
 onUnmounted(() => {
