@@ -24,9 +24,8 @@ app.listen({ port: 8878 })
 
 initSched()
 
-function initSched() {
+async function gc() {
   const log = createDebug('gc')
-  const task = new Cron('0 0 4 * * *', async () => {
     log('start gc task...')
     const reporter = client.db('reporter')
     const config = new Config(reporter)
@@ -46,13 +45,18 @@ function initSched() {
         clearLog(appDb, _config.cycle_log),
       ])
     }))
+}
+
+function initSched() {
+  const task = new Cron('0 0 4 * * *', async () => {
+    await gc()
   })
   task.name = 'CYCLE_GC'
   TaskManager.add('CYCLE_GC', task)
 }
 
 async function clearLog(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -limit)
+  const start_time = getRecentDays(limit, -4)
   const logs = new RecordLog(db)
   const filter = {
     "create_time": {
@@ -63,7 +67,7 @@ async function clearLog(db: Db, limit: number) {
 }
 
 async function clearError(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -limit)
+  const start_time = getRecentDays(limit, -4)
   const error = new RecordError(db)
   const filter = {
     "create_time": {
@@ -74,7 +78,7 @@ async function clearError(db: Db, limit: number) {
 }
 
 async function clearApi(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -limit)
+  const start_time = getRecentDays(limit, -4)
   const apis = new RecordApi(db)
   const filter = {
     "create_time": {
@@ -90,7 +94,7 @@ async function collectDevices(db: Db, limit: number) {
 }
 
 async function clearInfo(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -limit)
+  const start_time = getRecentDays(limit, -4)
   console.log('collect devices...')
   await collectDevices(db, limit)
   const filter = {
