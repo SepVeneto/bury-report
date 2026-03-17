@@ -18,15 +18,15 @@ const model = defineModel<Record<string, any>>()
 
 const typeOptions = [
   {
-    label: '设备ID',
-    value: 'uuid',
-  },
-  {
     label: '会话ID',
     value: 'session',
   },
+  {
+    label: '设备ID',
+    value: 'uuid',
+  },
 ]
-const type = ref('uuid')
+const type = ref('session')
 const value = ref('')
 
 watch([type, value], () => {

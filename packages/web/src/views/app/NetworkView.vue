@@ -111,9 +111,11 @@ const tableConfig = shallowRef([
   { label: '响应状态', prop: 'responseStatus', width: 140 },
 ])
 const searchConfig = shallowRef([
-  { catalog: 'custom', name: '设备ID', prop: 'union', width: 300 },
+  { catalog: 'custom', prop: 'union', width: 300 },
+  { catalog: 'input', name: '接口', prop: 'url', width: 300 },
   { catalog: 'input', name: '发起地址', prop: 'send_page', width: 300 },
-  { catalog: 'input', name: '接口信息', prop: 'content', width: 300 },
+  { catalog: 'input', name: '请求参数', prop: 'payload', width: 300 },
+  { catalog: 'input', name: '响应内容', prop: 'response', width: 300 },
   {
     catalog: 'select',
     name: '响应状态',
