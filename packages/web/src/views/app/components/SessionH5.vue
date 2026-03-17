@@ -1,5 +1,8 @@
 <template>
-  <section style="display: flex;">
+  <section
+    v-if="session.inited.value"
+    style="display: flex;"
+  >
     <div style="width: 500px;">
       <div ref="refPlayer" />
     </div>
@@ -96,21 +99,41 @@
       </ElTabPane>
     </ElTabs>
   </section>
+  <section
+    v-else
+    style="display: flex; flex-direction: column;"
+  >
+    <ElEmpty description="暂无数据，请手动同步或一段时间后查询" />
+    <div style="text-align: center;">
+      <BcButton
+        v-if="!session.isSyncing.value"
+        type="primary"
+        @click="handleSync"
+      >
+        同步
+      </BcButton>
+      <BcButton
+        v-else
+        type="info"
+        loading
+      >
+        同步中
+      </BcButton>
+    </div>
+  </section>
 </template>
 
 <script setup lang="ts">
 import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
-import { EventType, type eventWithTime } from '@rrweb/types'
+import { EventType } from '@rrweb/types'
 import type { SessionApi, SessionLog } from '@/apis'
-import { getSessionDetail, getSessionEvents } from '@/apis'
 import { nextTick, onMounted, onUnmounted, ref, shallowRef, useTemplateRef } from 'vue'
-import { ElMessage } from 'element-plus'
+import { useH5Session } from './composable'
 
 const playerRef = useTemplateRef('refPlayer')
 const currentStamp = ref(0)
 
-const events = shallowRef<eventWithTime[]>([])
 const apis = shallowRef<SessionApi[]>([])
 const logs = shallowRef<SessionLog[]>([])
 const errs = shallowRef<SessionLog[]>([])
@@ -123,10 +146,10 @@ const props = defineProps({
     required: true,
   },
 })
+const session = useH5Session(props.session, onOpened)
 
 onMounted(async () => {
-  const res = await getSessionDetail(props.session)
-  events.value = await getSessionEvents(res.event_urls)
+  const res = await session.getDetail()
   apis.value = res.net
   logs.value = res.log
   errs.value = res.err
@@ -142,24 +165,24 @@ onUnmounted(() => {
   onClosed()
 })
 
+async function handleSync() {
+  session.sync()
+}
 function onClosed() {
   player.value?.getReplayer().destroy()
 }
-function onOpened() {
-  if (!playerRef.value) {
+async function onOpened() {
+  if (!playerRef.value || !session.inited.value) {
     return
   }
-  if (events.value.length === 0) {
-    ElMessage.warning('缺少会话数据，请稍候重试或手动同步')
-    return
-  }
-  startTime = events.value[0].timestamp
+  const events = await session.events.value
+  startTime = events[0].timestamp
   player.value = new RrwebPlayer({
     target: playerRef.value,
     props: {
       width: 500,
       height: 500,
-      events: events.value,
+      events,
       // plugins: [{
       //   handler(event, isSync, context) {
       //     if (event.type === '')

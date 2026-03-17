@@ -1,7 +1,7 @@
 <template>
   <h2>用户浏览路径</h2>
 
-  <ElTimeline>
+  <ElTimeline v-if="session.inited.value">
     <ElTimelineItem
       v-for="(item, index) in events"
       :key="index"
@@ -59,16 +59,37 @@
       </div>
     </ElTimelineItem>
   </ElTimeline>
+  <section
+    v-else
+    style="display: flex; flex-direction: column;"
+  >
+    <ElEmpty description="暂无数据，请手动同步或一段时间后查询" />
+    <div style="text-align: center;">
+      <BcButton
+        v-if="!session.isSyncing.value"
+        type="primary"
+        @click="handleSync"
+      >
+        同步
+      </BcButton>
+      <BcButton
+        v-else
+        type="info"
+        loading
+      >
+        同步中
+      </BcButton>
+    </div>
+  </section>
 </template>
 
 <script lang="ts" setup>
 import type { MpPageUnload, MpRecord } from '@/apis'
-import { getMpSessionEvents, getSessionDetail } from '@/apis'
 import { shallowRef } from 'vue'
 import { dayjs } from 'element-plus'
+import { useMpSession } from './composable'
 
 const props = defineProps<{ session: string }>()
-console.log(props.session)
 
 // type Event = {
 //   time: string, type: string, duration?: number, path?: string
@@ -82,8 +103,16 @@ type Event = {
   referrer?: Record<string, any>
 }
 const events = shallowRef<Event[]>([])
+const session = useMpSession(props.session, async () => {
+  const list = await session.events.value
+  events.value = normalizeEvents(list) || []
+})
 
-init()
+session.getDetail()
+
+function handleSync() {
+  session.sync()
+}
 function getTimelineType(type: string) {
   if (type === 'AppLaunch') {
     return 'success'
@@ -100,11 +129,6 @@ function formatTime(timeStr: string) {
     return timeStr
   }
   return dayjs(timeStr).format('HH:mm:ss')
-}
-async function init() {
-  const res = await getSessionDetail(props.session)
-  const list = await getMpSessionEvents(res.event_urls)
-  events.value = normalizeEvents(list) || []
 }
 
 function normalizeEvents(events: MpRecord[]) {
@@ -169,7 +193,6 @@ function normalizeEvents(events: MpRecord[]) {
     }
   }
 
-  console.log(normalized)
   return normalized
 }
 
