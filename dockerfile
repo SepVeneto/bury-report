@@ -74,7 +74,7 @@ COPY --from=server /root/.cache/ms-playwright /root/.cache/ms-playwright
 # 4. 拷贝你的应用代码和依赖缓存
 COPY --from=server /app /app
 
-WORKDIR /app
+WORKDIR /app/packages/server
 
 # 5. 关键环境变量
 ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
