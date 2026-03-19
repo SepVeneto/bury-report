@@ -69,6 +69,9 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libpango-1.0-0 \
     libcairo2 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
