@@ -39,6 +39,8 @@ FROM denoland/deno:2.5.6 AS server
 
 WORKDIR /app
 
+ENV DENO_DIR=/app/deno_cache
+
 COPY ./.npmrc ./pnpm-* ./package.json ./
 COPY ./packages/server/package.json ./packages/server/deno.* ./packages/server/
 
@@ -53,6 +55,8 @@ RUN deno install --frozen=false --node-modules-dir=true && deno cache --node-mod
 RUN deno run -A npm:playwright install --with-deps chromium
 
 FROM debian:bookworm-slim AS server-runner
+
+ENV DENO_DIR=/app/deno_cache
 
 RUN apt-get update && apt-get install -y \
     ffmpeg \
@@ -69,8 +73,6 @@ COPY --from=server /usr/bin/deno /usr/local/bin/deno
 
 # 3. 拷贝浏览器二进制文件 (仅 Chromium)
 COPY --from=server /root/.cache/ms-playwright /root/.cache/ms-playwright
-
-COPY --from=server /root/.cache/deno /root/.cache/deno
 
 # 4. 拷贝你的应用代码和依赖缓存
 COPY --from=server /app /app
