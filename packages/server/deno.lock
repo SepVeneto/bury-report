@@ -13,6 +13,7 @@
     "jsr:@std/http@1": "1.0.21",
     "jsr:@std/internal@^1.0.10": "1.0.12",
     "jsr:@std/media-types@1": "1.1.0",
+    "jsr:@std/path@*": "1.1.2",
     "jsr:@std/path@1": "1.1.2",
     "npm:@duckdb/node-api@^1.4.4-r.1": "1.4.4-r.1",
     "npm:@types/node@*": "24.2.0",
@@ -55,7 +56,7 @@
         "jsr:@std/bytes",
         "jsr:@std/http",
         "jsr:@std/media-types",
-        "jsr:@std/path",
+        "jsr:@std/path@1",
         "npm:path-to-regexp"
       ]
     },
@@ -788,6 +789,7 @@
     "dependencies": [
       "jsr:@josefabio/deno-canvas@^1.5.2",
       "jsr:@oak/oak@^17.1.6",
+      "jsr:@std/path@*",
       "npm:croner@*"
     ],
     "packageJson": {
@@ -802,6 +804,8 @@
         "npm:md5@^2.3.0",
         "npm:mongodb@^6.3.0",
         "npm:p-queue@^9.1.0",
+        "npm:playwright@^1.58.2",
+        "npm:rrweb-player@1.0.0-alpha.4",
         "npm:uuid@13"
       ]
     }

@@ -6,6 +6,7 @@ import { Filter } from "../model/index.ts";
 import COS from 'cos-nodejs-sdk-v5'
 import { Redis } from 'ioredis'
 import { desensitize } from "../utils/index.ts";
+import { transformToVideo } from "../utils/rrweb2video.ts";
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -132,6 +133,47 @@ router.post('/session/:sessionId/sync', async ctx => {
   // 提前过期，只有大于0才会触发ttl通知
   await redis.expire(`session:${appid}/${session}:shadow`, 1)
   ctx.resMsg = '下发成功'
+})
+
+const mock = ['session/69489dc148bf75c18acee330/mmu8600n17fre8ir-1773728781534.json.gz']
+
+router.post('/session/:sessionId/export', async ctx => {
+  const target = await ctx.sendEvents()
+  // const session = new Session(ctx.db)
+  // const sessionFilter = new Filter()
+  // sessionFilter.equal('session', ctx.params.sessionId)
+  // const detail = await session.findOne(sessionFilter)
+  // if (!detail) {
+  //   ctx.resCode = 1
+  //   ctx.resMsg = '没有找到指定的会话'
+  //   return
+  // }
+  // const eventFutures = detail.event_urls?.map(url => {
+  const eventFutures = mock?.map(url => {
+    return cos.getObjectUrl({
+      Bucket: BUCKET,
+      Region: REGION,
+      Key: url.replace(`https://${BUCKET}.cos.${REGION}.myqcloud.com/`, ''),
+    })
+  }) || []
+  const eventUrls = await Promise.all(eventFutures.map(async url => {
+    const res = await fetch(url)
+    return await res.json()
+  }))
+  const events = eventUrls.reduce((acc, item) => {
+    acc.push(...(item.map(each => each.data.events)))
+    return acc
+  }, []).flat()
+  let transformProgress = 0
+  let timer = setInterval(() => {
+    target.dispatchMessage({ type: 'export', progress: transformProgress })
+  }, 1000)
+  await transformToVideo(events, (payload) => {
+    transformProgress = payload
+  })
+  clearInterval(timer)
+  timer = null
+  target.close()
 })
 
 export default router

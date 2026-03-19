@@ -46,9 +46,44 @@ COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
-RUN deno install --frozen && deno cache ./src/main.ts
+RUN deno install --frozen=false --node-modules-dir=true
+RUN deno cache --node-modules-dir ./src/main.ts 
+
+# 2. 安装 Playwright 的 Chromium 浏览器
+# 使用 --with-deps 补全缺少的系统库
+RUN deno run -A npm:playwright install --with-deps chromium
+
+FROM debian:bookworm-slim AS server-runner
+
+RUN apt-get update && apt-get install -y \
+    ffmpeg \
+    libnss3 \
+    libatk1.0-0 \
+    libasound2 \
+    libx11-6 \
+    libpangocairo-1.0-0 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. 从官方镜像拷贝 Deno 二进制文件 (不使用整个 Deno 镜像作为基础)
+COPY --from=server /usr/bin/deno /usr/local/bin/deno
+
+# 3. 拷贝浏览器二进制文件 (仅 Chromium)
+COPY --from=server /root/.cache/ms-playwright /root/.cache/ms-playwright
+
+# 4. 拷贝你的应用代码和依赖缓存
+COPY --from=server /app /app
+
+WORKDIR /app
+
+# 5. 关键环境变量
+ENV PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
 
 EXPOSE 8878
+
+# 3. 环境变量设置
+# 告诉 Playwright 在容器内不要尝试寻找 X11 服务
+ENV DISPLAY=:99
 
 CMD ["deno", "task", "start"]
 
