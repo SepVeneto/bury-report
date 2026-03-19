@@ -46,8 +46,7 @@ COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
-RUN deno install --frozen=false --node-modules-dir=true
-RUN deno cache --node-modules-dir ./src/main.ts 
+RUN deno install --frozen=false --node-modules-dir=true && deno cache --node-modules-dir ./src/main.ts 
 
 # 2. 安装 Playwright 的 Chromium 浏览器
 # 使用 --with-deps 补全缺少的系统库
@@ -70,6 +69,8 @@ COPY --from=server /usr/bin/deno /usr/local/bin/deno
 
 # 3. 拷贝浏览器二进制文件 (仅 Chromium)
 COPY --from=server /root/.cache/ms-playwright /root/.cache/ms-playwright
+
+COPY --from=server /root/.cache/deno /root/.cache/deno
 
 # 4. 拷贝你的应用代码和依赖缓存
 COPY --from=server /app /app
