@@ -138,6 +138,7 @@ router.post('/session/:sessionId/sync', async ctx => {
 const mock = ['session/69489dc148bf75c18acee330/mmu8600n17fre8ir-1773728781534.json.gz']
 
 router.post('/session/:sessionId/export', async ctx => {
+  ctx.response.headers.set("X-Accel-Buffering", "no");
   const target = await ctx.sendEvents()
   // const session = new Session(ctx.db)
   // const sessionFilter = new Filter()
