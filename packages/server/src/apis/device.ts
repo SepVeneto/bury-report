@@ -6,7 +6,7 @@ import { Filter } from "../model/index.ts";
 import COS from 'cos-nodejs-sdk-v5'
 import { Redis } from 'ioredis'
 import { desensitize } from "../utils/index.ts";
-import { transformToVideo } from "../utils/rrweb2video.ts";
+import { transformToVideo, VideoTransformer } from "../utils/rrweb2video.ts";
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -165,13 +165,12 @@ router.post('/session/:sessionId/export', async ctx => {
     acc.push(...(item.map(each => each.data.events)))
     return acc
   }, []).flat()
-  let transformProgress = 0
+  const transformer = new VideoTransformer()
   let timer = setInterval(() => {
-    target.dispatchMessage({ type: 'export', progress: transformProgress })
+    target.dispatchMessage(transformer.state)
   }, 1000)
-  await transformToVideo(events, (payload) => {
-    transformProgress = payload
-  })
+
+  await transformer.transform(events)
   clearInterval(timer)
   timer = null
   target.close()

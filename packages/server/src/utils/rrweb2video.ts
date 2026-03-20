@@ -2,6 +2,8 @@ import { chromium } from 'playwright'
 import * as path from '@std/path'
 import * as fs from 'node:fs'
 import { EventType, eventWithTime } from '@rrweb/types';
+import { createDebug } from "./tools.ts";
+import { spawn } from "node:child_process";
 
 const MaxScaleValue = 2.5
 
@@ -11,15 +13,136 @@ const rrwebStylePath = path.resolve(root, 'dist/style.css')
 const rrwebRaw = fs.readFileSync(rrwebScript, 'utf-8')
 const rrwebStyle = fs.readFileSync(rrwebStylePath, 'utf-8')
 
-const config = {
+const debug = createDebug('video-transformer')
+
+const defaultConfig = {
   resolutionRatio: 0.8,
   rrwebPlayer: {
     width: 500,
     height: 500,
   },
-  onProgressUpdate: (progress: number) => { console.log(progress)},
+  onProgressUpdate: (progress: number) => { debug(progress)},
 }
-type Config = typeof config
+type Config = typeof defaultConfig
+
+export class VideoTransformer {
+  private stage: 'generate' | 'transform' | 'success' | 'fail' | 'idle' = 'idle'
+  private progress = 0
+  private chunks: string[] = []
+
+  public config: Config
+
+  constructor(config?: Config) {
+    this.config = {
+      ...defaultConfig,
+      ...(config || {}),
+    }
+  }
+
+  get state() {
+    return {
+      action: this.stage,
+      progress: this.progress,
+      chunks: this.chunks,
+    }
+  }
+
+  private async genVideo(events: eventWithTime[]) {
+    const config = this.config
+    const maxViewport = getMaxViewport(events)
+    const scaledViewport = {
+      width: Math.round(maxViewport.width * config.resolutionRatio * MaxScaleValue),
+      height: Math.round(maxViewport.height * config.resolutionRatio * MaxScaleValue)
+    }
+    config.rrwebPlayer.width = scaledViewport.width
+    config.rrwebPlayer.height = scaledViewport.height
+    const browser = await chromium.launch({
+      headless: true
+    })
+    const context = await browser.newContext({
+      viewport: scaledViewport,
+      recordVideo: {
+        dir: '__video_temp__',
+        size: scaledViewport,
+      }
+    })
+    const page = await context.newPage()
+    await page.goto('about:blank')
+
+    page.on('console', msg => {
+      debug(msg.type(), msg.text())
+    })
+
+    page.on('pageerror', error => {
+      debug('[PAGE ERROR]', error.message)
+    })
+
+    await page.exposeFunction(
+      'onReplayProgressUpdate',
+      (data: { payload: number }) => {
+        this.config.onProgressUpdate(data.payload)
+        this.stage = 'transform'
+        this.progress = data.payload
+      },
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      const videoStartTime = events[0]?.timestamp
+      const videoEndTime = events[events.length - 1]?.timestamp
+      const videoDuration = videoEndTime - videoStartTime
+      debug(`Expected playback time: ${videoDuration}ms`)
+      page.exposeFunction('onReplayFinish', () => {
+        console.log('[DEBUG] Replay finished');
+        // clearTimeout(timeout);
+        resolve()
+      }).then(() => {
+        return page.setContent(getHtml(events, config))
+      }).then(() => {
+        debug('Set content')
+      }).catch((err) => {
+        debug('Error setting page content: ', err)
+        reject(err)
+      })
+    })
+    const videoPath = (await page.video()?.path()) || ''
+    await context.close()
+    browser.close()
+    return videoPath
+  }
+
+  async transform(events: eventWithTime[]) {
+    const videoPath = await this.genVideo(events)
+    return this.toMp4(videoPath)
+  }
+
+  private toMp4(videoPath: string) {
+    return new Promise((resolve, reject) => {
+      const args = [
+        '-i', videoPath,
+        '-vcodec', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-crf', '23',
+        '-f', 'mp4',
+        '-movflags', 'frag_keyframe+empty_moov',
+        'pipe:1',
+      ]
+      const ffmpeg = spawn('ffmpeg', args)
+      ffmpeg.stderr.on('data', (data) => {
+        console.error(`[FFMPEG] ${data}`)
+        this.stage = 'fail'
+        reject(data)
+      })
+      ffmpeg.stdout.on('data', (data) => {
+        this.stage = 'transform'
+        this.chunks.push(data)
+      })
+      ffmpeg.stdout.on('end', () => {
+        resolve(true)
+      })
+    })
+  }
+}
+
 
 function getHtml(events: eventWithTime[], config?: Config): string {
   return `
@@ -65,67 +188,6 @@ function getHtml(events: eventWithTime[], config?: Config): string {
   </body>
 </html>
 `;
-}
-
-export async function transformToVideo(events: eventWithTime[], onUpdate: (process: any) => void) {
-  const maxViewport = getMaxViewport(events)
-  const scaledViewport = {
-    width: Math.round(maxViewport.width * config.resolutionRatio * MaxScaleValue),
-    height: Math.round(maxViewport.height * config.resolutionRatio * MaxScaleValue)
-  }
-  config.rrwebPlayer.width = scaledViewport.width
-  config.rrwebPlayer.height = scaledViewport.height
-  const browser = await chromium.launch({
-    headless: true
-  })
-  const context = await browser.newContext({
-    viewport: scaledViewport,
-    recordVideo: {
-      dir: '__video_temp__',
-      size: scaledViewport,
-    }
-  })
-  const page = await context.newPage()
-  await page.goto('about:blank')
-
-  page.on('console', msg => {
-    console.log('[PAGE CONSOLE]', msg.type(), msg.text());
-  })
-
-  page.on('pageerror', error => {
-    console.error('[PAGE ERROR]', error.message);
-  })
-
-  await page.exposeFunction(
-    'onReplayProgressUpdate',
-    (data: { payload: number }) => {
-      onUpdate({ action: 'export', progress: data.payload })
-      config?.onProgressUpdate(data.payload);
-    },
-  );
-
-  await new Promise<void>((resolve, reject) => {
-    const videoStartTime = events[0]?.timestamp
-    const videoEndTime = events[events.length - 1]?.timestamp
-    const videoDuration = videoEndTime - videoStartTime
-    console.log(`[DEBUG] Expected playback time: ${videoDuration}ms`)
-    page.exposeFunction('onReplayFinish', () => {
-      console.log('[DEBUG] Replay finished');
-      // clearTimeout(timeout);
-      resolve()
-    }).then(() => {
-      return page.setContent(getHtml(events, config))
-    }).then(() => {
-      console.log('[DEBUG] Set content')
-    }).catch((err) => {
-      console.error('[DEBUG] Error setting page content: ', err)
-      reject(err)
-    })
-  })
-  const videPath = (await page.video()?.path()) || ''
-  console.log(videPath)
-  await context.close()
-  browser.close()
 }
 
 /**
