@@ -12,6 +12,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.1.0",
     "@imengyu/vue3-context-menu": "^1.4.1",
+    "@microsoft/fetch-event-source": "^2.0.1",
     "@rrweb/replay": "2.0.0-alpha.18",
     "@rx-frontend/php-sign": "^0.3.2",
     "@sepveneto/basic-comp": "^0.10.7",
@@ -24,6 +25,7 @@
     "element-plus": "^2.13.2",
     "js-md5": "^0.7.3",
     "logo-particle": "file:lib\\logo-particle-1.0.4.tgz",
+    "mp4box": "^2.3.0",
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
     "pixi.js": "6.2.1",

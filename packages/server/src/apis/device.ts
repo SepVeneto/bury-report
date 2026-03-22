@@ -7,6 +7,7 @@ import COS from 'cos-nodejs-sdk-v5'
 import { Redis } from 'ioredis'
 import { desensitize } from "../utils/index.ts";
 import { transformToVideo, VideoTransformer } from "../utils/rrweb2video.ts";
+// import fs from 'node:fs'
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -138,6 +139,7 @@ router.post('/session/:sessionId/sync', async ctx => {
 const mock = ['session/69489dc148bf75c18acee330/mmu8600n17fre8ir-1773728781534.json.gz']
 
 router.post('/session/:sessionId/export', async ctx => {
+  // const outputFile = fs.createWriteStream('output.mp4')
   ctx.response.headers.set("X-Accel-Buffering", "no");
   const target = await ctx.sendEvents()
   // const session = new Session(ctx.db)
@@ -168,11 +170,14 @@ router.post('/session/:sessionId/export', async ctx => {
   const transformer = new VideoTransformer()
   let timer = setInterval(() => {
     target.dispatchMessage(transformer.state)
-  }, 1000)
+  }, 1 * 1000)
 
   await transformer.transform(events)
   clearInterval(timer)
   timer = null
+
+  target.dispatchMessage(transformer.state)
+  target.dispatchMessage('[DONE]')
   target.close()
 })
 

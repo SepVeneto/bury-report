@@ -3,6 +3,9 @@
     v-if="session.inited.value"
     style="display: flex;"
   >
+    <BcButton @click="handleExport">
+      导出
+    </BcButton>
     <div style="width: 500px;">
       <div ref="refPlayer" />
     </div>
@@ -127,9 +130,10 @@
 import RrwebPlayer from 'rrweb-player'
 import 'rrweb-player/dist/style.css'
 import { EventType } from '@rrweb/types'
-import type { SessionApi, SessionLog } from '@/apis'
+import { type SessionApi, type SessionLog, exportSession } from '@/apis'
 import { onMounted, onUnmounted, ref, shallowRef, useTemplateRef } from 'vue'
 import { useH5Session } from './composable'
+import * as MP4Box from 'mp4box'
 
 const playerRef = useTemplateRef('refPlayer')
 const currentStamp = ref(0)
@@ -164,6 +168,104 @@ onMounted(async () => {
 onUnmounted(() => {
   onClosed()
 })
+
+async function handleExport() {
+  const mp4file = MP4Box.createFile()
+  const outMp4 = MP4Box.createFile()
+  mp4file.onError = (err) => {
+    console.log('error', err)
+  }
+
+  let videoTrackId = -1
+  let lastDTS = 0
+  let lastSampleDuration = 0
+  mp4file.onReady = (info) => {
+    const track = info.tracks[0]
+    console.log('export', info, mp4file.getTrackById(track.id))
+    const avc = mp4file.getTrackById(track.id).mdia.minf.stbl.stsd.entries[0].avcC
+
+    const stream = new MP4Box.DataStream()
+    stream.endianness = false
+    avc.write(stream)
+    const fullBuffer = stream.buffer
+    const configRecord = fullBuffer.slice(8)
+
+    videoTrackId = outMp4.addTrack({
+      timescale: track.timescale,
+      width: track.video?.width,
+      height: track.video?.height,
+      type: 'avc1',
+      avcDecoderConfigRecord: configRecord,
+    })
+
+    mp4file.setExtractionOptions(track.id, null, { nbSamples: 1 })
+    mp4file.start()
+  }
+
+  mp4file.onSamples = (id, user, samples) => {
+    console.log('set samples')
+    samples.forEach(s => {
+      lastDTS = s.dts
+      lastSampleDuration = s.duration
+
+      outMp4.addSample(videoTrackId, s.data!, {
+        duration: s.duration,
+        dts: s.dts,
+        cts: s.cts,
+        is_sync: s.is_sync,
+      })
+    })
+  }
+  const chunks: any[] = []
+  let currentOffset = 0
+  await exportSession(props.session, (msg) => {
+    const data = JSON.parse(msg.data)
+    switch (data.action) {
+      case 'transform': {
+        data.chunks.forEach((chunk) => {
+          const u8 = new Uint8Array(chunk.data)
+          // safeAppend(mp4file, u8)
+          const buffer = u8.buffer as MP4Box.MP4BoxBuffer
+          buffer.fileStart = currentOffset
+          mp4file.appendBuffer(buffer)
+          currentOffset += buffer.byteLength
+          console.log(currentOffset, buffer.byteLength)
+          // chunks.push(new Uint8Array(chunk.data))
+        })
+      }
+    }
+    console.log(msg)
+  })
+
+  console.log('flush')
+  mp4file.flush()
+
+  const total = lastDTS + lastSampleDuration
+  // if (outMp4.moov) {
+  const movieTimescale = outMp4.moov.mvhd.timescale
+  outMp4.moov.mvhd.duration = total / 12800 * movieTimescale
+
+  const trak = outMp4.getTrackById(videoTrackId)
+  trak.tkhd.duration = outMp4.moov.mvhd.duration
+  trak.mdia.mdhd.duration = total
+  // }
+
+  outMp4.save('output.mp4')
+  return
+
+  const b = mp4file.getBuffer()
+  console.log(b)
+
+  const blob = new Blob([b], { type: 'video/mp4' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'output.mp4'
+  document.body.appendChild(a)
+  a.click()
+  URL.revokeObjectURL(url)
+  a.remove()
+}
 
 async function handleSync() {
   session.sync()

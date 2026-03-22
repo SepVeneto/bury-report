@@ -3,6 +3,9 @@ import type { UseWebSocketOptions } from '@vueuse/core'
 import { useWebSocket } from '@vueuse/core'
 import { Query } from '.'
 import type { eventWithTime } from '@rrweb/types'
+import type { EventSourceMessage } from '@microsoft/fetch-event-source'
+import { fetchEventSource } from '@microsoft/fetch-event-source'
+import { useApp } from '@/store'
 
 export type App = {
   id: string
@@ -285,6 +288,35 @@ export async function getSessionDetail(sessionId: string) {
     url: `/session/${sessionId}`,
   })
   return res
+}
+
+export function exportSession(sessionId: string, onMessage: (message: EventSourceMessage) => void) {
+  const app = useApp()
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('请先登录')
+  }
+  const controller = new AbortController()
+  return new Promise((resolve, reject) => {
+    fetchEventSource(`/api/server/session/${sessionId}/export`, {
+      method: 'post',
+      signal: controller.signal,
+      headers: {
+        appid: app.appid,
+        Authorization: token,
+      },
+      onmessage: (msg) => {
+        if (msg.data === '[DONE]') {
+          controller.abort()
+          resolve(true)
+        }
+        onMessage(msg)
+      },
+      onerror: (err) => {
+        reject(err)
+      },
+    })
+  })
 }
 
 type MpAppLoad = {

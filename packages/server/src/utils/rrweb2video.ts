@@ -4,6 +4,7 @@ import * as fs from 'node:fs'
 import { EventType, eventWithTime } from '@rrweb/types';
 import { createDebug } from "./tools.ts";
 import { spawn } from "node:child_process";
+import { WriteStream } from "node:fs";
 
 const MaxScaleValue = 2.5
 
@@ -21,7 +22,7 @@ const defaultConfig = {
     width: 500,
     height: 500,
   },
-  onProgressUpdate: (progress: number) => { debug(progress)},
+  onProgressUpdate: (_progress: number) => { },
 }
 type Config = typeof defaultConfig
 
@@ -32,18 +33,23 @@ export class VideoTransformer {
 
   public config: Config
 
+  private file: WriteStream
+
   constructor(config?: Config) {
     this.config = {
       ...defaultConfig,
       ...(config || {}),
     }
+    this.file = fs.createWriteStream('output.mp4')
   }
 
   get state() {
+    const chunks = [...this.chunks]
+    this.chunks.length = 0
     return {
       action: this.stage,
       progress: this.progress,
-      chunks: this.chunks,
+      chunks,
     }
   }
 
@@ -81,7 +87,7 @@ export class VideoTransformer {
       'onReplayProgressUpdate',
       (data: { payload: number }) => {
         this.config.onProgressUpdate(data.payload)
-        this.stage = 'transform'
+        this.stage = 'generate'
         this.progress = data.payload
       },
     );
@@ -123,20 +129,28 @@ export class VideoTransformer {
         '-pix_fmt', 'yuv420p',
         '-crf', '23',
         '-f', 'mp4',
-        '-movflags', 'frag_keyframe+empty_moov',
+        '-movflags', 'frag_keyframe+empty_moov+default_base_moof',
         'pipe:1',
       ]
       const ffmpeg = spawn('ffmpeg', args)
       ffmpeg.stderr.on('data', (data) => {
-        console.error(`[FFMPEG] ${data}`)
-        this.stage = 'fail'
-        reject(data)
+        console.log(data)
+        if (data.includes('Error')) {
+          console.error(`[FFMPEG] ${data}`)
+          this.stage = 'fail'
+          reject(data)
+        }
       })
+      ffmpeg.stdout.pipe(this.file)
       ffmpeg.stdout.on('data', (data) => {
         this.stage = 'transform'
         this.chunks.push(data)
       })
       ffmpeg.stdout.on('end', () => {
+        console.log('end')
+      })
+      ffmpeg.on('close', () => {
+        console.log('close')
         resolve(true)
       })
     })
