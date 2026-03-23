@@ -1,7 +1,8 @@
 import { Router } from "@oak/oak";
-import { Alert, AlertError, AlertSetting } from "../model/alert.ts";
+import { Alert, AlertError, AlertSetting, IAlertError } from "../model/alert.ts";
 import { Filter } from "../model/index.ts";
 import { ObjectId } from 'mongodb'
+import dayjs from 'dayjs'
 
 const router = new Router()
 
@@ -147,8 +148,10 @@ router.post('/alert/summary/push', async (ctx) => {
   }
 
   const { first, common }= await err.getPushData()
+  first.sort((a, b) => b.count - a.count)
+  common.sort((a, b) => b.count - a.count)
 
-  await triggerNotify(config.notify, first, common)
+  await triggerNotify(config.notify, first.slice(0, 5), common.slice(0, 5))
 
   ctx.resMsg = '推送成功'
 })
@@ -157,37 +160,34 @@ export default router
 
 export async function triggerNotify(
   webhook: string,
-  first: any[],
-  common: any[],
+  first: IAlertError[],
+  common: IAlertError[],
 ) {
   const data = {
     "msgtype": "markdown_v2",
-    "markdown": {
-      "content": `
-      ## 首次触发
-      | 触发原文 | 触发时间 | 触发次数 |
-      | ------ | -------- | -------- |
-      ${first.map(item => {
-        return `|${normalizeMessage(item.summary)}| ${item.first_seen} | ${item.count} |\n`
-      })}
-
-      ## 常规触发
-      | 告警内容 | 触发原文 | 首次触发时间 | 累计触发次数 |
-      | ------- | -------- | ---------- | ----------- |
-      ${common.map(item => {
-        return `|${item.message}| ${normalizeMessage(item.summary)} | ${item.first_seen} | ${item.count} |\n`
-      })}
-      `
+    "markdown_v2": {
+      "content": [
+        '# 昨日告警TOP5',
+        '## 首次触发',
+        '| 触发原文 | 最后触发时间 | 触发次数 |',
+        '| ------ | -------- | -------- |',
+        ...first.map(item => formatMdFirstLine(item)),
+        '## 常规触发',
+        '| 告警内容 | 首次触发时间 | 累计触发次数 |',
+        '| ------- | ---------- | ----------- |',
+        ...common.map(item => formatMdCommonLine(item)),
+      ].join('\n')
     }
   }
-
+  const msg = JSON.stringify(data)
+  console.log('length', msg.length)
 
   await fetch(webhook, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: msg,
   }).catch(err => {
     throw err
   })
@@ -195,8 +195,18 @@ export async function triggerNotify(
 
 function normalizeMessage(msg: string, limit = 100) {
   if (msg.length > limit) {
-    return msg.slice(0, 100) + '...'
+    return msg.slice(0, limit) + '...'
   } else {
     return msg
   }
+}
+
+function formatMdFirstLine(item: IAlertError) {
+  const firstSeen = dayjs(item.first_seen).format('HH:mm:ss')
+  return `| ${normalizeMessage(item.message)} | ${firstSeen} | ${item.count} |`
+}
+
+function formatMdCommonLine(item: IAlertError) {
+  const firstSeen = dayjs(item.first_seen).format('YYYY-MM-DD')
+  return `| ${item.message.replaceAll('\n', ' ')} | ${firstSeen} | ${item.count} |`
 }

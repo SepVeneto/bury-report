@@ -29,7 +29,12 @@ export class Alert extends Model<IAlert> {
 }
 
 export interface IAlertError extends BaseType {
-
+  first_seen: Date,
+  last_seen: Date,
+  count: number,
+  summary: string,
+  name: string,
+  message: string,
 }
 export class AlertError extends Model<IAlertError> {
   constructor(db: Db) {
@@ -67,7 +72,7 @@ export class AlertSetting extends Model<IConfig> {
 
     filter.equal('scope', 'alert_setting')
 
-    const res = await this.col.findOne(filter.build(), { projection: { scope: 0 }})
+    const res = await this.col.findOne(filter.build(), { projection: { scope: 0, _id: 0 }})
     return res
   }
   set(res: Omit<IConfig, 'scope'>) {
