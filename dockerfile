@@ -72,8 +72,12 @@ RUN apt-get update && apt-get install -y \
     libxcomposite1 \
     libxdamage1 \
     libxrandr2 \
+    fonts-wqy-microhei \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
+
+RUN fc-cache -fv && fc-list :lang=zh
+
 
 # 2. 从官方镜像拷贝 Deno 二进制文件 (不使用整个 Deno 镜像作为基础)
 COPY --from=server /usr/bin/deno /usr/local/bin/deno
