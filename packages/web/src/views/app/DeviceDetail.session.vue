@@ -27,6 +27,7 @@
         同步
       </BcButton>
       <BcButton
+        v-if="type === 'web'"
         text
         @click="handleExport(row.session)"
       >
