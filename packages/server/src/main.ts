@@ -10,6 +10,8 @@ import { Db } from "mongodb";
 import { RecordApi, RecordLog, RecordError } from "./model/record.ts";
 import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Device } from "./model/device.ts";
+import { AlertError, AlertSetting } from "./model/alert.ts";
+import { triggerNotify } from "./apis/alert.ts";
 // import { debug } from './utils/collect.ts'
 
 // debug()
@@ -24,6 +26,25 @@ app.listen({ port: 8878 })
 
 initSched()
 
+
+async function pushAlert() {
+  const reporter = client.db('reporter')
+  const app = new App(reporter)
+  const res = await app.getAll()
+  const appids = res.map(item => item.id)
+
+  await Promise.all(appids.map(async (appid) => {
+    const name = `app_${appid}`
+    const appDb = client.db(name)
+    const as = new AlertSetting(appDb)
+    const { status, notify } = await as.get() || { status: false }
+    if (status && notify) {
+      const err = new AlertError(appDb)
+      const { first, common }= await err.getPushData()
+      await triggerNotify(notify, first, common)
+    }
+  }))
+}
 async function gc() {
   const log = createDebug('gc')
     log('start gc task...')
@@ -53,10 +74,16 @@ function initSched() {
   })
   task.name = 'CYCLE_GC'
   TaskManager.add('CYCLE_GC', task)
+
+  const push = new Cron('0 0 9 * * *', async () => {
+    await pushAlert()
+  })
+  push.name = 'PUSH_ALERT'
+  TaskManager.add('PUSH_ALERT', push)
 }
 
 async function clearLog(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit)
   const logs = new RecordLog(db)
   const filter = {
     "create_time": {
@@ -67,7 +94,7 @@ async function clearLog(db: Db, limit: number) {
 }
 
 async function clearError(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit)
   const error = new RecordError(db)
   const filter = {
     "create_time": {
@@ -78,7 +105,7 @@ async function clearError(db: Db, limit: number) {
 }
 
 async function clearApi(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit)
   const apis = new RecordApi(db)
   const filter = {
     "create_time": {
@@ -94,7 +121,7 @@ async function collectDevices(db: Db, limit: number) {
 }
 
 async function clearInfo(db: Db, limit: number) {
-  const start_time = getRecentDays(limit, -4)
+  const start_time = getRecentDays(limit)
   console.log('collect devices...')
   await collectDevices(db, limit)
   const filter = {

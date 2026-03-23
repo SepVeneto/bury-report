@@ -60,3 +60,29 @@ export function getHistoryErrorList(params: { page: number, size: number }) {
     raw: 'data',
   })
 }
+
+export type AlertSetting = {
+  notify?: string
+  status: boolean
+}
+export function modifyAlertSetting(config: AlertSetting) {
+  return request({
+    url: '/alert/setting',
+    method: 'put',
+    data: config,
+  }, true)
+}
+
+export function getAlertSetting() {
+  return request<AlertSetting>({
+    url: '/alert/setting',
+    method: 'get',
+  })
+}
+
+export function pushAlertSummary() {
+  return request({
+    url: '/alert/summary/push',
+    method: 'post',
+  })
+}

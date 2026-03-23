@@ -1,5 +1,5 @@
 import { Router } from "@oak/oak";
-import { Alert, AlertError } from "../model/alert.ts";
+import { Alert, AlertError, AlertSetting } from "../model/alert.ts";
 import { Filter } from "../model/index.ts";
 import { ObjectId } from 'mongodb'
 
@@ -122,4 +122,81 @@ router.get('/alert/history/list', async (ctx) => {
 
 })
 
+router.get('/alert/setting', async (ctx) => {
+  const as = new AlertSetting(ctx.db)
+  const res = await as.get()
+  ctx.resBody = res || { status: false }
+})
+
+router.put('/alert/setting', async (ctx) => {
+  const body = await ctx.request.body.json()
+  const as = new AlertSetting(ctx.db)
+  const res = await as.set(body)
+  ctx.resBody = res
+  ctx.resMsg = '设置成功'
+})
+
+router.post('/alert/summary/push', async (ctx) => {
+  const err = new AlertError(ctx.db)
+  const setting = new AlertSetting(ctx.db)
+
+  const config = await setting.get()
+  if (!config?.notify) {
+    ctx.resMsg = '未配置通知地址'
+    return
+  }
+
+  const { first, common }= await err.getPushData()
+
+  await triggerNotify(config.notify, first, common)
+
+  ctx.resMsg = '推送成功'
+})
+
 export default router
+
+export async function triggerNotify(
+  webhook: string,
+  first: any[],
+  common: any[],
+) {
+  const data = {
+    "msgtype": "markdown_v2",
+    "markdown": {
+      "content": `
+      ## 首次触发
+      | 触发原文 | 触发时间 | 触发次数 |
+      | ------ | -------- | -------- |
+      ${first.map(item => {
+        return `|${normalizeMessage(item.summary)}| ${item.first_seen} | ${item.count} |\n`
+      })}
+
+      ## 常规触发
+      | 告警内容 | 触发原文 | 首次触发时间 | 累计触发次数 |
+      | ------- | -------- | ---------- | ----------- |
+      ${common.map(item => {
+        return `|${item.message}| ${normalizeMessage(item.summary)} | ${item.first_seen} | ${item.count} |\n`
+      })}
+      `
+    }
+  }
+
+
+  await fetch(webhook, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  }).catch(err => {
+    throw err
+  })
+}
+
+function normalizeMessage(msg: string, limit = 100) {
+  if (msg.length > limit) {
+    return msg.slice(0, 100) + '...'
+  } else {
+    return msg
+  }
+}

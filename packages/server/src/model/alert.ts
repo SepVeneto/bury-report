@@ -1,5 +1,6 @@
 import { Db } from "mongodb";
-import { BaseType, Model } from "./index.ts";
+import { Filter, BaseType, Model } from "./index.ts";
+import Dayjs from "dayjs";
 
 // TODO: 与web统一类型来源
 export type AlertType = 'error' | 'api' | 'log'
@@ -33,5 +34,47 @@ export interface IAlertError extends BaseType {
 export class AlertError extends Model<IAlertError> {
   constructor(db: Db) {
     super(db, 'history_error')
+  }
+
+  async getPushData() {
+    const start = Dayjs().subtract(1, 'day').startOf('day').toDate()
+    const end = Dayjs().startOf('day').toDate()
+    const firstList = await this.col.find({
+      first_seen: { $gte: start, $lt: end },
+    }).toArray()
+    const commonList = await this.col.find({
+      last_seen: { $gte: start, $lt: end },
+    }).toArray()
+    return {
+      first: firstList,
+      common: commonList,
+    }
+  }
+}
+
+export interface IConfig extends BaseType {
+  scope: 'alert_setting'
+  notify?: string
+  status: boolean
+}
+export class AlertSetting extends Model<IConfig> {
+  constructor(db: Db) {
+    super(db, 'app_config')
+  }
+
+  async get() {
+    const filter = new Filter()
+
+    filter.equal('scope', 'alert_setting')
+
+    const res = await this.col.findOne(filter.build(), { projection: { scope: 0 }})
+    return res
+  }
+  set(res: Omit<IConfig, 'scope'>) {
+    return this.col.updateOne(
+      { scope: 'alert_setting' },
+      { $set: res },
+      { upsert: true }
+    )
   }
 }

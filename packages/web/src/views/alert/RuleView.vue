@@ -8,6 +8,11 @@
       <BcButton @click="handleUpdate()">
         新增
       </BcButton>
+      <BcButton
+        @click="handleSetting"
+      >
+        设置
+      </BcButton>
     </BcSearch>
     <bc-table
       ref="tableRef"
@@ -56,11 +61,14 @@
 
 <script lang="ts" setup>
 import type { AlertRule } from '@/apis'
-import { deleteAlertRule, getAlertRuleList, toggleAlertRule, updateAlertRule } from '@/apis'
+import { deleteAlertRule, getAlertRuleList, modifyAlertSetting, toggleAlertRule, updateAlertRule } from '@/apis'
 import { ref, shallowRef, useTemplateRef } from 'vue'
 import RuleForm from './RuleForm.vue'
 import RxSwitch from '@/components/switch/rxSwitch.vue'
 import type { WithDetail } from '@/util/tools'
+
+import { createDialog } from '@sepveneto/basic-comp'
+import AlertSetting from './AlertSetting.vue'
 
 const searchConfig = shallowRef([
   { catalog: 'input', name: '规则ID', prop: 'id' },
@@ -98,6 +106,19 @@ const ruleModal = ref({
 })
 
 const refTable = useTemplateRef('tableRef')
+
+function handleSetting() {
+  const { open, close } = createDialog(AlertSetting)
+  open({ width: '550px', title: '告警摘要推送配置' }, async (ctx) => {
+    const res = ctx?.getFormData()
+    if (res) {
+      await modifyAlertSetting(res)
+      close()
+    } else {
+      throw new Error('fatal error')
+    }
+  })
+}
 function handleSearch() {
   params.value.page = 1
   // @ts-expect-error: ignore
