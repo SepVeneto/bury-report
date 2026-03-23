@@ -26,6 +26,12 @@
       >
         同步
       </BcButton>
+      <BcButton
+        text
+        @click="handleExport(row.session)"
+      >
+        导出
+      </BcButton>
     </template>
   </BcTable>
 
@@ -42,16 +48,22 @@
       v-if="type === 'mp-weixin'"
       :session="session.id"
     />
+    <SessionExport
+      v-if="type === 'mp-weixin-export'"
+      :session="session.id"
+    />
   </ElDialog>
 </template>
 
 <script lang="ts" setup>
 import SessionH5 from './components/SessionH5.vue'
 import SessionMp from './components/SessionMp.vue'
+import SessionExport from './components/SessionExport.vue'
 import { getSessionList, syncSession } from '@/apis'
 import { ref, shallowRef, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import DeviceLink from './components/DeviceLink.vue'
+import { createDialog } from '@sepveneto/basic-comp'
 
 defineProps<{ type?: string }>()
 const route = useRoute()
@@ -73,6 +85,11 @@ const tableConfig = shallowRef([
 
 if (route.query.session) {
   params.value.session = route.query.session as string
+}
+
+function handleExport(session: string) {
+  const { open } = createDialog(SessionExport, { session })
+  open({ width: '550px', noFooter: true, title: '操作导出' })
 }
 
 function handleSync(session: string) {

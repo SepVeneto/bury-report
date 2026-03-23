@@ -3,7 +3,7 @@ import { getMpSessionEvents, getSessionDetail, getSessionEvents, syncSession } f
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef } from 'vue'
 import { type eventWithTime } from '@rrweb/types'
 
-export function useH5Session(session: string, cb: () => void) {
+export function useH5Session(session: string, cb?: () => void) {
   const timer = ref<number | null>()
   const detail = shallowRef()
 
@@ -20,7 +20,7 @@ export function useH5Session(session: string, cb: () => void) {
       timer.value && clearInterval(timer.value)
       timer.value = null
       resolve(getSessionEvents(detail.value.event_urls))
-      nextTick().then(cb)
+      cb && nextTick().then(cb)
     }
     return detail.value
   }

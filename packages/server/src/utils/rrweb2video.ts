@@ -21,6 +21,7 @@ const defaultConfig = {
   rrwebPlayer: {
     width: 500,
     height: 500,
+    skipInactive: true,
   },
   onProgressUpdate: (_progress: number) => { },
 }
@@ -133,15 +134,14 @@ export class VideoTransformer {
         'pipe:1',
       ]
       const ffmpeg = spawn('ffmpeg', args)
+      ffmpeg.stdout.pipe(this.file)
       ffmpeg.stderr.on('data', (data) => {
-        console.log(data)
         if (data.includes('Error')) {
           console.error(`[FFMPEG] ${data}`)
           this.stage = 'fail'
           reject(data)
         }
       })
-      ffmpeg.stdout.pipe(this.file)
       ffmpeg.stdout.on('data', (data) => {
         this.stage = 'transform'
         this.chunks.push(data)
@@ -151,6 +151,8 @@ export class VideoTransformer {
       })
       ffmpeg.on('close', () => {
         console.log('close')
+
+        fs.unlinkSync(videoPath)
         resolve(true)
       })
     })
