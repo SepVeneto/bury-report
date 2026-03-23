@@ -64,7 +64,11 @@ export class VideoTransformer {
     config.rrwebPlayer.width = scaledViewport.width
     config.rrwebPlayer.height = scaledViewport.height
     const browser = await chromium.launch({
-      headless: true
+      headless: true,
+      args: [
+        '--disable-web-security',
+        '--disable-features=BlockInsecurePrivateNetworkRequests'
+      ]
     })
     const context = await browser.newContext({
       viewport: scaledViewport,
