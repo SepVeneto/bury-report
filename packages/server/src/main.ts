@@ -41,7 +41,9 @@ async function pushAlert() {
     if (status && notify) {
       const err = new AlertError(appDb)
       const { first, common }= await err.getPushData()
-      await triggerNotify(notify, first, common)
+      first.sort((a, b) => b.count - a.count)
+      common.sort((a, b) => b.count - a.count)
+      await triggerNotify(notify, first.slice(0, 5), common.slice(0, 5))
     }
   }))
 }
