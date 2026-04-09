@@ -131,7 +131,10 @@ router.post('/task/:taskId/stop', async (ctx) => {
     throw new Error('任务未运行')
   }
 
-  const data = await ctx.request.body.json()
+  const data = await ctx.request.body.json().catch(() => {
+    // without body
+    return { operator: '' }
+  })
   TaskManager.remove(res.job_id)
   task.updateOne({
     id: taskId,
