@@ -1,4 +1,4 @@
-import { TRACK_EVENT } from '@/constant'
+import { MP_WARNING, TRACK_EVENT } from '@/constant'
 import type { BuryReportBase as BuryReport, BuryReportPlugin, ReportFn } from '@/type'
 
 export class TrackPlugin implements BuryReportPlugin {
@@ -44,7 +44,7 @@ function wrapApp(report: ReportFn) {
 
     const originOnPageNotFound = options.onPageNotFound
     options.onPageNotFound = function (options: any) {
-      report(TRACK_EVENT, {
+      report(MP_WARNING, {
         type: 'AppPageNotFound',
         data: options,
       })
@@ -53,7 +53,7 @@ function wrapApp(report: ReportFn) {
 
     const originOnMemoryWarning = options.onMemoryWarning
     options.onMemoryWarning = function (options: any) {
-      report(TRACK_EVENT, {
+      report(MP_WARNING, {
         type: 'AppMemoryWarning',
         data: options,
       })
