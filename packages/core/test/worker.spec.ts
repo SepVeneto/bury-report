@@ -105,4 +105,32 @@ describe('worker 上报可靠性', () => {
     await flush()
     expect(vi.getTimerCount()).toBe(0)
   })
+
+  it('keepalive 时录屏事件流原子送达：多段记录合并为单个 gzip 请求，不拆分', async () => {
+    const tracks = Array.from({ length: 3 }, (_, i) => ({
+      type: OPERATION_TRACK,
+      data: {
+        events: Array.from({ length: 100 }, (_, j) => ({
+          type: 3,
+          timestamp: i * 100 + j,
+          data: { source: 0, texts: [], attributes: [], removes: [], adds: [] },
+        })),
+      },
+      session: 's',
+      uuid: 'u',
+      time: String(i),
+      stamp: i,
+    }))
+    dispatch(tracks, true)
+    await flush()
+
+    // 事件流只有一个 gzip 请求（原子送达），不会被拆成多片
+    expect(selfState.fetch).toHaveBeenCalledTimes(1)
+    const body: Uint8Array = selfState.fetch.mock.calls[0][1].body
+    expect(body[0]).toBe(0)
+    // 三段事件都在同一请求内
+    const gzipText = new TextDecoder().decode(body.subarray(1))
+    const header = gzipText.slice(0, gzipText.indexOf('|'))
+    expect(header).toBe('s:a')
+  })
 })

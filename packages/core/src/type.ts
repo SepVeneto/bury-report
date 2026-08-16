@@ -68,6 +68,19 @@ export interface Options {
    */
   operationRecord?: {
     enable?: boolean
+    /**
+     * 快照检查点重建间隔（毫秒），默认 5s。
+     * 周期生成 FullSnapshot 作为回放恢复点：某段快照丢失/拍错时，回放可从下一个检查点继续。
+     * 注意：checkout 是事件驱动的，仅在持续录制的片段内有效；短片段场景请配合
+     * 回到页面时的可见性快照（重建检查点）使用。
+     * 设为 0 可关闭。
+     */
+    checkoutEveryNms?: number
+    /**
+     * 快照中是否内联样式表，默认 false。
+     * 内联会显著增大快照体积，增大超传输限制被丢弃的概率。
+     */
+    inlineStylesheet?: boolean
   }
 }
 

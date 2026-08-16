@@ -34,9 +34,9 @@ async function handleReport({ store, appid, sessionid, deviceid, keepalive }: an
     for (const chunk of splitBySize([...other, ...api], MAX_KEEPALIVE_BYTES)) {
       degradationReport({ appid, data: chunk }, true).catch((err) => console.warn(err))
     }
-    for (const chunk of splitBySize(tracks, MAX_KEEPALIVE_BYTES)) {
-      degradationReport({ sessionid, deviceid, appid, data: chunk }, true, 'gzip').catch((err) => console.warn(err))
-    }
+    // 录屏事件流必须原子送达：拆分会因部分送达导致整段数据不完整、回放解析失败，
+    // 单请求要么全量送达、要么整条丢弃（回放锚点已在段开始时经普通路径送达）
+    tracks.length > 0 && degradationReport({ sessionid, deviceid, appid, data: tracks }, true, 'gzip').catch((err) => console.warn(err))
     return
   }
 

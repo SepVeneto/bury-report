@@ -46,7 +46,11 @@ describe('withDefault / 配置合并', () => {
     expect(config.error).toBe(true)
     expect(config.interval).toBe(10)
     expect(config.network).toEqual({ enable: false, success: true, fail: true, responseLimit: 100 })
-    expect(config.operationRecord).toEqual({ enable: false })
+    expect(config.operationRecord).toEqual({
+      enable: false,
+      checkoutEveryNms: 5 * 1000,
+      inlineStylesheet: false,
+    })
   })
 
   it('用户配置覆盖默认值（含嵌套）', () => {

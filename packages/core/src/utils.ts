@@ -16,6 +16,8 @@ const DEFAULT_CONFIG = {
   },
   operationRecord: {
     enable: false,
+    checkoutEveryNms: 5 * 1000,
+    inlineStylesheet: false,
   },
 }
 
