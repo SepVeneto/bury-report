@@ -15,9 +15,11 @@ export class BuryReport implements BuryReportBase {
   public options: Options
 
   private static pluginsOrder: BuryReportPlugin[] = []
+  private static instance?: BuryReport
   public static cache: any[] = []
 
   constructor(config: Options = {} as Options) {
+    BuryReport.instance = this
     const url = config?.url
     let worker: any
     try {
@@ -47,23 +49,21 @@ export class BuryReport implements BuryReportBase {
 
   static registerPlugin(plugin: BuryReportPlugin) {
     this.pluginsOrder.push(plugin)
+
+    // SDK 已初始化后注册的插件（如异步加载的 rrweb 插件）立即初始化，
+    // 且同样受 enable 开关过滤
+    const instance = this.instance
+    if (instance && shouldEnablePlugin(plugin, instance.options)) {
+      try {
+        plugin.init(instance)
+      } catch (error) {
+        console.warn('[@sepveneto/report-core] plugin init failed: ' + error)
+      }
+    }
   }
 
   private init() {
-    BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => {
-      switch (plugin.name.toLowerCase()) {
-        case 'errorplugin':
-          return this.options?.error
-        case 'collectplugin':
-          return this.options?.collect
-        case 'networkplugin':
-          return this.options?.network?.enable
-        case 'operationrecordplugin':
-          return this.options.operationRecord?.enable
-        default:
-          return true
-      }
-    })
+    BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => shouldEnablePlugin(plugin, this.options))
     this.triggerPlugin('init')
 
     document.addEventListener('visibilitychange', () => {
@@ -118,6 +118,21 @@ INNER_PLUGINs.forEach(plugin => {
 })
 
 window.BuryReport = BuryReport
+
+function shouldEnablePlugin(plugin: BuryReportPlugin, options: Options) {
+  switch (plugin.name.toLowerCase()) {
+    case 'errorplugin':
+      return options?.error
+    case 'collectplugin':
+      return options?.collect
+    case 'networkplugin':
+      return options?.network?.enable
+    case 'operationrecordplugin':
+      return options.operationRecord?.enable
+    default:
+      return true
+  }
+}
 
 function createProxy(options: Options) {
   const { appid } = options

@@ -25,6 +25,7 @@ beforeEach(() => {
   // 每个用例独立统计，避免静态状态串扰
   ;(BuryReport as any).cache = []
   ;(BuryReport as any).pluginsOrder = []
+  ;(BuryReport as any).instance = undefined
 })
 
 afterEach(() => {
@@ -32,6 +33,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   ;(dom.window as any).__BR_WORKER__ = undefined
   ;(BuryReport as any).cache = []
+  ;(BuryReport as any).instance = undefined
 })
 
 describe('条件1：网络波动 / 服务器宕机不影响宿主', () => {
@@ -163,6 +165,55 @@ describe('条件2：开发者配置错误不影响宿主', () => {
     expect(() => new BuryReport({ url: URL, appid: 'a', report: true })).not.toThrow()
     // 宿主的上报功能仍可用
     expect(() => getReport()('custom', {}, { immediate: true })).not.toThrow()
+  })
+})
+
+describe('异步加载插件（rrweb 场景）', () => {
+  it('SDK 初始化后注册的插件立即初始化', () => {
+    const initSpy = vi.fn()
+    class LatePlugin {
+      name = 'latePlugin'
+      init(ctx: any) {
+        initSpy(ctx)
+      }
+    }
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    ;(BuryReport as any).registerPlugin(new LatePlugin())
+
+    expect(initSpy).toHaveBeenCalledTimes(1)
+    expect(initSpy.mock.calls[0][0]).toBeInstanceOf(BuryReport)
+  })
+
+  it('SDK 初始化后注册的插件同样受 enable 开关过滤', () => {
+    const initSpy = vi.fn()
+    class LateNetworkPlugin {
+      name = 'NetworkPlugin'
+      init() {
+        initSpy()
+      }
+    }
+
+    new BuryReport({ url: URL, appid: 'a', report: true, network: { enable: false } })
+    ;(BuryReport as any).registerPlugin(new LateNetworkPlugin())
+
+    expect(initSpy).not.toHaveBeenCalled()
+  })
+
+  it('插件初始化抛错不影响宿主', () => {
+    const initSpy = vi.fn(() => {
+      throw new Error('plugin broken')
+    })
+    class BrokenPlugin {
+      name = 'brokenPlugin'
+      init() {
+        initSpy()
+      }
+    }
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    expect(() => (BuryReport as any).registerPlugin(new BrokenPlugin())).not.toThrow()
+    expect(initSpy).toHaveBeenCalledTimes(1)
   })
 })
 

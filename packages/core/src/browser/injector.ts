@@ -6,16 +6,12 @@ function init(options: Options) {
     const plugin = new ErrorPlugin()
     plugin.init(options.appid)
 
-    Promise.allSettled([
-      loadScript(options.url),
-      options.operationRecord?.enable && loadScript(options.url, 'plugins/operationRecord.global.js'),
-    ]).then(() => {
+    // 核心 SDK 与 rrweb 插件完全解耦：任一方加载失败/缓慢都不影响宿主、
+    // 不影响对方，也不阻塞首屏（均为异步加载）
+    loadScript(options.url).then(() => {
       plugin.resetListener()
 
       if ('BuryReport' in window) {
-        if ('OperationRecordPlugin' in window) {
-          window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
-        }
         try {
           // eslint-disable-next-line no-new
           new window.BuryReport(options)
@@ -23,9 +19,25 @@ function init(options: Options) {
           console.warn('[@sepveneto/report-core] init failed with error', error)
         }
       } else {
-        console.warn('[@sepveneto/report-core] cannot find BuryReport  in window, maybe the core script is not loaded correctly')
+        console.warn('[@sepveneto/report-core] cannot find BuryReport in window, maybe the core script is not loaded correctly')
       }
+    }).catch((error) => {
+      // 服务器关闭 / 404：SDK 不可用，但宿主不受影响，恢复 console.error
+      plugin.resetListener()
+      console.warn('[@sepveneto/report-core] core sdk load failed: ' + error)
     })
+
+    if (options.operationRecord?.enable) {
+      loadScript(options.url, 'plugins/operationRecord.global.js').then(() => {
+        // 异步加载的 rrweb 插件：若核心 SDK 已初始化，registerPlugin 会立即初始化该插件
+        if ('BuryReport' in window && 'OperationRecordPlugin' in window) {
+          window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
+        }
+      }).catch((error) => {
+        // rrweb 插件加载失败不影响宿主与核心 SDK
+        console.warn('[@sepveneto/report-core] operation record plugin load failed: ' + error)
+      })
+    }
   } catch (error) {
     console.warn('[@sepveneto/report-core] init failed with error', error)
   }
@@ -39,7 +51,6 @@ function loadScript(reportUrl: string, entry = 'index.global.js') {
   const url = new URL(reportUrl)
   const coreUrl = `${url.origin}/sdk/${versionPefix}/${entry}?v=${version}`
   script.src = process.env.LOG_DEBUG ? `/public/${entry}` : coreUrl
-  // script.src = `/public/${entry}`
   script.crossOrigin = 'anonymous'
   return new Promise((resolve, reject) => {
     script.onload = resolve
@@ -48,61 +59,5 @@ function loadScript(reportUrl: string, entry = 'index.global.js') {
   })
 }
 
-if (!Promise.allSettled) {
-  Promise.allSettled = allSettledPolyfill
-}
-
 // @ts-expect-error: replace
 init(SDK_OPTIONS)
-
-// 1. 定义返回值的类型结构
-interface PromiseFulfilledResult<T> {
-  status: 'fulfilled';
-  value: T;
-}
-
-interface PromiseRejectedResult {
-  status: 'rejected';
-  reason: any;
-}
-
-type PromiseSettledResult<T> = PromiseFulfilledResult<T> | PromiseRejectedResult
-
-// 2. 实现 Polyfill
-function allSettledPolyfill<T extends readonly unknown[] | []>(
-  promises: T,
-): Promise<{ [K in keyof T]: PromiseSettledResult<Awaited<T[K]>> }> {
-  const ps = Array.from(promises)
-
-  return new Promise((resolve) => {
-    const results: any[] = []
-    let completedCount = 0
-
-    if (ps.length === 0) {
-      return resolve([] as any)
-    }
-
-    ps.forEach((p, index) => {
-      // Promise.resolve(p) 处理混合类型（Promise 或具体值）
-      Promise.resolve(p)
-        .then((value) => {
-          results[index] = {
-            status: 'fulfilled',
-            value,
-          }
-        })
-        .catch((reason) => {
-          results[index] = {
-            status: 'rejected',
-            reason,
-          }
-        })
-        .finally(() => {
-          completedCount++
-          if (completedCount === ps.length) {
-            resolve(results as any)
-          }
-        })
-    })
-  })
-}

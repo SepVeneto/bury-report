@@ -2,6 +2,7 @@ import { dom } from './helpers/dom-stub'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EventType } from '@rrweb/types'
 import { OPERATION_TRACK } from '../src/constant'
+import { BuryReport } from '../src/browser/index'
 
 const { takeFullSnapshot, record } = vi.hoisted(() => ({
   takeFullSnapshot: vi.fn(),
@@ -34,6 +35,8 @@ beforeEach(() => {
   record.mockReset()
   takeFullSnapshot.mockReset()
   dom.bus.clear()
+  ;(BuryReport as any).instance = undefined
+  ;(BuryReport as any).pluginsOrder = []
 })
 
 afterEach(() => {
@@ -129,5 +132,26 @@ describe('OperationRecordPlugin', () => {
     history.pushState({}, '', '/c')
     vi.advanceTimersByTime(100)
     expect(takeFullSnapshot).toHaveBeenCalledTimes(2)
+  })
+
+  it('SDK 初始化完成后注册真实的 OperationRecordPlugin 会立即启动录制（不只是注册）', () => {
+    const Plugin = (dom.window as any).OperationRecordPlugin
+
+    new BuryReport({
+      url: 'http://report.example/record',
+      appid: 'a',
+      report: true,
+      operationRecord: { enable: true },
+    })
+
+    // 模拟异步加载的 rrweb 插件在 SDK 初始化后才到达
+    ;(BuryReport as any).registerPlugin(new Plugin())
+
+    // 插件 init 已执行 → rrweb.record 被调用（并非只 push 进 pluginsOrder）
+    expect(record).toHaveBeenCalledTimes(1)
+    expect(record.mock.calls[0][0]).toMatchObject({
+      checkoutEveryNms: 5 * 1000,
+      inlineStylesheet: false,
+    })
   })
 })
