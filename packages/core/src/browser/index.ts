@@ -45,14 +45,14 @@ export class BuryReport implements BuryReportBase {
 
   private init() {
     BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => {
-      switch (plugin.name) {
-        case 'errorPlugin':
+      switch (plugin.name.toLowerCase()) {
+        case 'errorplugin':
           return this.options?.error
-        case 'collectPlugin':
+        case 'collectplugin':
           return this.options?.collect
-        case 'networkPlugin':
+        case 'networkplugin':
           return this.options?.network?.enable
-        case 'operationRecordPlugin':
+        case 'operationrecordplugin':
           return this.options.operationRecord?.enable
         default:
           return true
