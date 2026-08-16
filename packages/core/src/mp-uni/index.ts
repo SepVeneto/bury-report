@@ -1,7 +1,7 @@
 import { NetworkPlugin as _NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
 import { REPORT_REQUEST } from '@/constant'
-import { flushMemoryToStorage, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import { flushMemoryToStorage, normalizeInterval, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 import { ErrorPlugin as _ErrorPlugin } from './plugins/error'
 import { CollectPlugin as _CollectPlugin } from './plugins/collect'
 import { TrackPlugin as _TrackPlugin } from './plugins/track'
@@ -17,10 +17,10 @@ export class BuryReport implements BuryReportBase {
 
   private static pluginsOrder: BuryReportPlugin[] = []
 
-  constructor(config: Options) {
+  constructor(config: Options = {} as Options) {
     this.options = withDefault(config)
 
-    if (!config.report) return
+    if (!config?.report) return
 
     this.report = createProxy(config)
 
@@ -36,7 +36,14 @@ export class BuryReport implements BuryReportBase {
   }
 
   private triggerPlugin(lifecycle: 'init') {
-    BuryReport.pluginsOrder.forEach(plugin => plugin[lifecycle](this))
+    BuryReport.pluginsOrder.forEach(plugin => {
+      try {
+        plugin[lifecycle](this)
+      } catch (error) {
+        // 单个插件初始化失败不影响宿主
+        console.warn('[@sepveneto/report-core] plugin init failed: ' + error)
+      }
+    })
   }
 }
 
@@ -46,34 +53,40 @@ export function report(type: string, data: Record<string, any>, immediate = fals
 
 function createProxy(options: Options) {
   const { appid, interval = 10, url } = options
+  const sendInterval = normalizeInterval(interval)
   let canSend = true
   let sendTimer: number | undefined
 
   const sendRequest = () => {
-    if (!canSend) return
-
-    // 发送前强制 flush，避免内存数据丢失
-    flushMemoryToStorage()
-
-    const list = readQueue()
-    if (!list.length) return
-
-    uni.request({
-      url,
-      method: 'POST',
-      data: JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) }),
-      timeout: 3000,
-      success: () => {
-        writeQueue([])
-      },
-      fail: () => {
-        // 生命周期级熔断：只禁发送
-        canSend = false
-      },
-    })
-
     clearTimeout(sendTimer)
     sendTimer = undefined
+
+    if (!canSend) return
+
+    try {
+      // 发送前强制 flush，避免内存数据丢失
+      flushMemoryToStorage()
+
+      const list = readQueue()
+      if (!list.length) return
+
+      uni.request({
+        url,
+        method: 'POST',
+        data: JSON.stringify({ appid, data: list.map(item => ({ ...item, appid })) }),
+        timeout: 3000,
+        success: () => {
+          writeQueue([])
+        },
+        fail: () => {
+          // 生命周期级熔断：只禁发送
+          canSend = false
+        },
+      })
+    } catch (err) {
+      // 发送失败不影响宿主，仅记录警告
+      console.warn('[@sepveneto/report-core] send request failed: ' + err)
+    }
   }
 
   const report = (
@@ -88,13 +101,12 @@ function createProxy(options: Options) {
 
     if (immediate) {
       sendRequest()
-      return
     }
 
     if (!sendTimer) {
       sendTimer = globalThis.setTimeout(
         sendRequest,
-        interval * 1000,
+        sendInterval,
       ) as unknown as number
     }
   }

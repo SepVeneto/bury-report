@@ -11,10 +11,10 @@ self.onmessage = (evt) => {
       const [other, api, tracks] = sliceDataForKeepalive(data)
       if (keepalive) {
         // 为了保证页面关闭后数据尽可能被上报，需要对数据进行分割
-        other.length > 0 && degradationReport({ appid, data: other }, true)
-        api.length > 0 && degradationReport({ appid, data: api }, true)
+        other.length > 0 && degradationReport({ appid, data: other }, true).catch((err) => console.warn(err))
+        api.length > 0 && degradationReport({ appid, data: api }, true).catch((err) => console.warn(err))
         // rrweb的优先级最低
-        tracks.length > 0 && degradationReport({ sessionid, deviceid, appid, data: tracks }, true, 'gzip')
+        tracks.length > 0 && degradationReport({ sessionid, deviceid, appid, data: tracks }, true, 'gzip').catch((err) => console.warn(err))
       } else {
         const common = [...other, ...api]
         common.length > 0 && degradationReport({ appid, data: common }, false).catch((err) => {

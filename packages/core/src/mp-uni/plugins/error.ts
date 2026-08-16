@@ -44,11 +44,22 @@ export class ErrorPlugin implements BuryReportPlugin {
   }
 
   public reportError(error: { name: string, message: string, stack?: string, extra: any | null }) {
-    const data = {
-      ...error,
-      page: getCurrentPages().map(page => page.route).join('->'),
+    try {
+      let page = ''
+      try {
+        page = getCurrentPages().map(item => item.route).join('->')
+      } catch {
+        // 拿不到当前页面时不影响错误上报
+      }
+      const data = {
+        ...error,
+        page,
+      }
+      this.ctx?.report?.(COLLECT_ERROR, data)
+    } catch (err) {
+      // 错误上报失败不能影响宿主
+      console.warn('[@sepveneto/report-core] report error failed: ' + err)
     }
-    this.ctx?.report?.(COLLECT_ERROR, data)
   }
 
   public onUncaughtError() {

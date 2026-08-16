@@ -23,6 +23,12 @@ export function withDefault(config: Options) {
   return mergeConfig(config, DEFAULT_CONFIG)
 }
 
+// 上报周期统一做安全校验：非法或非正数时回退到默认10秒，避免出现0ms死循环
+export function normalizeInterval(interval?: number) {
+  const seconds = Number(interval)
+  return (Number.isFinite(seconds) && seconds > 0 ? seconds : 10) * 1000
+}
+
 export function mergeConfig(
   config: Options,
   defaultConfig: Required<Omit<Options, 'url' | 'appid' | 'entry' | 'stamp'>>,
@@ -59,6 +65,15 @@ export function getUtf8Size(str: string) {
   let size = 0
   for (let i = 0; i < str.length; i++) {
     const code = str.charCodeAt(i)
+    // 代理对（如 emoji）按 4 字节计算，避免被拆成两个 3 字节
+    if (code >= 0xD800 && code <= 0xDBFF && i + 1 < str.length) {
+      const next = str.charCodeAt(i + 1)
+      if (next >= 0xDC00 && next <= 0xDFFF) {
+        size += 4
+        i++
+        continue
+      }
+    }
     if (code <= 0x7F) {
       size += 1 // ASCII字符占1字节
     } else if (code <= 0x7FF) {

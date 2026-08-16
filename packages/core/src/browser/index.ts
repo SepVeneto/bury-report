@@ -2,7 +2,7 @@ import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
 import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
-import { flushMemoryToStorage, getSessionId, getUuid, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import { flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
 import { ErrorPlugin } from './plugins/error'
@@ -17,12 +17,18 @@ export class BuryReport implements BuryReportBase {
   private static pluginsOrder: BuryReportPlugin[] = []
   public static cache: any[] = []
 
-  constructor(config: Options) {
-    const url = config.url
-    const worker = WorkerFactory({ url: process.env.LOG_DEBUG ? 'http://localhost:8870/record' : url })
+  constructor(config: Options = {} as Options) {
+    const url = config?.url
+    let worker: any
+    try {
+      worker = WorkerFactory({ url: process.env.LOG_DEBUG ? 'http://localhost:8870/record' : url })
+    } catch (error) {
+      // worker 创建失败（如 CSP 限制）不影响宿主，数据会降级由主线程发送
+      console.warn('[@sepveneto/report-core] worker init failed: ' + error)
+    }
     window.__BR_WORKER__ = worker
-    if (window.__BR_WORKER__) {
-      window.__BR_WORKER__.onmessage = (e) => {
+    if (worker) {
+      worker.onmessage = (e: any) => {
         if (e.data.type === 'exception') {
           console.log('[report-core] worker terminated')
           window.__BR_WORKER__ = undefined
@@ -32,7 +38,7 @@ export class BuryReport implements BuryReportBase {
 
     this.options = withDefault(config)
 
-    if (!config.report) return
+    if (!config?.report) return
 
     this.report = createProxy(config)
 
@@ -87,7 +93,14 @@ export class BuryReport implements BuryReportBase {
   }
 
   private triggerPlugin(lifecycle: 'init') {
-    BuryReport.pluginsOrder.forEach(plugin => plugin[lifecycle](this))
+    BuryReport.pluginsOrder.forEach(plugin => {
+      try {
+        plugin[lifecycle](this)
+      } catch (error) {
+        // 单个插件初始化失败不影响宿主
+        console.warn('[@sepveneto/report-core] plugin init failed: ' + error)
+      }
+    })
   }
 }
 
@@ -105,43 +118,57 @@ INNER_PLUGINs.forEach(plugin => {
 window.BuryReport = BuryReport
 
 function createProxy(options: Options) {
-  const { appid, interval = 10 } = options
+  const { appid } = options
+  const sendInterval = normalizeInterval(options.interval)
   let sendTimer: number | undefined
 
   const sendRequest = (keepalive = false) => {
-    if (!window.__BR_WORKER__) return
+    try {
+      // 发送前强制 flush，避免内存数据丢失
+      flushMemoryToStorage()
 
-    // 发送前强制 flush，避免内存数据丢失
-    flushMemoryToStorage()
+      const list = readQueue()
+      const worker = window.__BR_WORKER__
+      const cache = BuryReport.cache
 
-    const list = readQueue()
+      // 有 worker 时，store:false 的缓存数据交给 worker 上报；
+      // 无 worker（创建失败或已终止）时并入主线程请求，避免数据丢失
+      if (list.length || (!worker && cache.length)) {
+        const data = list.map(item => ({ appid, ...item }))
+        if (!worker) data.push(...cache.map(item => ({ appid, ...item })))
+        fetch(options.url, {
+          method: 'post',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+          },
+          keepalive,
+          cache: 'no-store',
+          credentials: 'omit',
+          priority: 'low',
+          body: JSON.stringify({ appid, data }),
+        }).catch(err => {
+          console.warn('[report-core] fetch error: ' + err)
+        })
+      }
 
-    if (list.length) {
-      fetch(options.url, {
-        method: 'post',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-        },
-        keepalive,
-        cache: 'no-store',
-        credentials: 'omit',
-        priority: 'low',
-        body: JSON.stringify({ appid, data: list.map(item => ({ appid, ...item })) }),
-      }).catch(err => {
-        console.warn('[report-core] fetch error: ' + err)
-      })
-    }
-
-    if (BuryReport.cache.length) {
-      window.__BR_WORKER__.postMessage({
-        type: 'report',
-        appid,
-        sessionid: getSessionId(),
-        deviceid: getUuid(),
-        store: BuryReport.cache,
-        keepalive,
-      })
+      if (worker && cache.length) {
+        try {
+          worker.postMessage({
+            type: 'report',
+            appid,
+            sessionid: getSessionId(),
+            deviceid: getUuid(),
+            store: cache,
+            keepalive,
+          })
+        } catch (err) {
+          console.warn('[report-core] worker postMessage error: ' + err)
+        }
+      }
+    } catch (err) {
+      // 任何发送过程中的异常都不能影响宿主，仅记录警告
+      console.warn('[@sepveneto/report-core] send request failed: ' + err)
     }
 
     // 不管上报的成功与否，都需要清除定时器，保证新的上报流程正常执行
@@ -182,7 +209,7 @@ function createProxy(options: Options) {
     if (!sendTimer) {
       sendTimer = globalThis.setTimeout(
         sendRequest,
-        interval * 1000,
+        sendInterval,
       ) as unknown as number
     }
   }

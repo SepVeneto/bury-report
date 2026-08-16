@@ -16,8 +16,12 @@ function init(options: Options) {
         if ('OperationRecordPlugin' in window) {
           window.BuryReport.registerPlugin(new window.OperationRecordPlugin())
         }
-        // eslint-disable-next-line no-new
-        new window.BuryReport(options)
+        try {
+          // eslint-disable-next-line no-new
+          new window.BuryReport(options)
+        } catch (error) {
+          console.warn('[@sepveneto/report-core] init failed with error', error)
+        }
       } else {
         console.warn('[@sepveneto/report-core] cannot find BuryReport  in window, maybe the core script is not loaded correctly')
       }

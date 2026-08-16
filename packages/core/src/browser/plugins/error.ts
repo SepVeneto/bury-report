@@ -30,11 +30,16 @@ export class ErrorPlugin implements BuryReportPlugin {
   public reportError(error: { name: string, message: string, stack?: string, extra: any | null }) {
     const data = { ...error, page: window.location.href }
     // 白屏检测没有上下文，需要先放到缓存中
-    if (this.ctx) {
-      this.ctx.report?.(COLLECT_ERROR, data)
-    } else {
-      const record = storageReport(COLLECT_ERROR, data, Date.now())
-      writeMemory(record)
+    try {
+      if (this.ctx) {
+        this.ctx.report?.(COLLECT_ERROR, data)
+      } else {
+        const record = storageReport(COLLECT_ERROR, data, Date.now())
+        writeMemory(record)
+      }
+    } catch (err) {
+      // 错误上报失败不能影响宿主
+      console.warn('[@sepveneto/report-core] report error failed: ' + err)
     }
   }
 

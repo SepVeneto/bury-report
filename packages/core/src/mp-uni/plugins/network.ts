@@ -25,7 +25,7 @@ export class NetworkPlugin implements BuryReportPlugin {
 
     const report = ctx.report
     const _request = uni.request
-    const condition = this.options.condition
+    const condition = this.options?.condition
 
     function customRequest(this: any, options: UniNamespace.RequestOptions): ReturnType<typeof uni.request> {
       const { success, fail, complete } = options
@@ -35,7 +35,12 @@ export class NetworkPlugin implements BuryReportPlugin {
       const _fail = fail
       const _complete = complete
 
-      const page = getCurrentPages().map(page => page.route).slice(-1)[0]
+      let page: string | undefined
+      try {
+        page = getCurrentPages().map(item => item.route).slice(-1)[0]
+      } catch {
+        // 拿不到当前页面时不影响宿主请求
+      }
 
       _request({
         ...options,

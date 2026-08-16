@@ -12,6 +12,7 @@
   "scripts": {
     "bootstrap": "wasm-pack build ../sign --target no-modules --out-dir ../sign/pkg-client --mode no-install --scope client",
     "build": "tsup",
+    "test": "vitest run",
     "release": "bumpp --tag core@",
     "build:fix": "esno scripts/postbuild.ts",
     "dev": "export LOG_DEBUG=1 && tsup --watch src",
