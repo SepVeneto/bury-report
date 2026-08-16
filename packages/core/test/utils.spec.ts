@@ -248,6 +248,20 @@ describe('内存缓存 flush', () => {
     expect(list[49].stamp).toBe(59)
   })
 
+  it('设备信息不受条数上限影响，错误风暴下仍保留', () => {
+    // 设备信息最先入队（最旧），随后错误风暴填满队列
+    writeMemory({ type: '__BR_COLLECT_INFO__', stamp: 0 })
+    for (let i = 1; i <= 60; i++) writeMemory({ type: 'a', stamp: i })
+    flushMemoryToStorage()
+
+    const list = readQueue()
+    expect(list.some(item => item.type === '__BR_COLLECT_INFO__')).toBe(true)
+    // 设备信息 + 最新 49 条普通记录
+    expect(list).toHaveLength(50)
+    expect(list[0].type).toBe('__BR_COLLECT_INFO__')
+    expect(list[list.length - 1].stamp).toBe(60)
+  })
+
   it('队列超过字节上限时从最旧开始丢弃', () => {
     for (let i = 0; i < 40; i++) {
       writeMemory({ type: 'a', stamp: i, data: { blob: 'x'.repeat(20 * 1024) } })
@@ -259,6 +273,18 @@ describe('内存缓存 flush', () => {
     // 丢弃的是最旧的记录，最新记录保留
     expect(list[list.length - 1].stamp).toBe(39)
     expect(list[0].stamp).toBeGreaterThan(0)
+  })
+
+  it('设备信息不受字节上限影响，大记录风暴下仍保留', () => {
+    writeMemory({ type: '__BR_COLLECT_INFO__', stamp: 0, data: { compact: true } })
+    for (let i = 1; i <= 40; i++) {
+      writeMemory({ type: 'a', stamp: i, data: { blob: 'x'.repeat(20 * 1024) } })
+    }
+    flushMemoryToStorage()
+
+    const list = readQueue()
+    expect(list.some(item => item.type === '__BR_COLLECT_INFO__')).toBe(true)
+    expect(JSON.stringify(list).length).toBeLessThanOrEqual(256 * 1024 + 1024)
   })
 
   it('flush 写入失败时保留内存数据，恢复后重试成功', () => {

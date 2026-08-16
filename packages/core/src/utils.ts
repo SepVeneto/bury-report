@@ -1,5 +1,5 @@
 import type { Options } from '@/type'
-import { REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
+import { COLLECT_INFO, REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
 // @ts-expect-error: ignore
 import globalThis from 'core-js/internals/global-this.js'
 
@@ -287,11 +287,42 @@ export function splitBySize(items: any[], maxBytes: number): any[][] {
 let memoryBuffer: any[] = []
 let flushTimer: number | undefined
 
+// 设备信息是会话最早入队的记录且体积很小，超限裁剪时受保护，
+// 避免错误风暴把队首的设备信息挤掉导致“有错误无设备”
+function isProtectedRecord(item: any) {
+  return !!item && item.type === COLLECT_INFO
+}
+
+// 从最旧开始丢弃普通记录，设备信息不参与丢弃
+function trimOldest(list: any[], maxCount: number) {
+  if (list.length <= maxCount) return list
+
+  const protectedList = list.filter(isProtectedRecord)
+  const droppable = list.filter(item => !isProtectedRecord(item))
+  const room = Math.max(0, maxCount - protectedList.length)
+  return [...protectedList, ...droppable.slice(droppable.length - room)]
+}
+
+// 按字节从最旧开始丢弃普通记录，设备信息不参与丢弃
+function trimByBytes(list: any[], maxBytes: number) {
+  const protectedList = list.filter(isProtectedRecord)
+  const droppable = list.filter(item => !isProtectedRecord(item))
+
+  const sizes = droppable.map(item => estimateSize(item))
+  let rest = JSON.stringify(list).length
+  let drop = 0
+  while (drop < droppable.length && rest > maxBytes) {
+    rest -= sizes[drop]
+    drop++
+  }
+  return [...protectedList, ...droppable.slice(drop)]
+}
+
 export function writeMemory(record: any, immediate = false) {
   memoryBuffer.push(record)
   // 存储不可用导致 flush 失败时，内存缓冲也需要有界
   if (memoryBuffer.length > MAX_PERSIST_COUNT) {
-    memoryBuffer.splice(0, memoryBuffer.length - MAX_PERSIST_COUNT)
+    memoryBuffer = trimOldest(memoryBuffer, MAX_PERSIST_COUNT)
   }
 
   if (immediate) {
@@ -315,23 +346,14 @@ export function flushMemoryToStorage() {
   const list = readQueue()
   list.push(...memoryBuffer)
 
-  // 条数上限
-  if (list.length > MAX_PERSIST_COUNT) {
-    list.splice(0, list.length - MAX_PERSIST_COUNT)
-  }
+  // 条数上限：设备信息受保护，优先丢其它旧记录
+  const limited = trimOldest(list, MAX_PERSIST_COUNT)
 
   // 字节上限：从最旧开始丢弃，直到序列化体积达标
-  let finalList = list
-  const totalBytes = JSON.stringify(list).length
+  let finalList = limited
+  const totalBytes = JSON.stringify(limited).length
   if (totalBytes > MAX_QUEUE_BYTES) {
-    const sizes = list.map(item => estimateSize(item))
-    let rest = totalBytes
-    let drop = 0
-    while (drop < list.length && rest > MAX_QUEUE_BYTES) {
-      rest -= sizes[drop]
-      drop++
-    }
-    finalList = list.slice(drop)
+    finalList = trimByBytes(limited, MAX_QUEUE_BYTES)
   }
 
   // 写入失败时保留内存数据，等下次 flush 重试，尽量不丢日志
