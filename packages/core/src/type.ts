@@ -23,12 +23,12 @@ export interface Options {
    */
   stamp?: string
   /**
-   * 是否自动上报应用的环境信息
+   * 是否自动上报运行时错误（如JS错误、Promise拒绝）
    * @default true
    */
   error?: boolean
   /**
-   * 是否自动上报
+   * 是否自动上报应用的环境信息
    * @default true
    */
   collect?: boolean
@@ -58,7 +58,7 @@ export interface Options {
      */
     success?: boolean
     /**
-     * 是否启用接口错误（包括超时和拒绝）请求的上报
+     * 是否上报失败的请求（非200状态码、超时、主动取消）
      * @default true
      */
     fail?: boolean

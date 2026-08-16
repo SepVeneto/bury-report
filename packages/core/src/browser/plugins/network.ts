@@ -7,11 +7,12 @@ export class NetworkPlugin implements BuryReportPlugin {
   public reportRequest: any
 
   init(ctx: BuryReport) {
-    const {
-      network,
-      error,
-    } = withDefault(ctx.options)
+    const { network } = withDefault(ctx.options)
 
+    // 关闭网络请求上报后，不再代理 XMLHttpRequest
+    if (!network.enable) return
+
+    const { success, fail } = network
     const report = ctx.report
 
     class CustomRequest extends XMLHttpRequest {
@@ -26,29 +27,35 @@ export class NetworkPlugin implements BuryReportPlugin {
         // 所以需要在触发时缓存当前路由
         this.triggerPage = window.location.href
 
-        network.success && super.addEventListener('loadend', () => {
-          const duration = performance.now() - this._start
-          if (this.status === 200) {
-            const info = this._collectInfo('success', {
-              duration,
-              profile: getNetworkProfile(this.responseURL),
-            })
-            report?.(COLLECT_API, info)
-          } else {
-            const info = this._collectInfo('fail', { duration })
-            report?.(COLLECT_API, info)
-          }
-        })
-        error && super.addEventListener('abort', () => {
+        if (success || fail) {
+          super.addEventListener('loadend', () => {
+            const duration = performance.now() - this._start
+            if (this.status === 200) {
+              if (!success) return
+              const info = this._collectInfo('success', {
+                duration,
+                profile: getNetworkProfile(this.responseURL),
+              })
+              report?.(COLLECT_API, info)
+            } else {
+              // 非200的请求由 fail 决定是否上报
+              if (!fail) return
+              const info = this._collectInfo('fail', { duration })
+              report?.(COLLECT_API, info)
+            }
+          })
+        }
+        // fail 决定是否上报失败的请求（中断/错误/超时）
+        fail && super.addEventListener('abort', () => {
           const info = this._collectInfo('abort')
           report?.(COLLECT_API, info)
         })
 
-        error && super.addEventListener('error', () => {
+        fail && super.addEventListener('error', () => {
           const info = this._collectInfo('error')
           report?.(COLLECT_API, info)
         })
-        error && super.addEventListener('timeout', () => {
+        fail && super.addEventListener('timeout', () => {
           const info = this._collectInfo('timeout', { timeout: this.timeout })
           report?.(COLLECT_API, info)
         })
@@ -56,7 +63,7 @@ export class NetworkPlugin implements BuryReportPlugin {
       }
 
       send(body: Parameters<typeof XMLHttpRequest.prototype.send>[number]) {
-        if (network.success) {
+        if (success || fail) {
           this._start = performance.now()
           this._body = body
         }

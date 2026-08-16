@@ -107,10 +107,10 @@ module.exports = {
 | url | string | ✅ | - | 日志上报接口 |
 | appid | string | ✅ | - | 用来区分每一个应用的id |
 | report | boolean | ❎ | process.env.NODE.ENV === 'production' | 是否发送上报请求。 |
-| error | boolean | ❎ | true | 是否自动上报error类型的错误 |
+| error | boolean | ❎ | true | 是否自动上报运行时错误（如JS错误、Promise拒绝） |
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
 | entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
-| network | { enable: boolean, success: boolean, fail: boolean, responseLimit: number } | ❎ | { enable: false, success: true, fail: true, responseLimit: 100 } | 网络请求的上报配置，其中失败请求包括所有状态码非200的，以及超时和主动取消的, 默认对100KB返回内容进行限制 |
+| network | { enable: boolean, success: boolean, fail: boolean, responseLimit: number } | ❎ | { enable: false, success: true, fail: true, responseLimit: 100 } | 网络请求的上报配置，成功请求由 success 控制，失败请求（非200状态码、超时、主动取消）由 fail 控制，默认对100KB返回内容进行限制 |
 | interval | number | ❎ | 10 | 数据上报的周期，默认每隔10s上传一次
 
 ### 关于占用空间

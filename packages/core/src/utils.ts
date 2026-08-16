@@ -11,7 +11,7 @@ const DEFAULT_CONFIG = {
   network: {
     enable: false,
     success: true,
-    error: true,
+    fail: true,
     responseLimit: 100,
   },
   operationRecord: {

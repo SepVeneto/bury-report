@@ -17,9 +17,11 @@ export class NetworkPlugin implements BuryReportPlugin {
   init(ctx: BuryReport) {
     const {
       network,
-      error,
       url: recordUrl,
     } = withDefault(ctx.options)
+
+    // 关闭网络请求上报后，不再代理 uni.request
+    if (!network.enable) return
 
     const report = ctx.report
     const _request = uni.request
@@ -38,10 +40,12 @@ export class NetworkPlugin implements BuryReportPlugin {
       _request({
         ...options,
         success: (res) => {
-          if (network.success || condition?.(res)) {
+          const ok = res.statusCode === 200
+          // 非200的请求由 fail 决定是否上报
+          if (ok ? (network.success || condition?.(res)) : network.fail) {
             const duration = Date.now() - start
             const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
-            const info = collectInfo(options, 'success', {
+            const info = collectInfo(options, ok ? 'success' : 'fail', {
               page,
               duration,
               profile: res.profile,
@@ -54,7 +58,8 @@ export class NetworkPlugin implements BuryReportPlugin {
           _success?.(res)
         },
         fail: (res) => {
-          if (error) {
+          // fail 决定是否上报失败的请求（请求失败/拒绝）
+          if (network.fail) {
             const info = collectInfo(options, 'fail', {
               page,
               timeout: options.timeout,
