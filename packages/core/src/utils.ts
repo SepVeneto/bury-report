@@ -56,6 +56,7 @@ export function mergeConfig(
 }
 
 export function normalizeResponse(response: string, limit: number) {
+  if (typeof response !== 'string') return String(response ?? '')
   const size = getUtf8Size(response)
   return size < limit * 1000 ? response : 'exceed size limit'
 }
@@ -87,7 +88,13 @@ export function getUtf8Size(str: string) {
   return size
 }
 
+let cachedUuid: string | undefined
+let cachedSessionId: string | undefined
+
 export function getUuid() {
+  // 首次读取后缓存，避免每条日志都做同步存储读
+  if (cachedUuid) return cachedUuid
+
   let uuid
   try {
     uuid = getLocalStorage(UUID_KEY)
@@ -99,11 +106,13 @@ export function getUuid() {
       setLocalStorage(UUID_KEY, uuid)
     } catch {}
   }
+  cachedUuid = uuid
   return uuid
 }
 
 // 仅小程序需要手动重置
 export function resetSessionId() {
+  cachedSessionId = undefined
   try {
     removeLocalStorage(SESSIONID_KEY)
   } catch {}
@@ -111,6 +120,9 @@ export function resetSessionId() {
 // web端依赖browser session
 // 小程序端依赖localStorage手动实现
 export function getSessionId() {
+  // 首次读取后缓存，避免每条日志都做同步存储读
+  if (cachedSessionId) return cachedSessionId
+
   let sessionId
   try {
     sessionId = ('window' in globalThis && window.sessionStorage)
@@ -125,7 +137,14 @@ export function getSessionId() {
         : setLocalStorage(SESSIONID_KEY, sessionId)
     } catch {}
   }
+  cachedSessionId = sessionId
   return sessionId
+}
+
+// 重置内部缓存（测试或需要强制重新读取时使用，不影响线上行为）
+export function resetStorageCache() {
+  cachedUuid = undefined
+  cachedSessionId = undefined
 }
 
 export function setLocalStorage(key: string, value: string) {
@@ -140,8 +159,10 @@ export function setLocalStorage(key: string, value: string) {
     } else {
       window.localStorage.setItem(key, value)
     }
+    return true
   } catch (err) {
     console.warn('[@sepveneto/report-core] set storage queue failed: ' + err)
+    return false
   }
 }
 export function getLocalStorage(key: string) {
@@ -207,9 +228,10 @@ export const readQueue: () => any[] = () => {
 
 export const writeQueue = (list: any[]) => {
   try {
-    setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
+    return setLocalStorage(REPORT_QUEUE, JSON.stringify(list))
   } catch (err) {
     console.warn(err)
+    return false
   }
 }
 
@@ -219,6 +241,18 @@ export const MAX_KEEPALIVE_BYTES = 48 * 1024
 export const MAX_CACHE_COUNT = 50
 // mp 端内存缓存上限（小程序内存更敏感，取更小值）
 export const MAX_MEMORY_COUNT = 20
+// 本地队列字节上限：防止大记录写爆 localStorage，同时控制每秒全量序列化成本
+export const MAX_QUEUE_BYTES = 256 * 1024
+// 请求体/响应头等辅助字段的截断上限（单位KB，与 normalizeResponse 一致）
+export const MAX_FIELD_KB = 100
+
+// 请求体等非字符串类型只保留类型描述，避免 FormData/ArrayBuffer 序列化爆炸；
+// 失败请求等需要完整内容的场景传入 Infinity，字符串不做截断
+export function normalizeBody(body: any, limit = MAX_FIELD_KB) {
+  if (body == null) return null
+  if (typeof body === 'string') return normalizeResponse(body, limit)
+  return Object.prototype.toString.call(body)
+}
 
 // 估算单条记录的体积（UTF-16 长度近似，用于分片，保留余量）
 export function estimateSize(item: any) {
@@ -253,6 +287,10 @@ let flushTimer: number | undefined
 
 export function writeMemory(record: any, immediate = false) {
   memoryBuffer.push(record)
+  // 存储不可用导致 flush 失败时，内存缓冲也需要有界
+  if (memoryBuffer.length > MAX_PERSIST_COUNT) {
+    memoryBuffer.splice(0, memoryBuffer.length - MAX_PERSIST_COUNT)
+  }
 
   if (immediate) {
     flushMemoryToStorage()
@@ -275,13 +313,29 @@ export function flushMemoryToStorage() {
   const list = readQueue()
   list.push(...memoryBuffer)
 
+  // 条数上限
   if (list.length > MAX_PERSIST_COUNT) {
     list.splice(0, list.length - MAX_PERSIST_COUNT)
   }
 
-  writeQueue(list)
+  // 字节上限：从最旧开始丢弃，直到序列化体积达标
+  let finalList = list
+  const totalBytes = JSON.stringify(list).length
+  if (totalBytes > MAX_QUEUE_BYTES) {
+    const sizes = list.map(item => estimateSize(item))
+    let rest = totalBytes
+    let drop = 0
+    while (drop < list.length && rest > MAX_QUEUE_BYTES) {
+      rest -= sizes[drop]
+      drop++
+    }
+    finalList = list.slice(drop)
+  }
 
-  memoryBuffer = []
+  // 写入失败时保留内存数据，等下次 flush 重试，尽量不丢日志
+  if (writeQueue(finalList)) {
+    memoryBuffer = []
+  }
   clearTimeout(flushTimer)
   flushTimer = undefined
 }

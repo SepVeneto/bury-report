@@ -1,6 +1,6 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_API } from '@/constant'
-import { normalizeResponse, withDefault } from '@/utils'
+import { MAX_FIELD_KB, normalizeBody, normalizeResponse, withDefault } from '@/utils'
 
 export class NetworkPlugin implements BuryReportPlugin {
   public name = 'NetworkPlugin'
@@ -72,16 +72,19 @@ export class NetworkPlugin implements BuryReportPlugin {
 
       _collectInfo(type: string, others: Record<string, any> = {}) {
         const responseType = Object.prototype.toString.call(this.response)
+        const headers = this.getAllResponseHeaders()
+        // 失败请求保留完整内容便于排查，成功请求按上限截断
+        const isFail = type !== 'success'
         return {
           type,
           url: this.responseURL,
           method: this._method,
-          body: this._body,
+          body: normalizeBody(this._body, isFail ? Infinity : undefined),
           status: this.status,
           page: this.triggerPage || window.location.href,
-          responseHeaders: this.getAllResponseHeaders(),
+          responseHeaders: headers ? normalizeResponse(headers, isFail ? Infinity : MAX_FIELD_KB) : null,
           response: typeof this.response === 'string'
-            ? normalizeResponse(this.response, network.responseLimit)
+            ? normalizeResponse(this.response, isFail ? Infinity : network.responseLimit)
             : null,
           responseType: this.responseType || responseType,
           ...others,

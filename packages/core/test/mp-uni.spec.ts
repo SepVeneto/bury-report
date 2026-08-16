@@ -110,12 +110,13 @@ describe('NetworkPlugin（mp）', () => {
       { store: false },
     )
 
-    // 非200（500）由 fail 上报
-    wrapped({ url: '/api2', method: 'GET', success: vi.fn(), fail: vi.fn() })
+    // 非200（500）由 fail 上报，且保留完整请求体
+    const bigBody = 'x'.repeat(200 * 1000)
+    wrapped({ url: '/api2', method: 'POST', data: bigBody, success: vi.fn(), fail: vi.fn() })
     requestMock.mock.calls[1][0].success({ statusCode: 500, data: 'err', header: {} })
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_API,
-      expect.objectContaining({ type: 'fail', url: '/api2', status: 500 }),
+      expect.objectContaining({ type: 'fail', url: '/api2', status: 500, body: bigBody }),
       { store: false },
     )
 

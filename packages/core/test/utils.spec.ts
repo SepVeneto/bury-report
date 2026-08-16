@@ -5,9 +5,11 @@ import {
   getUuid,
   getUtf8Size,
   normalizeInterval,
+  normalizeBody,
   normalizeResponse,
   readQueue,
   resetSessionId,
+  resetStorageCache,
   splitBySize,
   storageReport,
   tryJsonString,
@@ -22,6 +24,7 @@ const storage = new Map<string, string>()
 
 beforeEach(() => {
   storage.clear()
+  resetStorageCache()
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.stubGlobal('uni', {
     setStorageSync: (key: string, value: any) => storage.set(key, String(value)),
@@ -98,10 +101,38 @@ describe('uuid / session', () => {
   })
 
   it('存储不可用时也不抛错', () => {
+    resetStorageCache()
     vi.stubGlobal('uni', undefined)
     expect(() => getUuid()).not.toThrow()
     expect(() => getSessionId()).not.toThrow()
     expect(() => resetSessionId()).not.toThrow()
+  })
+
+  it('首次读取后缓存，重复调用不再访问存储', () => {
+    const getSpy = vi.fn((key: string) => storage.get(key))
+    vi.stubGlobal('uni', {
+      setStorageSync: (key: string, value: any) => storage.set(key, String(value)),
+      getStorageSync: getSpy,
+      removeStorageSync: (key: string) => storage.delete(key),
+    })
+
+    getUuid()
+    getUuid()
+    getUuid()
+    // 只有第一次读 uuid
+    expect(getSpy.mock.calls.filter(call => call[0] === '__BR_UUID__')).toHaveLength(1)
+
+    getSessionId()
+    getSessionId()
+    expect(getSpy.mock.calls.filter(call => call[0] === '__BR_SESSIONID__')).toHaveLength(1)
+  })
+
+  it('resetStorageCache 后重新读取', () => {
+    const uuid = getUuid()
+    storage.clear()
+    expect(getUuid()).toBe(uuid) // 缓存命中
+    resetStorageCache()
+    expect(getUuid()).not.toBe(uuid)
   })
 })
 
@@ -130,6 +161,31 @@ describe('normalizeResponse / getUtf8Size', () => {
     expect(getUtf8Size('a')).toBe(1)
     expect(getUtf8Size('你')).toBe(3)
     expect(getUtf8Size('😀')).toBe(4)
+  })
+})
+
+describe('normalizeBody', () => {
+  it('null/undefined 返回 null', () => {
+    expect(normalizeBody(null)).toBeNull()
+    expect(normalizeBody(undefined)).toBeNull()
+  })
+
+  it('字符串按 100KB 截断', () => {
+    expect(normalizeBody('ok')).toBe('ok')
+    expect(normalizeBody('')).toBe('')
+    expect(normalizeBody('x'.repeat(50 * 1000))).toBe('x'.repeat(50 * 1000))
+    expect(normalizeBody('x'.repeat(100 * 1000 + 1))).toBe('exceed size limit')
+  })
+
+  it('失败请求场景（limit=Infinity）字符串保留完整', () => {
+    const big = 'x'.repeat(200 * 1000)
+    expect(normalizeBody(big, Infinity)).toBe(big)
+    expect(normalizeBody(new Uint8Array(1024), Infinity)).toBe('[object Uint8Array]')
+  })
+
+  it('非字符串只保留类型描述，避免序列化爆炸', () => {
+    expect(normalizeBody(new Uint8Array(1024))).toBe('[object Uint8Array]')
+    expect(normalizeBody({ a: 1 })).toBe('[object Object]')
   })
 })
 
@@ -186,6 +242,42 @@ describe('内存缓存 flush', () => {
     expect(list).toHaveLength(50)
     expect(list[0].stamp).toBe(10)
     expect(list[49].stamp).toBe(59)
+  })
+
+  it('队列超过字节上限时从最旧开始丢弃', () => {
+    for (let i = 0; i < 40; i++) {
+      writeMemory({ type: 'a', stamp: i, data: { blob: 'x'.repeat(20 * 1024) } })
+    }
+    flushMemoryToStorage()
+    const list = readQueue()
+    expect(list.length).toBeGreaterThan(0)
+    expect(JSON.stringify(list).length).toBeLessThanOrEqual(256 * 1024)
+    // 丢弃的是最旧的记录，最新记录保留
+    expect(list[list.length - 1].stamp).toBe(39)
+    expect(list[0].stamp).toBeGreaterThan(0)
+  })
+
+  it('flush 写入失败时保留内存数据，恢复后重试成功', () => {
+    const setSpy = vi.fn()
+    vi.stubGlobal('uni', {
+      setStorageSync: setSpy,
+      getStorageSync: (key: string) => storage.get(key),
+      removeStorageSync: (key: string) => storage.delete(key),
+    })
+
+    // 第一次写入失败（如配额满）
+    setSpy.mockImplementationOnce(() => {
+      throw new Error('quota')
+    })
+    writeMemory({ type: 'a', stamp: 1 })
+    flushMemoryToStorage()
+    // 队列没有落盘，内存数据被保留
+    expect(readQueue()).toEqual([])
+
+    // 恢复后再次 flush 成功
+    setSpy.mockImplementation((key: string, value: any) => storage.set(key, String(value)))
+    flushMemoryToStorage()
+    expect(readQueue()).toEqual([{ type: 'a', stamp: 1 }])
   })
 })
 

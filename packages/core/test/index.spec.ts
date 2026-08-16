@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { report, reportNetwork, setCustomId } from '../src/index'
 import { COLLECT_API, CUSTOM_ID, REPORT_REQUEST } from '../src/constant'
+import { resetStorageCache } from '../src/utils'
 
 beforeEach(() => {
+  resetStorageCache()
   delete (globalThis as any)[REPORT_REQUEST]
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.stubGlobal('uni', {

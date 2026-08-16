@@ -1,6 +1,6 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_API } from '@/constant'
-import { normalizeResponse, tryJsonString, withDefault } from '@/utils'
+import { MAX_FIELD_KB, normalizeBody, normalizeResponse, tryJsonString, withDefault } from '@/utils'
 
 type NetWorkOptions = {
   condition?: (response: UniApp.RequestSuccessCallbackResult) => boolean
@@ -50,13 +50,14 @@ export class NetworkPlugin implements BuryReportPlugin {
           if (ok ? (network.success || condition?.(res)) : network.fail) {
             const duration = Date.now() - start
             const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
+            // 失败请求保留完整内容便于排查，成功请求按上限截断
             const info = collectInfo(options, ok ? 'success' : 'fail', {
               page,
               duration,
               profile: res.profile,
               status: res.statusCode,
-              responseHeaders: res.header,
-              response: normalizeResponse(response, network.responseLimit),
+              responseHeaders: normalizeResponse(tryJsonString(res.header), ok ? MAX_FIELD_KB : Infinity),
+              response: normalizeResponse(response, ok ? network.responseLimit : Infinity),
             })
             recordUrl !== info.url && report?.(COLLECT_API, info, { store: false })
           }
@@ -86,11 +87,12 @@ export class NetworkPlugin implements BuryReportPlugin {
       type: string,
       others: Record<string, any> = {},
     ) {
+      const isFail = type !== 'success'
       return {
         type,
         url: options.url,
         method: options.method,
-        body: options.data,
+        body: normalizeBody(options.data, isFail ? Infinity : undefined),
         responseType: options.responseType,
         ...others,
       }

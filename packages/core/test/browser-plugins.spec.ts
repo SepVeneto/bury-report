@@ -124,6 +124,52 @@ describe('NetworkPlugin（浏览器）', () => {
     const xhr = new XHR()
     expect(() => xhr.open('GET', '/api')).not.toThrow()
   })
+
+  it('请求体与响应头做大小限制，不拖累主线程', () => {
+    const c = ctx({ network: { enable: true, success: true, fail: true } })
+    new NetworkPlugin().init(c as any)
+    const XHR: any = dom.window.XMLHttpRequest
+
+    // 成功请求字符串 body 超 100KB 截断
+    const xhr = new XHR()
+    xhr.open('GET', '/api')
+    xhr.status = 200
+    xhr._body = 'x'.repeat(100 * 1000 + 1)
+    xhr.getAllResponseHeaders = () => 'content-type: application/json\r\n'
+    xhr.dispatchEvent(new Event('loadend'))
+    expect(c.report.mock.calls[0][1].body).toBe('exceed size limit')
+    expect(c.report.mock.calls[0][1].responseHeaders).toContain('content-type')
+
+    // 成功请求二进制 body 只保留类型描述，不会展开成巨大对象
+    const xhr2 = new XHR()
+    xhr2.open('GET', '/api2')
+    xhr2.status = 200
+    xhr2._body = new Uint8Array(1024 * 1024)
+    xhr2.getAllResponseHeaders = () => ''
+    xhr2.dispatchEvent(new Event('loadend'))
+    expect(c.report.mock.calls[1][1].body).toBe('[object Uint8Array]')
+  })
+
+  it('失败请求采集完整内容（body/response 不截断）', () => {
+    const c = ctx({ network: { enable: true, success: true, fail: true } })
+    new NetworkPlugin().init(c as any)
+    const XHR: any = dom.window.XMLHttpRequest
+
+    const bigBody = 'x'.repeat(200 * 1000)
+    const xhr = new XHR()
+    xhr.open('GET', '/api')
+    xhr.status = 500
+    xhr._body = bigBody
+    xhr.response = 'y'.repeat(200 * 1000)
+    xhr.responseURL = '/api'
+    xhr.getAllResponseHeaders = () => ''
+    xhr.dispatchEvent(new Event('loadend'))
+
+    const info = c.report.mock.calls[0][1]
+    expect(info.type).toBe('fail')
+    expect(info.body).toBe(bigBody)
+    expect(info.response).toBe('y'.repeat(200 * 1000))
+  })
 })
 
 describe('ErrorPlugin（浏览器）', () => {
