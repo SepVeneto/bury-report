@@ -47,6 +47,7 @@ describe('NetworkPlugin（浏览器）', () => {
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_API,
       expect.objectContaining({ type: 'success', url: '/api', status: 200 }),
+      { store: false },
     )
   })
 
@@ -66,6 +67,7 @@ describe('NetworkPlugin（浏览器）', () => {
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_API,
       expect.objectContaining({ type: 'fail', status: 500 }),
+      { store: false },
     )
   })
 
@@ -111,6 +113,8 @@ describe('NetworkPlugin（浏览器）', () => {
 
     expect(c.report).toHaveBeenCalledTimes(3)
     expect(c.report.mock.calls.map((call: any[]) => call[1].type).sort()).toEqual(['abort', 'error', 'timeout'])
+    // 网络日志走 store:false，不落 localStorage
+    expect(c.report.mock.calls.every((call: any[]) => (call[2] as any)?.store === false)).toBe(true)
   })
 
   it('代理不阻塞宿主自身请求', () => {

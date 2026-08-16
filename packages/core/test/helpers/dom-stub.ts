@@ -39,6 +39,10 @@ class EventBus {
     ;(this.listeners.get(evt.type) || []).slice().forEach(handler => handler(evt))
     return true
   }
+
+  clear() {
+    this.listeners.clear()
+  }
 }
 
 // 浏览器插件会基于 window.XMLHttpRequest 做子类化，需要提供可用的基类

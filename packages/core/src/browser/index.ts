@@ -2,7 +2,7 @@ import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
 import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
-import { flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, readQueue, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, readQueue, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
 import { ErrorPlugin } from './plugins/error'
@@ -76,6 +76,7 @@ export class BuryReport implements BuryReportBase {
           immediate: true,
           store: true,
           flush: true,
+          keepalive: true,
         })
       }
     })
@@ -88,6 +89,7 @@ export class BuryReport implements BuryReportBase {
         immediate: true,
         store: true,
         flush: true,
+        keepalive: true,
       })
     })
   }
@@ -121,8 +123,14 @@ function createProxy(options: Options) {
   const { appid } = options
   const sendInterval = normalizeInterval(options.interval)
   let sendTimer: number | undefined
+  let sending = false
 
-  const sendRequest = (keepalive = false) => {
+  const sendRequest = async (keepalive = false) => {
+    // 上一次发送未结束时不重复发送（keepalive 页面关闭场景除外）
+    if (sending && !keepalive) return
+    sending = true
+
+    let failed = false
     try {
       // 发送前强制 flush，避免内存数据丢失
       flushMemoryToStorage()
@@ -133,23 +141,50 @@ function createProxy(options: Options) {
 
       // 有 worker 时，store:false 的缓存数据交给 worker 上报；
       // 无 worker（创建失败或已终止）时并入主线程请求，避免数据丢失
-      if (list.length || (!worker && cache.length)) {
-        const data = list.map(item => ({ appid, ...item }))
-        if (!worker) data.push(...cache.map(item => ({ appid, ...item })))
-        fetch(options.url, {
-          method: 'post',
-          mode: 'no-cors',
-          headers: {
-            'Content-Type': 'text/plain; charset=utf-8',
-          },
-          keepalive,
-          cache: 'no-store',
-          credentials: 'omit',
-          priority: 'low',
-          body: JSON.stringify({ appid, data }),
-        }).catch(err => {
-          console.warn('[report-core] fetch error: ' + err)
-        })
+      const payload = list.map(item => ({ appid, ...item }))
+      if (!worker) payload.push(...cache.map(item => ({ appid, ...item })))
+
+      let queueOk = true
+      if (payload.length) {
+        if (keepalive) {
+          // 页面即将关闭：按大小分片同步发出（keepalive 请求已提交给浏览器，尽力送达）
+          for (const chunk of splitBySize(payload, MAX_KEEPALIVE_BYTES)) {
+            fetch(options.url, {
+              method: 'post',
+              mode: 'no-cors',
+              headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+              },
+              keepalive: true,
+              cache: 'no-store',
+              credentials: 'omit',
+              priority: 'low',
+              body: JSON.stringify({ appid, data: chunk }),
+            }).catch(err => {
+              console.warn('[report-core] fetch error: ' + err)
+            })
+          }
+        } else {
+          try {
+            await fetch(options.url, {
+              method: 'post',
+              mode: 'no-cors',
+              headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+              },
+              keepalive: false,
+              cache: 'no-store',
+              credentials: 'omit',
+              priority: 'low',
+              body: JSON.stringify({ appid, data: payload }),
+            })
+          } catch (err) {
+            // 网络失败：保留队列，等待下个周期重试
+            console.warn('[report-core] fetch error: ' + err)
+            queueOk = false
+            failed = true
+          }
+        }
       }
 
       if (worker && cache.length) {
@@ -164,19 +199,37 @@ function createProxy(options: Options) {
           })
         } catch (err) {
           console.warn('[report-core] worker postMessage error: ' + err)
+          // worker 不可用：保留缓存，下个周期降级由主线程发送
+          failed = true
+          window.__BR_WORKER__ = undefined
         }
+      }
+
+      // 只清空发送成功的数据；失败的数据保留，下个周期自动重试
+      if (queueOk) writeQueue([])
+      if (worker) {
+        // 已交给 worker（worker 内部负责失败重试）
+        if (window.__BR_WORKER__) BuryReport.cache = []
+      } else if (queueOk) {
+        // 无 worker：缓存已并入主线程请求，成功后清空
+        BuryReport.cache = []
       }
     } catch (err) {
       // 任何发送过程中的异常都不能影响宿主，仅记录警告
       console.warn('[@sepveneto/report-core] send request failed: ' + err)
-    }
+      failed = true
+    } finally {
+      sending = false
+      clearInterval(sendTimer)
+      sendTimer = undefined
 
-    // 不管上报的成功与否，都需要清除定时器，保证新的上报流程正常执行
-    // 都需要把上报队列清空，防止过度使用用户缓存
-    writeQueue([])
-    BuryReport.cache = []
-    clearInterval(sendTimer)
-    sendTimer = undefined
+      // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
+      if (failed && !keepalive) {
+        sendTimer = globalThis.setTimeout(() => {
+          void sendRequest()
+        }, sendInterval) as unknown as number
+      }
+    }
   }
 
   const report = (
@@ -200,15 +253,21 @@ function createProxy(options: Options) {
       // 如果不需要存入本地缓存，那就得把数据写入到另一块内存中
       // 否则当执行刷新操作时，内存中的数据仍然会写入到本地缓存中
       BuryReport.cache.push(record)
+      // 内存缓存设置上限，避免无界增长影响宿主内存
+      if (BuryReport.cache.length > MAX_CACHE_COUNT) {
+        BuryReport.cache.splice(0, BuryReport.cache.length - MAX_CACHE_COUNT)
+      }
     }
 
     if (immediate) {
-      sendRequest(keepalive)
+      void sendRequest(keepalive)
     }
 
     if (!sendTimer) {
       sendTimer = globalThis.setTimeout(
-        sendRequest,
+        () => {
+          void sendRequest()
+        },
         sendInterval,
       ) as unknown as number
     }

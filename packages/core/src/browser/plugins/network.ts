@@ -36,28 +36,28 @@ export class NetworkPlugin implements BuryReportPlugin {
                 duration,
                 profile: getNetworkProfile(this.responseURL),
               })
-              report?.(COLLECT_API, info)
+              report?.(COLLECT_API, info, { store: false })
             } else {
               // 非200的请求由 fail 决定是否上报
               if (!fail) return
               const info = this._collectInfo('fail', { duration })
-              report?.(COLLECT_API, info)
+              report?.(COLLECT_API, info, { store: false })
             }
           })
         }
         // fail 决定是否上报失败的请求（中断/错误/超时）
         fail && super.addEventListener('abort', () => {
           const info = this._collectInfo('abort')
-          report?.(COLLECT_API, info)
+          report?.(COLLECT_API, info, { store: false })
         })
 
         fail && super.addEventListener('error', () => {
           const info = this._collectInfo('error')
-          report?.(COLLECT_API, info)
+          report?.(COLLECT_API, info, { store: false })
         })
         fail && super.addEventListener('timeout', () => {
           const info = this._collectInfo('timeout', { timeout: this.timeout })
-          report?.(COLLECT_API, info)
+          report?.(COLLECT_API, info, { store: false })
         })
         super.open(...args)
       }

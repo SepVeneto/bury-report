@@ -8,6 +8,7 @@ import {
   normalizeResponse,
   readQueue,
   resetSessionId,
+  splitBySize,
   storageReport,
   tryJsonString,
   withDefault,
@@ -196,5 +197,28 @@ describe('normalizeInterval', () => {
     expect(normalizeInterval(0)).toBe(10000)
     expect(normalizeInterval(-1)).toBe(10000)
     expect(normalizeInterval(undefined)).toBe(10000)
+  })
+})
+
+describe('splitBySize / 分片', () => {
+  it('按估算体积分批，总量不丢失', () => {
+    const items = Array.from({ length: 100 }, (_, i) => ({ id: i, blob: 'x'.repeat(512) }))
+    const chunks = splitBySize(items, 48 * 1024)
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.flat()).toHaveLength(100)
+    for (const chunk of chunks) {
+      expect(JSON.stringify(chunk).length).toBeLessThanOrEqual(48 * 1024)
+    }
+  })
+
+  it('单条记录超过上限时单独成批', () => {
+    const items = [{ big: 'x'.repeat(60 * 1024) }, { small: 'y' }]
+    const chunks = splitBySize(items, 48 * 1024)
+    expect(chunks).toHaveLength(2)
+    expect(chunks[0]).toHaveLength(1)
+  })
+
+  it('空数组返回空', () => {
+    expect(splitBySize([], 100)).toEqual([])
   })
 })

@@ -43,16 +43,21 @@ describe('BuryReport（mp）', () => {
     expect(readQueue()).toEqual([])
   })
 
-  it('请求失败（服务器宕机/网络波动）不抛错，后续不再发送', () => {
+  it('请求失败（服务器宕机/网络波动）不抛错，保留队列等待重试', () => {
     new BuryReport({ url: 'https://mp/report', appid: 'a', report: true })
     getReport()('custom', {}, { immediate: true })
 
     const opts = requestMock.mock.calls[0][0]
     expect(() => opts.fail({ errMsg: 'request:fail timeout' })).not.toThrow()
 
-    // 熔断后不再发送，也不抛错
+    // 失败后队列保留
+    expect(readQueue()).toHaveLength(1)
+    // 下一次上报仍然会发送（不再永久熔断）
     expect(() => getReport()('custom', {}, { immediate: true })).not.toThrow()
-    expect(requestMock).toHaveBeenCalledTimes(1)
+    expect(requestMock).toHaveBeenCalledTimes(2)
+    // 成功后清空
+    requestMock.mock.calls[1][0].success({ statusCode: 200 })
+    expect(readQueue()).toEqual([])
   })
 
   it('uni.request 同步抛错（参数错误）也不影响宿主', () => {
@@ -102,6 +107,7 @@ describe('NetworkPlugin（mp）', () => {
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_API,
       expect.objectContaining({ type: 'success', url: '/api', status: 200 }),
+      { store: false },
     )
 
     // 非200（500）由 fail 上报
@@ -110,6 +116,7 @@ describe('NetworkPlugin（mp）', () => {
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_API,
       expect.objectContaining({ type: 'fail', url: '/api2', status: 500 }),
+      { store: false },
     )
 
     // 传输层失败
@@ -118,6 +125,7 @@ describe('NetworkPlugin（mp）', () => {
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_API,
       expect.objectContaining({ type: 'fail', url: '/api3' }),
+      { store: false },
     )
   })
 

@@ -213,6 +213,41 @@ export const writeQueue = (list: any[]) => {
   }
 }
 
+// keepalive 单请求大小上限（浏览器约64KB，留出余量）
+export const MAX_KEEPALIVE_BYTES = 48 * 1024
+// 内存缓存（store:false）最多保留的条数，避免内存无限增长
+export const MAX_CACHE_COUNT = 50
+// mp 端内存缓存上限（小程序内存更敏感，取更小值）
+export const MAX_MEMORY_COUNT = 20
+
+// 估算单条记录的体积（UTF-16 长度近似，用于分片，保留余量）
+export function estimateSize(item: any) {
+  try {
+    return JSON.stringify(item).length
+  } catch {
+    return 1024
+  }
+}
+
+// 按估算体积分批，用于 keepalive 等有单请求大小限制的场景
+export function splitBySize(items: any[], maxBytes: number): any[][] {
+  const chunks: any[][] = []
+  let current: any[] = []
+  let size = 0
+  for (const item of items) {
+    const itemSize = estimateSize(item)
+    if (current.length && size + itemSize > maxBytes) {
+      chunks.push(current)
+      current = []
+      size = 0
+    }
+    current.push(item)
+    size += itemSize
+  }
+  if (current.length) chunks.push(current)
+  return chunks
+}
+
 let memoryBuffer: any[] = []
 let flushTimer: number | undefined
 
