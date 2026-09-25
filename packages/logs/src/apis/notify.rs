@@ -24,7 +24,8 @@ async fn sync_alert_rule(
         let is_valid = token == notify_token;
         if !is_valid {
             error!("invalid notify token");
-            return Response::ok("", None).to_json();
+            // 鉴权失败必须让调用方感知，不能返回 code 0
+            return Response::err(403, "invalid notify token".to_string()).to_json();
         }
         debug!("sync alert rule");
         let appid = get_appid(&req)?;
@@ -34,6 +35,6 @@ async fn sync_alert_rule(
         Response::ok("", None).to_json()
     } else {
         error!("missing notify token");
-        Response::ok("", None).to_json()
+        Response::err(403, "missing notify token".to_string()).to_json()
     }
 }

@@ -64,6 +64,14 @@ log_has_init=$(grep -c '告警规则初始化完成' "$SERVICE_LOG" 2>/dev/null)
 [ -z "$log_has_init" ] && log_has_init=0
 assert_ge "NFR06 启动日志含【告警规则初始化完成】" "$log_has_init" 1
 
+# NFR-16 运行态探针
+probe_lines=$(grep -c "probe fds=" "$SERVICE_LOG" 2>/dev/null)
+[ -z "$probe_lines" ] && probe_lines=0
+assert_ge "NFR16 运行态探针在打点（FD/socket/CLOSE_WAIT/RSS/Mongo 连接数）" "$probe_lines" 1
+probe_line=$(grep -m1 "probe fds=" "$SERVICE_LOG" 2>/dev/null)
+assert_contains "NFR16 探针包含 close_wait" "$probe_line" "close_wait="
+assert_contains "NFR16 探针包含 mongo_total_created" "$probe_line" "mongo_total_created="
+
 sleep 15
 after2=$(fdstat)
 a2_sock=$(printf '%s' "$after2" | jq -r '.sockets // 0')

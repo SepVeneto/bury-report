@@ -54,7 +54,7 @@ pub async fn record(
     match data {
         logs::RecordPayload::V1(v1) => {
             let db = &db::DbApp::get_by_appid(client, &appid);
-            match v1.normalize_from(ip) {
+            match v1.normalize_from(ip, None) {
                 logs::RecordItem::Device(device) => {
                     let uuid = &device.uuid;
                     let session = &device.session;
@@ -91,6 +91,8 @@ pub async fn record(
                 },
                 logs::RecordItem::Error(err) => {
                     logs_error::Model::insert_one(db, &err).await?;
+                    // V1 单条上报的错误同样要参与告警（此前只有 V2 批量会告警）
+                    alert_error(producer, &appid, &err);
                 },
                 logs::RecordItem::Track(track) => {
                     send_to_kafka(producer, &track);
@@ -109,7 +111,7 @@ pub async fn record(
             }
         },
         logs::RecordPayload::V2(v2) => {
-            let group  = group_records(&v2.data, ip);
+            let group  = group_records(&v2.data, ip, &v2.appid);
             let appid = v2.appid.to_string();
 
             let db = &db::DbApp::get_by_appid(client, &appid);
@@ -217,7 +219,7 @@ async fn insert_group(db: &Database, list: &RecordList) -> anyhow::Result<(), Se
     }
     Ok(())
 }
-fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashMap<&'a str, RecordList> {
+fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>, appid: &str) -> HashMap<&'a str, RecordList> {
     let mut list_device = vec![];
     let mut list_collect = vec![];
     let mut list_network = vec![];
@@ -226,7 +228,7 @@ fn group_records<'a>(list: &'a Vec<logs::RecordV1>, ip: Option<String>) -> HashM
     let mut custom_id: Option<logs::CustomId> = None;
 
     list.iter().for_each(|item| {
-        match item.normalize_from(ip.clone()) {
+        match item.normalize_from(ip.clone(), Some(appid)) {
             logs::RecordItem::Device(log) => {
                 list_device.push(log);
             },

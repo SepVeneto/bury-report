@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use log::debug;
+use log::{debug, error, warn};
 
 use actix_web::{HttpRequest, post, web};
 // use flate2::read::GzDecoder;
@@ -13,6 +13,19 @@ use super::{ApiError, ApiResult};
 use crate::services::record_logs;
 use crate::services::Response;
 // use std::io::Read;
+
+/// 请求体上限（与 PayloadConfig 一致，但这里是真正生效的那一道）
+fn max_body_size() -> usize {
+  env_usize("MAX_BODY_BYTES", 10 * 1024 * 1024)
+}
+/// 单批上报条数上限：防止一个包塞几万条把内存顶到峰值。
+/// 官方 SDK 是按 48KB 分片的（浏览器/worker）或整队列最多 50 条（小程序），正常情况下远达不到。
+fn max_batch_items() -> usize {
+  env_usize("MAX_BATCH_ITEMS", 5000)
+}
+fn env_usize(key: &str, default: usize) -> usize {
+  std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
 
 #[derive(Debug)]
 enum ProcessedPayload {
@@ -44,18 +57,19 @@ async fn record_log(
         Ok(json) => json,
         Err(e) => {
             debug!("json error: {:?}", e);
-            return Err(ApiError::ValidateError {
-                err: e.to_string(),
-                col: column!(),
-                line: line!(),
-                file: file!().to_string(),
-            });
+            // 直接透传：不要把 InvalidError(400) 又包成 ValidateError
+            return Err(e);
         }
     };
 
     match json {
         ProcessedPayload::JsonRecord(json) => {
-            record_logs::record(&client, &db, &json, &producer, ip).await?;
+            let appid = json.get_appid();
+            if let Err(err) = record_logs::record(&client, &db, &json, &producer, ip).await {
+                // 客户端是 no-cors/不校验 statusCode，看不到这个错误，必须在服务端留下明确日志
+                error!("record 处理失败 appid={}（客户端不可见）: {}", appid, err);
+                return Err(err.into());
+            }
         },
         ProcessedPayload::RawData(raw) => {
             send_raw_to_kafak(&producer, &raw).await;
@@ -73,6 +87,18 @@ async fn payload_handler(payload: web::Payload) -> Result<ProcessedPayload, ApiE
         line: line!(),
         file: file!().to_string(),
     })?;
+
+    let limit = max_body_size();
+    if body.len() > limit {
+        warn!(
+            "请求体超限被拒绝: {} 字节 > {} 字节（客户端看不到 413，这部分数据会丢）",
+            body.len(), limit
+        );
+        return Err(ApiError::PayloadTooLarge {
+            size: body.len(),
+            limit,
+        });
+    }
 
     if body.is_empty() {
         return Err(ApiError::InvalidError());
@@ -111,7 +137,29 @@ async fn payload_handler(payload: web::Payload) -> Result<ProcessedPayload, ApiE
             data,
         }))
     } else {
-        let record = serde_json::from_slice::<RecordPayload>(&body)?;
+        let record = serde_json::from_slice::<RecordPayload>(&body).map_err(|e| {
+            ApiError::ValidateError {
+                err: e.to_string(),
+                col: column!(),
+                line: line!(),
+                file: file!().to_string(),
+            }
+        })?;
+        if let RecordPayload::V2(v2) = &record {
+            let max_items = max_batch_items();
+            if v2.data.len() > max_items {
+                warn!(
+                    "单批条数超限被拒绝: {} > {}（appid={}，客户端看不到 400，这部分数据会丢）",
+                    v2.data.len(), max_items, v2.appid
+                );
+                return Err(ApiError::ValidateError {
+                    err: format!("单批条数 {} 超过上限 {}", v2.data.len(), max_items),
+                    col: column!(),
+                    line: line!(),
+                    file: file!().to_string(),
+                });
+            }
+        }
         Ok(ProcessedPayload::JsonRecord(record))
     }
 }

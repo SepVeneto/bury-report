@@ -1,17 +1,18 @@
-use bson::DateTime;
+use bson::{doc, DateTime, Document};
 
-use mongodb::Client;
+use futures_util::TryStreamExt;
+use once_cell::sync::Lazy;
+use mongodb::{Client, Database};
 use rdkafka::producer::BaseProducer;
 use dashmap::DashMap;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 
-use crate::alert::gc::run_flush;
 use crate::alert::model::{ALERT_MAP, AlertFact, AlertFactInfo, AlertRuleMap, AppSummary, ErrorRaw, ErrorSummary, LINE_COL_RE, QUERY_RE, RULE_MAP, SUMMARY_MAP, UnionRule};
 use crate::alert::notify::check_notify;
 use crate::alert::tokenizer::Tokenizer;
 use crate::model::alert_rule::CollectionType;
 use crate::model::{
-    QueryModel, alert_fact, alert_rule
+    BaseModel, QueryBase, QueryModel, alert_fact, alert_rule, apps
 };
 use crate::utils::{cal_md5, get_string};
 
@@ -20,6 +21,18 @@ mod notify;
 pub mod gc;
 pub mod model;
 pub mod group;
+
+/// 单个应用在内存里保留的最大指纹数：防止高基数错误（message 带 traceId 等）把内存吃光。
+/// 超限只会少记"聚合计数"，原始日志已经在请求路径落库。
+pub static MAX_SUMMARIES_PER_APP: Lazy<usize> =
+    Lazy::new(|| env_usize("MAX_SUMMARIES_PER_APP", 50_000));
+/// 单个应用在内存里保留的最大告警事实数
+pub static MAX_FACTS_PER_APP: Lazy<usize> =
+    Lazy::new(|| env_usize("MAX_FACTS_PER_APP", 200_000));
+
+fn env_usize(key: &str, default: usize) -> usize {
+    std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
 
 // 分组规则
 /**
@@ -35,28 +48,34 @@ pub mod group;
  */
 
 pub async fn init(client: &Client) -> anyhow::Result<()> {
-    let apps: Vec<String> = client
-        .list_database_names(None, None)
-        .await?
-        .into_iter()
-        .filter(|name| name.starts_with("app_"))
-        .collect();
+    // list_database_names 需要集群级权限，且启动瞬间 Mongo 不可达时会失败；
+    // 这里必须能降级，否则整个聚合/回收循环都不会启动（线上踩过）。
+    let apps: Vec<String> = match client.list_database_names(None, None).await {
+        Ok(names) => names
+            .into_iter()
+            .filter(|name| name.starts_with("app_"))
+            .collect(),
+        Err(err) => {
+            warn!("list_database_names 失败({}), 回退到 reporter.apps", err);
+            list_apps_from_reporter(client).await?
+        }
+    };
 
     for app in &apps {
         info!("========应用{}========", app);
         let db = client.database(app);
-        let rules = match alert_rule::Model::find_all(&db).await {
-            Ok(rules) => rules,
-            Err(err) => {
-                error!("获取规则失败: {}", err);
-                vec![]
-            }
-        };
+        let rules = load_rules(&db).await;
 
         debug!("初始化规则{:?}", rules);
         RULE_MAP.insert(app.clone(), AlertRuleMap::from_models(rules));
 
-        let facts = alert_fact::Model::find_all(&db).await.unwrap();
+        let facts = match alert_fact::Model::find_all(&db).await {
+            Ok(facts) => facts,
+            Err(err) => {
+                error!("加载告警事实失败 {}: {}", app, err);
+                vec![]
+            }
+        };
         // let fp_set= DashSet::new();
         let alert_fact_map = DashMap::new();
 
@@ -88,13 +107,56 @@ pub async fn init(client: &Client) -> anyhow::Result<()> {
     }
 
     info!("告警规则初始化完成");
-
-    let flush_client = client.clone();
-    tokio::spawn(async move {
-        run_flush(flush_client).await;
-    });
-
+    // 聚合/回收循环由 main 启动：init 失败也必须保证循环存在
     Ok(())
+}
+
+/// 应用列表降级来源：reporter.apps（不需要 listDatabases 权限）
+async fn list_apps_from_reporter(client: &Client) -> anyhow::Result<Vec<String>> {
+    let db = client.database("reporter");
+    let cursor = apps::Model::col(&db)
+        .find(doc! { "is_delete": { "$ne": true } }, None)
+        .await?;
+    let list: Vec<apps::Model> = cursor.try_collect().await?;
+    Ok(list
+        .into_iter()
+        .map(|app| format!("app_{}", app._id.to_hex()))
+        .collect())
+}
+
+/// 逐条解析报警规则：单条文档字段类型不对时只跳过这一条，
+/// 不能因为一条坏数据让整个应用的规则全部失效（线上踩过）。
+pub async fn load_rules(db: &Database) -> Vec<QueryBase<alert_rule::Model>> {
+    let col = db.collection::<Document>(alert_rule::Model::NAME);
+    let cursor = match col
+        .find(doc! { "is_delete": { "$ne": true } }, None)
+        .await
+    {
+        Ok(cursor) => cursor,
+        Err(err) => {
+            error!("查询报警规则失败: {}", err);
+            return vec![];
+        }
+    };
+    let docs: Vec<Document> = match cursor.try_collect().await {
+        Ok(docs) => docs,
+        Err(err) => {
+            error!("读取报警规则失败: {}", err);
+            return vec![];
+        }
+    };
+    let mut rules = Vec::with_capacity(docs.len());
+    for rule in docs {
+        match bson::from_document::<QueryBase<alert_rule::Model>>(rule.clone()) {
+            Ok(rule) => rules.push(rule),
+            Err(err) => warn!(
+                "跳过无法解析的报警规则 {:?}: {}",
+                rule.get("_id"),
+                err
+            ),
+        }
+    }
+    rules
 }
 
 pub fn alert_error(
@@ -144,6 +206,16 @@ pub fn alert_error(
         .or_insert_with(|| AppSummary {
             summaries: DashMap::new(),
         });
+    if app_summary.summaries.len() >= *MAX_SUMMARIES_PER_APP
+        && !app_summary.summaries.contains_key(fp)
+    {
+        warn!(
+            target: "alert",
+            "应用 {} 聚合指纹超过上限 {}，丢弃新指纹 {}",
+            appid, *MAX_SUMMARIES_PER_APP, fp
+        );
+        return;
+    }
     app_summary
         .summaries
         .entry(fp.clone())

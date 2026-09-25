@@ -49,7 +49,10 @@ dashmap = "6.1.0"
 [dependencies.mongodb]
 version = "2.8.2"
 default-features = false
-features = ["async-std-runtime"]
+# 服务本身跑在 actix 的 tokio 运行时上，必须用 tokio-runtime：
+# 之前用 async-std-runtime 属于跨运行时（驱动的连接池/回收任务挂在 async-std 执行器上），
+# 是线上"连接被对端关闭后不回收、FD 与内存只增不减"的可疑根因之一。
+features = ["tokio-runtime"]
 
 [dependencies.rdkafka]
 version = "0.38.0"

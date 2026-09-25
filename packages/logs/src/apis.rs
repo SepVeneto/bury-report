@@ -16,6 +16,8 @@ pub enum ApiError {
     },
     #[error("校验错误: {err}, in {file}:{line}:{col}")]
     ValidateError { err: String, col: u32, line: u32, file: String  },
+    #[error("请求体过大: {size} 字节，上限 {limit} 字节")]
+    PayloadTooLarge { size: usize, limit: usize },
     #[error("Appid错误")]
     AppidError(#[from] AppidError),
     #[error(transparent)]
@@ -48,6 +50,13 @@ impl actix_web::error::ResponseError for ApiError {
         match self {
             ApiError::InvalidError {} => {
                 HttpResponse::BadRequest().into()
+            },
+            // 客户端错误就该是 4xx，而不是 200 + code:500
+            ApiError::ValidateError { .. } => {
+                HttpResponse::BadRequest().json(Response::err(400, self.to_string()))
+            },
+            ApiError::PayloadTooLarge { .. } => {
+                HttpResponse::PayloadTooLarge().json(Response::err(413, self.to_string()))
             },
             _ => Response::err(500, self.to_string()).to_json().unwrap()
         }
