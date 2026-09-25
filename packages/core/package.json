@@ -16,7 +16,8 @@
     "release": "bumpp --tag core@",
     "build:fix": "esno scripts/postbuild.ts",
     "dev": "export LOG_DEBUG=1 && tsup --watch src",
-    "play": "npm -C playground/browser run dev"
+    "play": "npm -C playground/browser run dev",
+    "test:coverage": "vitest run --coverage"
   },
   "repository": {
     "type": "git",
