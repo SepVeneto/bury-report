@@ -45,33 +45,43 @@ export class NetworkPlugin implements BuryReportPlugin {
       _request({
         ...options,
         success: (res) => {
-          const ok = res.statusCode === 200
-          // 非200的请求由 fail 决定是否上报
-          if (ok ? (network.success || condition?.(res)) : network.fail) {
-            const duration = Date.now() - start
-            const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
-            // 失败请求保留完整内容便于排查，成功请求按上限截断
-            const info = collectInfo(options, ok ? 'success' : 'fail', {
-              page,
-              duration,
-              profile: res.profile,
-              status: res.statusCode,
-              responseHeaders: normalizeResponse(tryJsonString(res.header), ok ? MAX_FIELD_KB : Infinity),
-              response: normalizeResponse(response, ok ? network.responseLimit : Infinity),
-            })
-            recordUrl !== info.url && report?.(COLLECT_API, info, { store: false })
+          // 采集异常不能影响宿主的 success 回调
+          try {
+            const ok = res.statusCode === 200
+            // 非200的请求由 fail 决定是否上报
+            if (ok ? (network.success || condition?.(res)) : network.fail) {
+              const duration = Date.now() - start
+              const response = typeof res.data === 'string' ? res.data : tryJsonString(res.data)
+              // 失败请求保留完整内容便于排查，成功请求按上限截断
+              const info = collectInfo(options, ok ? 'success' : 'fail', {
+                page,
+                duration,
+                profile: res.profile,
+                status: res.statusCode,
+                responseHeaders: normalizeResponse(tryJsonString(res.header), ok ? MAX_FIELD_KB : Infinity),
+                response: normalizeResponse(response, ok ? network.responseLimit : Infinity),
+              })
+              recordUrl !== info.url && report?.(COLLECT_API, info, { store: false })
+            }
+          } catch (err) {
+            console.warn('[@sepveneto/report-core] collect request info failed: ' + err)
           }
           _success?.(res)
         },
         fail: (res) => {
-          // fail 决定是否上报失败的请求（请求失败/拒绝）
-          if (network.fail) {
-            const info = collectInfo(options, 'fail', {
-              page,
-              timeout: options.timeout,
-              err: res.errMsg,
-            })
-            recordUrl !== info.url && report?.(COLLECT_API, info, { store: false })
+          // 采集异常不能影响宿主的 fail 回调
+          try {
+            // fail 决定是否上报失败的请求（请求失败/拒绝）
+            if (network.fail) {
+              const info = collectInfo(options, 'fail', {
+                page,
+                timeout: options.timeout,
+                err: res.errMsg,
+              })
+              recordUrl !== info.url && report?.(COLLECT_API, info, { store: false })
+            }
+          } catch (err) {
+            console.warn('[@sepveneto/report-core] collect request info failed: ' + err)
           }
           _fail?.(res)
         },

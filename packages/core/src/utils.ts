@@ -59,14 +59,18 @@ export function mergeConfig(
 
 export function normalizeResponse(response: string, limit: number) {
   if (typeof response !== 'string') return String(response ?? '')
-  const size = getUtf8Size(response)
-  return size < limit * 1000 ? response : 'exceed size limit'
+  // 失败请求等场景 limit 为 Infinity，此时不做截断，直接返回，省掉一次全量扫描
+  if (limit === Infinity) return response
+  const max = limit * 1000
+  // 计数达到上限即可判定超限，无需扫描完整字符串（大响应体下可省十几毫秒主线程耗时）
+  return getUtf8Size(response, max) < max ? response : 'exceed size limit'
 }
 
-// 单位B
-export function getUtf8Size(str: string) {
+// 单位B；stopAt 用于体积判定，达到该值即可提前返回
+export function getUtf8Size(str: string, stopAt = Infinity) {
   let size = 0
   for (let i = 0; i < str.length; i++) {
+    if (size >= stopAt) break
     const code = str.charCodeAt(i)
     // 代理对（如 emoji）按 4 字节计算，避免被拆成两个 3 字节
     if (code >= 0xD800 && code <= 0xDBFF && i + 1 < str.length) {
@@ -239,6 +243,8 @@ export const writeQueue = (list: any[]) => {
 
 // keepalive 单请求大小上限（浏览器约64KB，留出余量）
 export const MAX_KEEPALIVE_BYTES = 48 * 1024
+// 浏览器对同一页面所有 keepalive 请求的总量同样有约 64KB 限制，超出部分会被直接丢弃
+export const MAX_KEEPALIVE_TOTAL_BYTES = 60 * 1024
 // 内存缓存（store:false）最多保留的条数，避免内存无限增长
 export const MAX_CACHE_COUNT = 50
 // mp 端内存缓存上限（小程序内存更敏感，取更小值）
@@ -284,6 +290,20 @@ export function splitBySize(items: any[], maxBytes: number): any[][] {
   return chunks
 }
 
+// 在总量预算内挑选可以立即发送的记录，返回已选部分与需要保留的部分
+export function pickWithinBudget(items: any[], budget: number) {
+  const sent: any[] = []
+  let used = 0
+  for (const item of items) {
+    const itemSize = estimateSize(item)
+    if (sent.length && used + itemSize > budget) break
+    sent.push(item)
+    used += itemSize
+    if (used >= budget) break
+  }
+  return { sent, used, rest: items.slice(sent.length) }
+}
+
 let memoryBuffer: any[] = []
 let flushTimer: number | undefined
 
@@ -304,18 +324,34 @@ function trimOldest(list: any[], maxCount: number) {
 }
 
 // 按字节从最旧开始丢弃普通记录，设备信息不参与丢弃
-function trimByBytes(list: any[], maxBytes: number) {
+// totalBytes 由调用方传入，避免为了裁剪再重复做一次整表序列化
+function trimByBytes(list: any[], maxBytes: number, totalBytes: number) {
   const protectedList = list.filter(isProtectedRecord)
   const droppable = list.filter(item => !isProtectedRecord(item))
 
   const sizes = droppable.map(item => estimateSize(item))
-  let rest = JSON.stringify(list).length
+  let rest = totalBytes
   let drop = 0
   while (drop < droppable.length && rest > maxBytes) {
     rest -= sizes[drop]
     drop++
   }
   return [...protectedList, ...droppable.slice(drop)]
+}
+
+// 单条记录不可序列化（循环引用 / BigInt 等）时只丢弃问题记录，
+// 避免整条队列被"毒丸"卡死、导致后续所有数据都无法落盘
+function dropUnserializable(list: any[]) {
+  const kept: any[] = []
+  for (const item of list) {
+    try {
+      JSON.stringify(item)
+      kept.push(item)
+    } catch {
+      console.warn('[@sepveneto/report-core] drop unserializable record')
+    }
+  }
+  return kept
 }
 
 export function writeMemory(record: any, immediate = false) {
@@ -343,23 +379,38 @@ const MAX_PERSIST_COUNT = 50
 export function flushMemoryToStorage() {
   if (!memoryBuffer.length) return
 
-  const list = readQueue()
-  list.push(...memoryBuffer)
+  // 落盘链路的任何异常都不能抛给宿主；不可序列化的记录直接丢弃，避免毒化整条队列
+  try {
+    const list = readQueue()
+    list.push(...memoryBuffer)
 
-  // 条数上限：设备信息受保护，优先丢其它旧记录
-  const limited = trimOldest(list, MAX_PERSIST_COUNT)
+    // 条数上限：设备信息受保护，优先丢其它旧记录
+    const limited = trimOldest(list, MAX_PERSIST_COUNT)
 
-  // 字节上限：从最旧开始丢弃，直到序列化体积达标
-  let finalList = limited
-  const totalBytes = JSON.stringify(limited).length
-  if (totalBytes > MAX_QUEUE_BYTES) {
-    finalList = trimByBytes(limited, MAX_QUEUE_BYTES)
+    // 字节上限：从最旧开始丢弃，直到序列化体积达标
+    let finalList = limited
+    let totalBytes = 0
+    try {
+      totalBytes = JSON.stringify(limited).length
+    } catch {
+      // 整表序列化失败：定位并剔除问题记录后重试（只走异常路径）
+      finalList = dropUnserializable(limited)
+      totalBytes = JSON.stringify(finalList).length
+    }
+
+    if (totalBytes > MAX_QUEUE_BYTES) {
+      finalList = trimByBytes(finalList, MAX_QUEUE_BYTES, totalBytes)
+    }
+
+    // 写入失败时保留内存数据，等下次 flush 重试，尽量不丢日志
+    if (writeQueue(finalList)) {
+      memoryBuffer = []
+    }
+  } catch (err) {
+    // 兜底：未预期的异常同样不能影响宿主，内存数据留待下个周期重试
+    console.warn('[@sepveneto/report-core] flush failed: ' + err)
+  } finally {
+    clearTimeout(flushTimer)
+    flushTimer = undefined
   }
-
-  // 写入失败时保留内存数据，等下次 flush 重试，尽量不丢日志
-  if (writeQueue(finalList)) {
-    memoryBuffer = []
-  }
-  clearTimeout(flushTimer)
-  flushTimer = undefined
 }

@@ -13,7 +13,10 @@ let retryTimer: any
 self.onmessage = (evt) => {
   switch (evt.data.type) {
     case 'report': {
-      void handleReport(evt.data)
+      // worker 内的异常不能变成未处理的 rejection
+      handleReport(evt.data).catch(err => {
+        console.warn('[@sepveneto/report-core] handle report failed: ' + err)
+      })
       break
     }
     default:
