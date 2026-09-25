@@ -12,6 +12,7 @@ import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Device } from "./model/device.ts";
 import { AlertError, AlertSetting } from "./model/alert.ts";
 import { triggerNotify } from "./apis/alert.ts";
+import { clearTasks } from "./apis/task.ts";
 // import { debug } from './utils/collect.ts'
 
 // debug()
@@ -82,6 +83,31 @@ function initSched() {
   })
   push.name = 'PUSH_ALERT'
   TaskManager.add('PUSH_ALERT', push)
+
+  clearSched()
+}
+
+/**
+ * 重启后 TaskManager 为空，重启前排期的任务不会再执行，
+ * 因此把数据库里的定时任务一并清空，避免列表里残留永远不会执行的任务
+ */
+async function clearSched() {
+  const log = createDebug('task')
+  try {
+    const reporter = client.db('reporter')
+    const app = new App(reporter)
+    const apps = await app.getAll()
+
+    await Promise.all(apps.map(async (item) => {
+      if (!item.id) {
+        return
+      }
+      const appDb = client.db(`app_${item.id}`)
+      await clearTasks(appDb, log)
+    }))
+  } catch (err) {
+    console.error('[task] 清空定时任务失败:', err)
+  }
 }
 
 async function clearLog(db: Db, limit: number) {

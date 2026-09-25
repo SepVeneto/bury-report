@@ -22,6 +22,7 @@ export function toString(status: TaskStatus) {
 }
 
 export interface ITask extends BaseType {
+  id?: string,
   name: string,
   trigger_id: string,
   execute_time?: string,
