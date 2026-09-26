@@ -1,5 +1,6 @@
 use bson::{Document, doc};
-use mongodb::{Client, Database, IndexModel, error::Result};
+use mongodb::{Client, Database, IndexModel, error::Result, options::ClientOptions};
+use std::time::Duration;
 use log::{error, debug};
 
 use crate::model::{BaseModel, logs, logs_error, logs_network, apps};
@@ -22,7 +23,14 @@ pub async fn connect_db() -> (Client, Database) {
   let db_pwd = std::env::var("DB_PWD").expect("enviroment missing DB_PWD");
   let uri = format!("mongodb://{name}:{pwd}@{uri}", name=db_name, pwd=db_pwd, uri = db_url);
 
-  let client = Client::with_uri_str(uri).await.expect("failed to connect to Mongo");
+  let mut client_options = ClientOptions::parse(uri)
+      .await
+      .expect("failed to parse MongoDB connection string");
+  // Bound the number of application sockets and recycle idle connections before
+  // MongoDB or an intermediary closes them first.
+  client_options.max_pool_size = Some(100);
+  client_options.max_idle_time = Some(Duration::from_secs(60));
+  let client = Client::with_options(client_options).expect("failed to configure MongoDB client");
   let db = client.database("reporter");
 
   if let Err(err) = init_db(&client).await {

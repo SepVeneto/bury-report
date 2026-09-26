@@ -78,8 +78,11 @@ async fn main() -> std::io::Result<()> {
     info!("Kafka producer flushed, shutdown complete.");
 
     info!("Flushing alert fact & summary...");
-    alert::gc::alert_flush(&flush_client).await;
-    info!("alert fact & summary flushed.");
+    if let Err(err) = alert::gc::alert_flush(&flush_client).await {
+      error!("Failed to flush alert fact & summary during shutdown: {}", err);
+    } else {
+      info!("alert fact & summary flushed.");
+    }
 
     info!("Shutdown signal received, stopping server...");
     handle.stop(true).await;
