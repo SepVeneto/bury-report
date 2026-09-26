@@ -1,6 +1,7 @@
 use bson::{Document, doc};
-use mongodb::{Client, Database, IndexModel, error::Result};
-use log::{error, debug};
+use mongodb::{Client, Database, IndexModel, error::Result, options::ClientOptions};
+use std::time::Duration;
+use log::{error, debug, info};
 
 use crate::model::{BaseModel, logs, logs_error, logs_network, apps};
 
@@ -22,7 +23,23 @@ pub async fn connect_db() -> (Client, Database) {
   let db_pwd = std::env::var("DB_PWD").expect("enviroment missing DB_PWD");
   let uri = format!("mongodb://{name}:{pwd}@{uri}", name=db_name, pwd=db_pwd, uri = db_url);
 
-  let client = Client::with_uri_str(uri).await.expect("failed to connect to Mongo");
+  let mut client_options = ClientOptions::parse(uri)
+      .await
+      .expect("failed to parse MongoDB connection string");
+  // Bound the number of application sockets and recycle idle connections before
+  // MongoDB or an intermediary closes them first.
+  // 连接数上限：默认沿用驱动默认值 10（线上是"连接数远超上限"，调大不是修复方向），需要时用环境变量调
+  let max_pool_size = env_u32("MONGO_MAX_POOL_SIZE", 10);
+  // 空闲回收默认关闭（保持驱动原行为），需要时用 MONGO_MAX_IDLE_SECS 打开；0 = 关闭
+  let max_idle_secs = env_u64("MONGO_MAX_IDLE_SECS", 0);
+  client_options.max_pool_size = Some(max_pool_size);
+  client_options.max_idle_time = if max_idle_secs == 0 {
+      None
+  } else {
+      Some(Duration::from_secs(max_idle_secs))
+  };
+  let client = Client::with_options(client_options).expect("failed to configure MongoDB client");
+  info!("mongo pool: max={} max_idle={}s", max_pool_size, max_idle_secs);
   let db = client.database("reporter");
 
   if let Err(err) = init_db(&client).await {
@@ -68,4 +85,11 @@ async fn init_db(client: &Client) -> Result<()>{
     }
 
     Ok(())
+}
+fn env_u32(key: &str, default: u32) -> u32 {
+    std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+fn env_u64(key: &str, default: u64) -> u64 {
+    std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
 }

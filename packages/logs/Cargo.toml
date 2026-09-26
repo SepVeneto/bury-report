@@ -49,7 +49,7 @@ dashmap = "6.1.0"
 [dependencies.mongodb]
 version = "2.8.2"
 default-features = false
-features = ["async-std-runtime"]
+features = ["tokio-runtime"]
 
 [dependencies.rdkafka]
 version = "0.38.0"

@@ -59,13 +59,9 @@ assert_eq "C15 strategy=once" once "$(mongo_field "$APP_DB" alert_fact "{fingerp
 
 # 第二次出现：and_modify 用 rule.ttl()(=None for Once) 覆盖 ttl -> 该 fact 永不回收
 api_post "$body" >/dev/null
-ttl_state=""
-for _ in $(seq 30); do
-  ttl_state=$(mongo_field "$APP_DB" alert_fact "{fingerprint:'$fp'}" 'd.ttl === null')
-  [ "$ttl_state" = "true" ] && break
-  sleep 1
-done
-assert_eq "C15 第二次出现后 ttl 被清空 -> fact 永不回收（当前行为缺陷）" "true" "$ttl_state"
+sleep 12
+assert_eq "C15 第二次出现后 ttl 仍为 7 天（fact 可被回收）" 604800 \
+  "$(mongo_field "$APP_DB" alert_fact "{fingerprint:'$fp'}" 'Number(d.ttl)')"
 assert_eq "C15 Once 即使多次出现 -> notify 只 1 条" 1 "$(notify_count "$fp")"
 
 # ---- C/ALR-18 通知内容 ----
@@ -122,15 +118,17 @@ sleep 0.5
 fp=$(fingerprint_of "u-$mk")
 assert_eq "C16b 静默超过 window_sec 且 fact 被回收后 -> 重推（共 2 条）" 2 "$(notify_count "$fp")"
 
-# ---- C/ALR-20 V1 错误不触发告警 ----
+# ---- C/ALR-20 V1 错误也要触发告警 ----
+clear_rules
+insert_rule "{name:'t-v1',enabled:true,source:{type:'collection',log_type:'error'},notify:{strategy:'once',url:'$HOOK_A'}}" >/dev/null
+sync_rules >/dev/null
 mk=$(mark)
 st=$(api_post "$(payload_error V1Path "v1-$mk" 'at f (a.js:1:2)' "u-$mk" "s-$mk")")
 assert_eq "C20 V1 错误上报 -> HTTP 200" 200 "$st"
 fp=$(fingerprint_of "u-$mk")
 assert_eq "C20 V1 错误有 fingerprint 落库" 32 "${#fp}"
-assert_eq "C20 V1 错误不产生 notify（当前行为）" 0 "$(notify_count "$fp")"
-sleep 1
-assert_eq "C20 V1 错误不产生 alert_fact（当前行为）" 0 "$(mongo_count "$APP_DB" alert_fact "{fingerprint:'$fp'}")"
+assert_eq "C20 V1 错误同样触发 notify" 1 "$(notify_count "$fp")"
+wait_count "$APP_DB" alert_fact "{fingerprint:'$fp'}" 1 30 "C20 V1 错误同样产生 alert_fact"
 
 # ---- C/ALR-06 指纹归一化：行列号 ----
 clear_rules; sync_rules >/dev/null

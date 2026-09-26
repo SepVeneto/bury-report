@@ -91,6 +91,8 @@ pub async fn record(
                 },
                 logs::RecordItem::Error(err) => {
                     logs_error::Model::insert_one(db, &err).await?;
+                    // V1 单条上报的错误同样要参与告警（此前只有 V2 批量会告警）
+                    alert_error(producer, &appid, &err);
                 },
                 logs::RecordItem::Track(track) => {
                     send_to_kafka(producer, &track);
