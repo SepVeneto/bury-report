@@ -3,7 +3,7 @@ use bson::{doc, DateTime, Document};
 use futures_util::TryStreamExt;
 use once_cell::sync::Lazy;
 use mongodb::{Client, Database};
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 use dashmap::DashMap;
 use log::{debug, error, info, warn};
 
@@ -160,7 +160,7 @@ pub async fn load_rules(db: &Database) -> Vec<QueryBase<alert_rule::Model>> {
 }
 
 pub fn alert_error(
-    producer: &BaseProducer,
+    producer: &KafkaProducer,
     appid: &str,
     raw: &ErrorRaw
 ) {

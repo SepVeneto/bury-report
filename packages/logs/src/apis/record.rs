@@ -4,7 +4,7 @@ use log::{debug, error, warn};
 use actix_web::{HttpRequest, post, web};
 // use flate2::read::GzDecoder;
 use mongodb::{Client, Database};
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 use crate::model::logs::RecordPayload;
 use crate::services::task::RawRecord;
 use crate::services::task::send_raw_to_kafak;
@@ -43,7 +43,7 @@ async fn record_log(
     client: web::Data<Client>,
     db: web::Data<Database>,
     req: HttpRequest,
-    producer: web::Data<Arc<BaseProducer>>,
+    producer: web::Data<Arc<KafkaProducer>>,
     // svr: web::Data<Addr<WsActor>>,
     json_body: web::Payload,
 ) -> ApiResult {

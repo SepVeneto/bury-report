@@ -2,7 +2,7 @@ use crate::{alert::{is_expired, MAX_FACTS_PER_APP, model::{ALERT_MAP, AlertFact,
 use bson::DateTime;
 use dashmap::DashMap;
 use log::{debug, warn};
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 use crate::services::task::send_json_to_kafka;
 use serde_json::json;
 
@@ -118,7 +118,7 @@ pub fn check_notify(
 }
 
 pub fn trigger(
-    producer: &BaseProducer,
+    producer: &KafkaProducer,
     rule: &UnionRule,
     summary: &String,
     fact: &AlertFactInfo,

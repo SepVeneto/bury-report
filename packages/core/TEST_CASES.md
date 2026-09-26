@@ -3,7 +3,7 @@
 ## 运行方式
 
 ```bash
-# 全量用例（28 个文件 / 287 个用例）
+# 全量用例（29 个文件 / 295 个用例）
 pnpm test
 
 # 覆盖率（v8，输出 text + html 到 ./coverage）
@@ -26,7 +26,7 @@ pnpm test:coverage
 | 指标 | 结果 |
 | --- | --- |
 | Statements | 99.42% |
-| Branches | 95.41% |
+| Branches | 95.46% |
 | Functions | 100% |
 | Lines | 99.42% |
 
@@ -52,12 +52,16 @@ pnpm test:coverage
 
 | 位置 | 加固内容 |
 | --- | --- |
+| `src/browser/worker.ts` | 合并投递的 track 按体积分片（目标 1MB gzip），避免单条消息超过服务端/broker 上限被整段拒收；失败重试粒度也从"整批"细化到"单片" |
 | `src/mp-uni/index.ts` | `uni.request` 的 `success` 带有 `statusCode`，只有 2xx 才清队列，5xx 保留并重试 |
 | `src/browser/index.ts` + `src/utils.ts` | keepalive 受浏览器总量配额（约 64KB）约束：按预算截取后发送，未发出的部分写回队列，下次会话补发 |
 | `src/utils.ts` | `normalizeResponse` 达到上限即提前返回；`limit === Infinity` 时不做截断也不全量扫描 |
 | `src/utils.ts` | flush 全流程只做一次整表序列化（裁剪复用已算出的体积） |
 
 > 浏览器端仍是 fire-and-forget（`no-cors`，不读响应状态）。服务端 5xx 的兜底需要服务端按 `(uuid, stamp)` 幂等去重，之后可再开启"冗余重发"，需服务端确认。
+
+> ⚠️ 已知限制：浏览器对 `keepalive` 请求的总量限制约 64KB。页面卸载时的大体积 track（尤其是 FullSnapshot）**无法**通过 keepalive 送达，
+> 只能靠"落盘 + 下次会话补发"解决，见文末"尚未实施"。
 
 ### 性能（同一基准，改前 → 改后）
 
@@ -108,6 +112,7 @@ pnpm test:coverage
 | --- | --- |
 | `test/utils.spec.ts` / `test/utils-extra.spec.ts` | 配置合并、uuid/session 缓存与降级、队列读写与损坏回退、内存缓冲 flush、条数/字节上限与设备信息保护、UTF-8 体积、分片、间隔校验 |
 | `test/resilience.spec.ts` | 不可序列化数据不打断调用方且不毒化队列、公共 API 与网络采集异常不外泄、小程序 statusCode 判定、keepalive 预算与剩余数据保留、体积计算提前退出与预算裁剪 |
+| `test/track-chunk.spec.ts` | 录屏 track 按估算体积分片投递（单条不超过 1MB gzip）、分片后事件不丢、只重试失败的片、keepalive 场景同样分片 |
 
 ## 不可达/防御性代码说明
 
@@ -130,5 +135,6 @@ pnpm test:coverage
 ### 尚未实施（待确认）
 
 - 冗余重发（同一批数据重发 N 次）：需服务端按 `(uuid, stamp)` 幂等，否则会产生重复数据；同时建议记录补充单调 `seq`，避免同毫秒同类型记录撞幂等键。
+- 页面卸载前的 track tail 补发：keepalive 有 ~64KB 总量限制，大体积回放数据在卸载路径上发不出去；需要"卸载时把未发完的 track 落盘（建议 IndexedDB）+ 下次会话补发"，配合服务端/回放端去重。
 - `BuryReport.cache` / `memoryOnly` 仍按条数限流（50 / 20 条），未按字节限流，超大录屏批次仍可能占用较多内存。
 - `immediate` 上报会在业务调用栈上同步完成 flush 与序列化；改为异步可进一步降低业务侧开销，但会改变"立即上报"的既有语义，需单独确认。

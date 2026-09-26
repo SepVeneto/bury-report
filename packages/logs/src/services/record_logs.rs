@@ -6,7 +6,7 @@ use log::{debug, error};
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 
 use crate::{
     alert::alert_error, db, model::{
@@ -40,7 +40,7 @@ pub async fn record(
     client: &Client,
     db: &Database,
     data: &logs::RecordPayload,
-    producer: &BaseProducer,
+    producer: &KafkaProducer,
     ip: Option<String>,
 ) -> ServiceResult<()> {
     debug!("record log");

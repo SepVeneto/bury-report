@@ -15,7 +15,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use bson::doc;
 use log::{info, warn};
 use mongodb::Client;
-use rdkafka::producer::{BaseProducer, Producer};
+use rdkafka::producer::Producer;
+
+use crate::services::task::{
+    KafkaProducer, KAFKA_DELIVERED, KAFKA_DELIVERY_FAILED, KAFKA_ENQUEUE_FAILED, KAFKA_SPLIT,
+};
 use tokio::time::{Duration, interval};
 
 use crate::alert::model::{ALERT_MAP, SUMMARY_MAP};
@@ -26,7 +30,7 @@ fn env_u64(key: &str, default: u64) -> u64 {
     std::env::var(key).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
 }
 
-pub async fn run(producer: Arc<BaseProducer>, client: Client) {
+pub async fn run(producer: Arc<KafkaProducer>, client: Client) {
     let secs = env_u64("PROBE_INTERVAL_SECS", 30);
     if secs == 0 {
         info!("probe disabled (PROBE_INTERVAL_SECS=0)");
@@ -46,10 +50,15 @@ pub async fn run(producer: Arc<BaseProducer>, client: Client) {
         let summaries: usize = SUMMARY_MAP.iter().map(|e| e.value().summaries.len()).sum();
         let facts: usize = ALERT_MAP.iter().map(|e| e.value().map.len()).sum();
         let in_flight = producer.in_flight_count();
+        let delivered = KAFKA_DELIVERED.load(Ordering::Relaxed);
+        let delivery_failed = KAFKA_DELIVERY_FAILED.load(Ordering::Relaxed);
+        let enqueue_failed = KAFKA_ENQUEUE_FAILED.load(Ordering::Relaxed);
+        let split = KAFKA_SPLIT.load(Ordering::Relaxed);
 
         let line = format!(
             "probe fds={} sockets={} close_wait={} established={} time_wait={} other={} \
-             rss_kb={} threads={} summaries={} facts={} kafka_inflight={}",
+             rss_kb={} threads={} summaries={} facts={} kafka_inflight={} \
+             kafka_delivered={} kafka_delivery_failed={} kafka_enqueue_failed={} kafka_split={}",
             stat.fds,
             stat.sockets,
             stat.close_wait,
@@ -61,6 +70,10 @@ pub async fn run(producer: Arc<BaseProducer>, client: Client) {
             summaries,
             facts,
             in_flight,
+            delivered,
+            delivery_failed,
+            enqueue_failed,
+            split,
         );
 
         // Mongo 连接数：需要 serverStatus 权限；没权限只提示一次，不影响主流程

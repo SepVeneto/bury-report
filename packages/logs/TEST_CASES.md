@@ -15,6 +15,29 @@
 
 ---
 
+## 0. 本轮加固（track 投递链路）
+
+> 背景：track 是 gzip 后的 rrweb 数据，单会话 300KB~10MB；客户端会把多批事件合并投递，
+> 叠加 worker 重试缓冲后单条 payload 经常超过 producer 的 `message.max.bytes`，
+> librdkafka 在**入队**阶段直接拒收，而客户端是 fire-and-forget（拿到 200 就清队列）——整段录屏静默丢失。
+
+| 项 | 改动 | 验证方式 |
+| --- | --- | --- |
+| 超限拆分 | 二进制协议 payload 超过 `KAFKA_MAX_MESSAGE_BYTES` 时，先解压 → 按 record / `data.events` 对半递归拆分 → 重新 gzip → 逐条投递，并给每条记录打 `part` 序号 | `cargo test --bin bury-report-logs`（`services::split` 4 个单测：小包不拆、多记录拆分、单记录按事件拆分、坏数据返回 Err） |
+| 请求内 flush | 去掉 `send_batch_to_kafka` 里的 `producer.flush(10s)`——Kafka 抖动时它会把 actix worker 卡住 10s（对应压测里 Processing 平均 10s 的形态） | 单测 + 现网观察 `/record` P99 |
+| 交付可见 | 生产者改用自定义 context，注册交付回调：`kafka_delivered` / `kafka_delivery_failed` / `kafka_enqueue_failed` / `kafka_split` 计数进入 probe 行 | probe 日志 |
+| 抖动承接 | `message.timeout.ms` 5s → 120s；`enable.idempotence=true` + `acks=all` + `max.in.flight=5`；`queue.buffering.max.kbytes` 显式设为 256MB（librdkafka 默认 1GB 会顶爆容器内存）；新增后台 500ms `poll()` 循环驱动交付回调 | 启动日志 `kafka producer ready: ...` |
+| 客户端分片 | `packages/core` worker 侧按估算体积分片（目标 1MB gzip），失败重试粒度细化到单片 | `packages/core/test/track-chunk.spec.ts`（8 个用例） |
+
+需要人工核对：**broker 侧的上限必须 ≥ `KAFKA_MAX_MESSAGE_BYTES`**。Redpanda 的 `kafka_batch_max_bytes` 默认只有 1MiB，
+请用 `rpk cluster config get kafka_batch_max_bytes` 与 topic 的 `max.message.bytes` 确认；若小于生产者上限，
+消息仍会在 broker 侧被拒（表现为 `kafka_delivery_failed` 增长）。
+
+相关环境变量（都有默认值，不改也能跑）：`KAFKA_MAX_MESSAGE_BYTES`(10MB)、`KAFKA_MESSAGE_TIMEOUT_MS`(120000)、
+`KAFKA_QUEUE_MAX_KBYTES`(262144)、`KAFKA_QUEUE_MAX_MESSAGES`(100000)。
+
+---
+
 ## 0. 前置条件与测试数据
 
 ### 0.1 环境
