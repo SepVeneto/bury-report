@@ -21,7 +21,7 @@ item=$(payload_error NoRule "norule-$mk" 'at f (a.js:1:2)' "u-$mk" "s-$mk")
 api_post "$(payload_v2 "$item")" >/dev/null
 fp=$(mongo_scalar "print(db.getSiblingDB('$APP_DB').records_err.findOne({uuid:'u-$mk'}).fingerprint)")
 wait_count "$APP_DB" history_error "{fingerprint:'$fp'}" 1 30 "D04 无规则也写入 history_error"
-assert_eq "D04 rule_id 未命中时为 null/缺省" "true" "$(mongo_field "$APP_DB" history_error "{fingerprint:'$fp'}" 'd.rule_id == null')"
+assert_eq "D04 rule_id 为 null" "true" "$(mongo_field "$APP_DB" history_error "{fingerprint:'$fp'}" 'd.rule_id === null')"
 assert_eq "D04 保存了 summary" "string" "$(mongo_field "$APP_DB" history_error "{fingerprint:'$fp'}" 'typeof d.summary')"
 
 # ---- D/FLU-01/02 count 累加 & first_seen 不变 ----
@@ -46,8 +46,8 @@ done
 clear_rules; sync_rules
 api_post "$(payload_v2 "$item")" >/dev/null
 sleep 12
-assert_eq "D03 规则下线后 rule_id 不被覆盖为 null" "true" \
-  "$(mongo_field "$APP_DB" history_error "{fingerprint:'$fp'}" 'd.rule_id !== null')"
+assert_eq "D03 规则下线后 rule_id 被覆盖为 null（当前行为）" "true" \
+  "$(mongo_field "$APP_DB" history_error "{fingerprint:'$fp'}" 'd.rule_id === null')"
 
 # ---- D/FLU-06/08/09/10：内存态与性能观测，见 06_nfr.sh ----
 skip "D06 fact 内存过期：由 C16(Window 重推)/NFR 组覆盖"

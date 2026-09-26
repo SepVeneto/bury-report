@@ -61,31 +61,6 @@ docker exec -i logs-test-redpanda rpk topic consume notify --offset start
 | `cases/05_faults.sh` | E 组：故障注入（真实停 Mongo/Kafka、复现 GC 死掉与 init 静默失败） |
 | `cases/06_nfr.sh` | F 组：压测 + FD/CLOSE_WAIT/Mongo 连接池观测 |
 | `cases/07_matrix.sh` | 覆盖补齐：接口/上报/告警/聚合里的边界分支 |
-
-## 运行态探针（线上排查用）
-
-服务内置了一个轻量探针，每 30 秒打一行日志，用来抓"FD/连接只增不减"这类问题：
-
-```bash
-# 关闭
-PROBE_INTERVAL_SECS=0
-# 调整采样间隔与 CLOSE_WAIT 告警阈值
-PROBE_INTERVAL_SECS=10 PROBE_CLOSE_WAIT_WARN=100
-```
-
-输出示例：
-
-```
-probe fds=95 sockets=34 close_wait=0 established=14 time_wait=0 other=20 rss_kb=18476 threads=21 \
-      summaries=0 facts=12 kafka_inflight=0 mongo_current=13 mongo_total_created=424 mongo_active=2
-```
-
-排查时的判读：
-
-* `close_wait` 持续上涨且 `mongo_total_created` 不再增长 ⇒ 本端滞留了对端已关闭的 socket（线上事故的形态）；
-* `fds` 涨而 `mongo_current` 不涨 ⇒ FD 泄漏点在驱动/运行时，而不是业务逻辑；
-* `rss_kb` 涨而 `summaries/facts` 不涨 ⇒ 内存不是被聚合 map 吃掉的（更可能是分配器高水位或其它结构）；
-* `close_wait` 超阈值会输出 WARN + `ALERT`，可直接对日志做告警规则。
 | `run-all.sh` | 一键入口 |
 
 `lib.sh` 里区分三种结果：`PASS`/`FAIL` 是断言结果；已经确认是产品缺陷、但当前断言的是"现状"的用例输出 `WARN`（计入 `known-issue`，不会让套件变红，修复后自动变 `PASS`）；需要外部条件（长稳、大量历史数据）的用例输出 `SKIP`。

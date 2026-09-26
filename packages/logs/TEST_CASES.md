@@ -1,17 +1,8 @@
 # report-logs 测试用例集
 
 > 对象：`packages/logs`（容器 `report-logs`，HTTP:8870）
-> 依据：当前 `main` 分支代码的实际行为整理。
-> 标注 `⚠️当前行为` 的用例，预期结果按"现在实际会怎样"写；`🐞已知问题` 表示该行为是缺陷。
-> **已修复项**（本轮改动，用例断言同步改为修复后的期望）：`Cargo.toml` 运行时改回 `tokio-runtime`（API-15 的连接堆积）、Mongo 连接池上限/空闲回收（REG-01）、
-> flush 循环不再 `unwrap` panic / 每轮超时 + 看门狗（ERR-03/REG-02/03）、`alert::init` 失败不再静默且聚合循环独立启动（ERR-12/REG-04）、
-> Once 的 ttl 不再被清空（ALR-15/REG-11）、Limit 窗口计数（ALR-17）、Window 用 last_notify（ALR-16）、规则坏文档只跳过自己（ALR-22/REG-12）、
-> V1 错误同样告警（ALR-20/REG-08）、rule_id 不被覆盖成 null（FLU-03）、请求体上限真正生效（API-12/REG-13）、
-> `sync-alert-rule` 鉴权失败返回 403（ALR-02/03/REG-07）、SIGTERM 也能优雅退出（NFR-10/ERR-14/REG-14）、
-> session/uuid/id 唯一索引 + upsert（API-15/REG-15）、V2 内 appid 统一（ING-16）、custom id 不再写 null session（ING-12）。
->
-> 下表"预期结果"一列保留了**修复前实测到**的行为描述；凡在上面「已修复项」中列出的用例，其准确期望以
-> [`scripts/logs-test`](../../scripts/logs-test/README.md) 里的脚本断言为准（脚本已同步改为修复后的期望，并全部通过）。
+> 依据：当前 `main` 分支代码的实际行为整理，**未做任何代码修改**。
+> 标注 `⚠️当前行为` 的用例，预期结果按"现在实际会怎样"写；`🐞已知问题` 表示该行为是缺陷，后续修复时这些用例即为回归基线。
 
 ---
 
@@ -215,7 +206,6 @@
 | NFR-08 | 单请求内存放大 | 发送 10MB 合法 body | 峰值内存 ≈ body 的若干倍（`to_bytes` + 反序列化 + `data.clone()`），随并发线性放大 |
 | NFR-09 | 并发压测 | 200 并发持续 10 分钟 | 无 panic、无 5xx 风暴、P99 稳定；结束后内存回落 |
 | NFR-10 | 退出信号 | 分别发送 SIGINT 与 SIGTERM（`05_faults.sh` E13/E14） | ⚠️`src/main.rs:70` 监听的是 `ctrl_c()`（SIGINT）：SIGINT 会 flush Kafka + `alert_flush` 后优雅退出；**SIGTERM（`docker stop` 默认信号）不触发优雅退出**，直接终止、不落盘 🐞 |
-| NFR-16 | 运行态探针 | 观察服务日志里的 `probe ` 行（`06_nfr.sh`） | 每 30s 一行：`fds/sockets/close_wait/established/time_wait/rss_kb/threads/summaries/facts/kafka_inflight/mongo_current/mongo_total_created`；`close_wait` 超过 `PROBE_CLOSE_WAIT_WARN`（默认 200）升级为 WARN 并带 `ALERT` 标记。`PROBE_INTERVAL_SECS=0` 可关闭 |
 
 ## G. 回归清单（针对已确认缺陷）
 

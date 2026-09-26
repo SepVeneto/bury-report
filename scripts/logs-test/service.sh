@@ -26,8 +26,6 @@ start() {
       NOTIFY_TOKEN="$NOTIFY_TOKEN" \
       SALT="$SALT" \
       LOG_LEVEL="$LOG_LEVEL" \
-      PROBE_INTERVAL_SECS="${PROBE_INTERVAL_SECS:-}" \
-      PROBE_CLOSE_WAIT_WARN="${PROBE_CLOSE_WAIT_WARN:-}" \
       RUST_BACKTRACE=1 \
       setsid "$SERVICE_BIN" >>"$SERVICE_LOG" 2>&1 </dev/null &
     echo $! >"$SERVICE_PID_FILE"

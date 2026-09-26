@@ -75,8 +75,8 @@ assert_eq "B12 device 去重累加为 2" 2 "$(mongo_field "$APP_DB" records_cust
 u3="d-ing13-$(mark)"
 st=$(api_post "{\"type\":\"__BR_CUSTOM_ID__\",\"appid\":\"$APP_ID\",\"data\":{\"id\":\"user-456\"},\"uuid\":\"$u3\"}")
 exp_id6=$(printf '%s' "user-456-$SALT" | md5sum | awk '{print toupper($1)}')
-assert_eq "B13 无 session 时不往数组写 null" "0" \
-  "$(mongo_field "$APP_DB" records_custom_id "{id:'$exp_id6'}" '(d.session ? d.session.filter(function(x){return x === null}).length : 0)')"
+assert_eq "B13 无 session 时 session 数组写入 null（当前行为）" "1" \
+  "$(mongo_field "$APP_DB" records_custom_id "{id:'$exp_id6'}" 'd.session.filter(function(x){return x === null}).length')"
 
 # ---- B/ING-14/16/17 V2 批量 ----
 mk=$(mark)
@@ -105,7 +105,7 @@ other="000000000000000000000009"; u="d-ing16-$(mark)"
 item=$(printf '{"type":"my_log","appid":"%s","data":{},"uuid":"%s","session":"s"}' "$other" "$u")
 st=$(api_post "$(payload_v2 "$item")")
 assert_eq "B16 appid 不一致 -> HTTP 200" 200 "$st"
-assert_eq "B16 文档 appid 统一为 v2.appid（与所在库一致）" "$APP_ID" \
+assert_eq "B16 写入 v2.appid 所在库，但文档 appid 为 item.appid（当前行为）" "$other" \
   "$(mongo_field "$APP_DB" records_log "{uuid:'$u'}" 'd.appid')"
 
 summary

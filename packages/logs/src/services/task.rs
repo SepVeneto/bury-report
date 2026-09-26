@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::{
     alert::model::{AlertRuleMap, RULE_MAP},
-    model::logs,
+    model::{QueryModel, alert_rule, logs},
     services::{ServiceResult, record_logs::RecordList, split},
 };
 
@@ -132,8 +132,7 @@ pub async fn sync_alert_rule(
     db: &Database,
     app: &str,
 ) -> ServiceResult<()> {
-    // 逐条解析，坏规则只跳过自己，不影响该应用其余规则
-    let rules = crate::alert::load_rules(db).await;
+    let rules = alert_rule::Model::find_all(&db).await?;
     debug!("update rule {:?}", rules);
     RULE_MAP.insert(app.to_string(), AlertRuleMap::from_models(rules));
     info!("sync alert rule success");

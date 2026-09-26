@@ -38,10 +38,10 @@ assert_body_code "C01 同步规则 -> code 0" 0
 # ---- C/ALR-02/03 token 校验（当前实现无反馈） ----
 st=$(api_get /notify/sync-alert-rule -H "notify-token: wrong-token" -H "appid: $APP_ID")
 assert_eq "C02 错误 token -> HTTP 200" 200 "$st"
-assert_body_code "C02 错误 token -> code 403" 403
+assert_body_code "C02 错误 token 仍返回 code 0（当前行为）" 0
 st=$(api_get /notify/sync-alert-rule -H "appid: $APP_ID")
 assert_eq "C03 缺 token 头 -> HTTP 200" 200 "$st"
-assert_body_code "C03 缺 token 头 -> code 403" 403
+assert_body_code "C03 缺 token 头仍返回 code 0（当前行为）" 0
 
 # ---- C/ALR-04 appid 头缺失 ----
 st=$(api_get /notify/sync-alert-rule -H "notify-token: $NOTIFY_TOKEN")
@@ -57,11 +57,15 @@ wait_count "$APP_DB" alert_fact "{fingerprint:'$fp'}" 1 30 "C15 alert_fact 落�
 assert_eq "C15 首次触发 ttl 硬编码为 7 天" 604800 "$(mongo_field "$APP_DB" alert_fact "{fingerprint:'$fp'}" 'Number(d.ttl)')"
 assert_eq "C15 strategy=once" once "$(mongo_field "$APP_DB" alert_fact "{fingerprint:'$fp'}" 'd.strategy')"
 
-# 第二次出现：ttl 不能被 rule.ttl()(=None for Once) 覆盖，否则 fact 永不回收
+# 第二次出现：and_modify 用 rule.ttl()(=None for Once) 覆盖 ttl -> 该 fact 永不回收
 api_post "$body" >/dev/null
-sleep 12
-assert_eq "C15 第二次出现后 ttl 仍为 7 天（可被回收）" 604800 \
-  "$(mongo_field "$APP_DB" alert_fact "{fingerprint:'$fp'}" 'Number(d.ttl)')"
+ttl_state=""
+for _ in $(seq 30); do
+  ttl_state=$(mongo_field "$APP_DB" alert_fact "{fingerprint:'$fp'}" 'd.ttl === null')
+  [ "$ttl_state" = "true" ] && break
+  sleep 1
+done
+assert_eq "C15 第二次出现后 ttl 被清空 -> fact 永不回收（当前行为缺陷）" "true" "$ttl_state"
 assert_eq "C15 Once 即使多次出现 -> notify 只 1 条" 1 "$(notify_count "$fp")"
 
 # ---- C/ALR-18 通知内容 ----
@@ -111,20 +115,22 @@ mk=$(mark)
 item=$(payload_error WindowRule2 "win2-$mk" 'at f (a.js:1:2)' "u-$mk" "s-$mk")
 body=$(payload_v2 "$item")
 api_post "$body" >/dev/null
-# 距上一次触发超过 window_sec 就应重新推送（不依赖 GC 是否回收）
-sleep 4
+# 等 GC 把 fact 回收（无出现 > window_sec 且至少一个 10s flush 周期）
+sleep 12
 api_post "$body" >/dev/null
 sleep 0.5
 fp=$(fingerprint_of "u-$mk")
-assert_eq "C16b 距上次触发超过 window_sec -> 重推（共 2 条）" 2 "$(notify_count "$fp")"
+assert_eq "C16b 静默超过 window_sec 且 fact 被回收后 -> 重推（共 2 条）" 2 "$(notify_count "$fp")"
 
-# ---- C/ALR-20 V1 错误也要触发告警 ----
+# ---- C/ALR-20 V1 错误不触发告警 ----
 mk=$(mark)
 st=$(api_post "$(payload_error V1Path "v1-$mk" 'at f (a.js:1:2)' "u-$mk" "s-$mk")")
 assert_eq "C20 V1 错误上报 -> HTTP 200" 200 "$st"
 fp=$(fingerprint_of "u-$mk")
 assert_eq "C20 V1 错误有 fingerprint 落库" 32 "${#fp}"
-wait_count "$APP_DB" alert_fact "{fingerprint:'$fp'}" 1 30 "C20 V1 错误同样产生 alert_fact"
+assert_eq "C20 V1 错误不产生 notify（当前行为）" 0 "$(notify_count "$fp")"
+sleep 1
+assert_eq "C20 V1 错误不产生 alert_fact（当前行为）" 0 "$(mongo_count "$APP_DB" alert_fact "{fingerprint:'$fp'}")"
 
 # ---- C/ALR-06 指纹归一化：行列号 ----
 clear_rules; sync_rules >/dev/null

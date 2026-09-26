@@ -1,4 +1,6 @@
 use std::str::FromStr;
+use log::info;
+
 use anyhow::anyhow;
 use bson::{oid, DateTime};
 use chrono::FixedOffset;
@@ -127,38 +129,23 @@ pub trait CreateModel: BaseModel
     where
         Self: QueryModel,
     {
-        // 用 upsert 代替"先 find_one 再 insert_one"：并发下不会写出重复文档
-        // （线上核查到同一个 session 会插入多条）
-        let col = <Self as CreateModel>::col(db);
-        let now = DateTime::now();
-        let mut set = doc! { "update_time": now };
-        if let Some(extra) = unique_data.into() {
-            set.extend(extra);
-        }
+        if let None = Self::find_one(db, unique.clone()).await? {
+            info!("insert unique: {:?}", unique);
+            Ok(Some(Self::insert_one(db, data).await?))
+        } else {
+            let col = <Self as CreateModel>::col(db);
+            let mut set = doc! {
+                "update_time": DateTime::now(),
+            };
 
-        let mut on_insert = bson::to_document(data)?;
-        for key in set.keys() {
-            on_insert.remove(key.as_str());
-        }
-        // 注意：update_time 在 $set 里，不能再出现在 $setOnInsert，否则 Mongo 报字段冲突
-        on_insert.insert("create_time", now);
-
-        let options = UpdateOptions::builder().upsert(true).build();
-        match col
-            .update_one(
-                unique.clone(),
-                doc! { "$set": set.clone(), "$setOnInsert": on_insert },
-                options,
-            )
-            .await
-        {
-            Ok(_) => Ok(None),
-            // 并发下另一个请求刚好插入成功，退化成纯更新
-            Err(err) if is_duplicate_key(&err) => {
-                col.update_one(unique, doc! { "$set": set }, None).await?;
-                Ok(None)
+            if let Some(data) = unique_data.into() {
+                set.extend(data);
             }
-            Err(err) => Err(err.into()),
+
+            let _ = col.update_one(unique.clone(), doc! {
+                "$set": set,
+            }, None).await?;
+            Ok(None)
         }
     }
     async fn insert_one(
@@ -201,19 +188,8 @@ pub trait CreateModel: BaseModel
                 }
             }           
         }
-        let res = col.insert_many(list, None).await?;
+        let res = col.insert_many(list, None).await.unwrap();
         Ok(res)
-    }
-}
-
-/// 是否为唯一索引冲突（E11000）
-fn is_duplicate_key(err: &mongodb::error::Error) -> bool {
-    match err.kind.as_ref() {
-        mongodb::error::ErrorKind::Write(mongodb::error::WriteFailure::WriteError(we)) => {
-            we.code == 11000
-        }
-        mongodb::error::ErrorKind::Command(cmd) => cmd.code == 11000,
-        _ => false,
     }
 }
 

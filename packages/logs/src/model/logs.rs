@@ -66,16 +66,13 @@ pub enum RecordItem {
     Custom(Model),
 }
 impl RecordV1 {
-    /// `appid_override` 用于 V2 批量：整批写入的是 v2.appid 对应的库，
-    /// 单条 item 里带的 appid 不应覆盖它（否则文档 appid 与所在库不一致）
-    pub fn normalize_from(&self, ip: Option<String>, appid_override: Option<&str>) -> RecordItem {
-        let appid = appid_override.unwrap_or(self.appid.as_str()).to_string();
+    pub fn normalize_from(&self, ip: Option<String>) -> RecordItem {
         match self.r#type.as_str() {
             TYPE_LOG => RecordItem::Device(Device {
                 uuid: self.uuid.to_string(),
                 ip,
                 session: self.session.clone(),
-                appid: appid.clone(),
+                appid: self.appid.to_string(),
                 data: self.data.clone(),
                 create_time: DateTime::now(),
                 device_time: self.time.clone(),
@@ -84,7 +81,7 @@ impl RecordV1 {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
-                appid: appid.clone(),
+                appid: self.appid.to_string(),
                 data: self.data.clone(),
                 stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
@@ -94,7 +91,7 @@ impl RecordV1 {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
-                appid: appid.clone(),
+                appid: self.appid.to_string(),
                 data: self.data.clone(),
                 stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
@@ -105,7 +102,7 @@ impl RecordV1 {
                     r#type: self.r#type.to_string(),
                     uuid: self.uuid.to_string(),
                     session: self.session.clone(),
-                    appid: appid.clone(),
+                    appid: self.appid.to_string(),
                     data: self.data.clone(),
                     stamp: self.stamp.clone(),
                     create_time: DateTime::now(),
@@ -124,7 +121,7 @@ impl RecordV1 {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
-                appid: appid.clone(),
+                appid: self.appid.to_string(),
                 data: self.data.clone(),
                 stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
@@ -139,7 +136,7 @@ impl RecordV1 {
                 r#type: self.r#type.to_string(),
                 uuid: self.uuid.to_string(),
                 session: self.session.clone(),
-                appid: appid.clone(),
+                appid: self.appid.to_string(),
                 data: self.data.clone(),
                 stamp: self.stamp.clone(),
                 create_time: DateTime::now(),
@@ -241,13 +238,11 @@ impl CustomId {
     ) -> QueryResult<UpdateResult> {
         let col: Collection<Document> = <Self as CreateModel>::col(db);
         let options = UpdateOptions::builder().upsert(true).build();
-        // session 为空时不要往数组里塞 null
-        let mut add_to_set = doc! { "device": device };
-        if let Some(session) = session {
-            add_to_set.insert("session", session.clone());
-        }
         let res = col.update_one(doc! {"id": id }, doc! {
-            "$addToSet": add_to_set,
+            "$addToSet": {
+                "device": device,
+                "session": session,
+            },
             "$set": { "update_time": DateTime::now() },
         }, options).await?;
         Ok(res)
