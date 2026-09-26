@@ -89,10 +89,7 @@ pub async fn init(client: &Client) -> anyhow::Result<()> {
 
     info!("告警规则初始化完成");
 
-    let flush_client = client.clone();
-    tokio::spawn(async move {
-        run_flush(flush_client).await;
-    });
+    // 注意：聚合/回收循环由 main 启动（init 失败也必须启动）
 
     Ok(())
 }

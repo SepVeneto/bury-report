@@ -6,6 +6,7 @@ mod model;
 mod services;
 mod utils;
 mod alert;
+mod probe;
 
 
 use std::sync::Arc;
@@ -48,7 +49,25 @@ async fn main() -> std::io::Result<()> {
   let producer_data = web::Data::new(Arc::new(producer));
   let producer_for_shutdown = producer_data.get_ref().clone();
 
-  let _ = alert::init(&client).await;
+  if let Err(err) = alert::init(&client).await {
+    error!("告警规则/事实初始化失败，将以空规则启动: {}", err);
+  }
+
+  // 聚合/回收循环独立于初始化：init 失败（例如启动时 Mongo 不可达）时也必须启动，
+  // 否则 SUMMARY_MAP / ALERT_MAP 永不回收、聚合也不再入库
+  let gc_client = client.clone();
+  tokio::spawn(async move {
+    alert::gc::run_flush(gc_client).await;
+  });
+
+  // 只观察不干预：看门狗（flush 长时间未成功就报警）+ 运行态探针
+  tokio::spawn(async move {
+    alert::gc::run_watchdog().await;
+  });
+  let probe_client = client.clone();
+  tokio::spawn(async move {
+    probe::run(probe_client).await;
+  });
 
   info!("starting HTTP server at http://localhost:8870");
   let server = HttpServer::new(move || {
@@ -78,10 +97,13 @@ async fn main() -> std::io::Result<()> {
     info!("Kafka producer flushed, shutdown complete.");
 
     info!("Flushing alert fact & summary...");
-    if let Err(err) = alert::gc::alert_flush(&flush_client).await {
-      error!("Failed to flush alert fact & summary during shutdown: {}", err);
-    } else {
-      info!("alert fact & summary flushed.");
+    match alert::gc::alert_flush_opportunistic(&flush_client).await {
+      Some(Ok(stats)) => info!(
+        "alert fact & summary flushed: facts={} summaries={} failed={}",
+        stats.facts, stats.summaries, stats.failed
+      ),
+      Some(Err(err)) => error!("Failed to flush alert fact & summary during shutdown: {}", err),
+      None => error!("上一轮刷新仍在进行，跳过退出前的最后一次落库（不等待、不取消）"),
     }
 
     info!("Shutdown signal received, stopping server...");

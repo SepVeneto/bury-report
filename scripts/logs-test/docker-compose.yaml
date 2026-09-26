@@ -1,0 +1,40 @@
+# report-logs 本地测试环境：只需要 MongoDB + Kafka(Redpanda)
+# 端口刻意与线上/开发环境错开：mongo 27018、kafka 19093
+name: logs-test
+
+services:
+  mongo:
+    image: mongo:4.4.26
+    container_name: logs-test-mongo
+    ports:
+      - "127.0.0.1:27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root_123
+    command: ["--auth"]
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v25.2.11
+    container_name: logs-test-redpanda
+    command:
+      - redpanda
+      - start
+      - --kafka-addr
+      - internal://0.0.0.0:9092,external://0.0.0.0:19093
+      - --advertise-kafka-addr
+      - internal://logs-test-redpanda:9092,external://127.0.0.1:19093
+      - --node-id
+      - "0"
+      - --mode
+      - dev-container
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --check=false
+      - --default-log-level=warn
+    ports:
+      - "127.0.0.1:19093:19093"
