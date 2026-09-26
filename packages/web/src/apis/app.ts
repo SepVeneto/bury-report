@@ -278,47 +278,6 @@ export type SessionLog = {
   stamp: number
   uuid: string
 }
-export async function getSessionDetail(sessionId: string) {
-  const res = await request<{
-    event_urls: string[],
-    net: SessionApi[],
-    err: SessionLog[],
-    log: SessionLog[],
-  }>({
-    url: `/session/${sessionId}`,
-  })
-  return res
-}
-
-export function exportSession(sessionId: string, onMessage: (message: EventSourceMessage) => void) {
-  const app = useApp()
-  const token = localStorage.getItem('token')
-  if (!token) {
-    throw new Error('请先登录')
-  }
-  const controller = new AbortController()
-  return new Promise((resolve, reject) => {
-    fetchEventSource(`/api/server/session/${sessionId}/export`, {
-      method: 'post',
-      signal: controller.signal,
-      headers: {
-        appid: app.appid,
-        Authorization: token,
-      },
-      onmessage: (msg) => {
-        if (msg.data === '[DONE]') {
-          controller.abort()
-          resolve(true)
-        }
-        onMessage(msg)
-      },
-      onerror: (err) => {
-        reject(err)
-      },
-    })
-  })
-}
-
 type MpAppLoad = {
   type: 'AppLaunch' | 'AppShow',
   data: {
@@ -352,6 +311,53 @@ export type MpRecord = {
   data: MpTrack,
   device_time: string,
 }
+export async function getSessionDetail(sessionId: string) {
+  const res = await request<{
+    event_urls: string[],
+    /** 服务端合并去重后的录屏事件（旧版本 server 不返回该字段） */
+    events?: eventWithTime[],
+    /** 服务端合并去重后的记录（小程序页面轨迹，旧版本 server 不返回该字段） */
+    records?: MpRecord[],
+    net: SessionApi[],
+    err: SessionLog[],
+    log: SessionLog[],
+  }>({
+    url: `/session/${sessionId}`,
+    // 让 server 合并去重后再返回（旧版本 server 会忽略该参数，前端退回自己读 COS）
+    params: { merged: 1 },
+  })
+  return res
+}
+
+export function exportSession(sessionId: string, onMessage: (message: EventSourceMessage) => void) {
+  const app = useApp()
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('请先登录')
+  }
+  const controller = new AbortController()
+  return new Promise((resolve, reject) => {
+    fetchEventSource(`/api/server/session/${sessionId}/export`, {
+      method: 'post',
+      signal: controller.signal,
+      headers: {
+        appid: app.appid,
+        Authorization: token,
+      },
+      onmessage: (msg) => {
+        if (msg.data === '[DONE]') {
+          controller.abort()
+          resolve(true)
+        }
+        onMessage(msg)
+      },
+      onerror: (err) => {
+        reject(err)
+      },
+    })
+  })
+}
+
 export async function getMpSessionEvents(urls: string[]) {
   const futures = urls.map(url => fetch(url).then(response => response.text()))
   const list: MpRecord[] = []

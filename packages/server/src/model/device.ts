@@ -95,3 +95,22 @@ export class CustomId extends Model<ICustomId> {
     super(db, 'records_custom_id')
   }
 }
+
+export interface IMpTrack extends BaseType {
+  type?: string
+  uuid?: string
+  session?: string
+  stamp?: number
+  device_time?: string
+  data?: Record<string, unknown>
+}
+
+/**
+ * 旧版本的小程序页面轨迹：统一切到 COS 分片之前写在 records_mp_track，
+ * 老会话的回放数据只有这一份。
+ */
+export class MpTrack extends Model<IMpTrack> {
+  constructor(db: Db) {
+    super(db, 'records_mp_track')
+  }
+}

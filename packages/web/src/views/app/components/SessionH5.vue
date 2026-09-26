@@ -176,6 +176,10 @@ async function onOpened() {
     return
   }
   const events = await session.events.value
+  // 没有录屏事件（例如只有页面轨迹的会话）时不初始化播放器
+  if (!events?.length) {
+    return
+  }
   startTime = events[0].timestamp
   player.value = new RrwebPlayer({
     target: playerRef.value,
