@@ -38,19 +38,25 @@ pub async fn run(client: Client) {
         let summaries: usize = SUMMARY_MAP.iter().map(|e| e.value().summaries.len()).sum();
         let facts: usize = ALERT_MAP.iter().map(|e| e.value().map.len()).sum();
 
-        let mongo = match mongo_connections(&client).await {
-            Some((current, total)) => format!(" mongo_current={} mongo_total_created={}", current, total),
-            None => String::new(),
-        };
+        // 先输出本地指标：即使 Mongo 卡住，FD/RSS 采样也不会被拖住
         let line = format!(
-            "probe fds={} sockets={} close_wait={} established={} time_wait={} other={} rss_kb={} threads={} summaries={} facts={}{}",
+            "probe fds={} sockets={} close_wait={} established={} time_wait={} other={} rss_kb={} threads={} summaries={} facts={}",
             stat.fds, stat.sockets, stat.close_wait, stat.established, stat.time_wait, stat.other,
-            rss_kb, threads, summaries, facts, mongo
+            rss_kb, threads, summaries, facts
         );
         if stat.close_wait >= close_wait_warn {
             warn!("{} (ALERT: close_wait 超过阈值 {}，连接可能正在泄漏)", line, close_wait_warn);
         } else {
             info!("{}", line);
+        }
+
+        // Mongo 指标单独采集并限时，卡住时只丢这一行
+        match tokio::time::timeout(Duration::from_secs(5), mongo_connections(&client)).await {
+            Ok(Some((current, total))) => {
+                info!("probe mongo current={} total_created={}", current, total)
+            }
+            Ok(None) => {}
+            Err(_) => warn!("probe 采集 Mongo 连接数超时(5s)"),
         }
     }
 }

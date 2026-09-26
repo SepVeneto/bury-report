@@ -39,7 +39,15 @@ pub async fn run_flush(client: Client) {
         // 注意：这里刻意不做 timeout —— 任何时候都不取消 driver 的 future
         match alert_flush(&client).await {
             Ok(stats) => {
-                LAST_FLUSH_TS.store(now_secs(), Ordering::Relaxed);
+                // 只有"零失败"才算成功：部分写入失败时保持时间戳不动，让看门狗能报出来
+                if stats.failed == 0 {
+                    LAST_FLUSH_TS.store(now_secs(), Ordering::Relaxed);
+                } else {
+                    error!(
+                        "[flush] 本轮有 {} 条写入失败，不计入成功（看门狗会继续报警）",
+                        stats.failed
+                    );
+                }
                 info!(
                     "[flush] 完成 用时={:?} fact={} summary={} 失败={}",
                     started.elapsed(), stats.facts, stats.summaries, stats.failed
@@ -134,21 +142,31 @@ async fn collect_summary(client: &Client) -> QueryResult<(usize, usize)> {
                     "count": value.count,
                 }
             };
-            if let Err(err) = alert_summary::Model::update_one(
+            // 幂等性说明：
+            // history_error 用的是 $inc，如果写入已生效但响应在网络中丢失，保留缓存重试会重复累加。
+            // 这里采用"至多一次"：不管成功还是失败，都把这批计数从缓存里扣掉。
+            //   - 成功：写入期间新到的计数仍留在缓存里，下轮继续
+            //   - 失败：这批不重发（少计而非重复计），错误日志 + 看门狗会把问题暴露出来
+            // 原始错误日志（records_err）由请求路径直接写入，不受这里影响。
+            // TODO: 后续可升级为真正的幂等写入：每批带 batch id，用
+            //       filter { fingerprint, applied_batches: { $ne: batch_id } } 判重，
+            //       并把 batch id 记在内存条目上以便用同一个 id 重试。
+            let result = alert_summary::Model::update_one(
                 &db,
                 doc! { "fingerprint": &value.fingerprint },
                 update,
-            ).await {
-                // 单条失败只记日志并跳过：不让一个坏条目卡住整轮和后续 app
+            ).await;
+            if let Err(err) = &result {
                 failed += 1;
-                error!("[flush] 写入 history_error 失败 app={} fp={}: {}", app, value.fingerprint, err);
-                continue;
+                error!(
+                    "[flush] 写入 history_error 失败（本批 {} 条计数不再重发，避免重复累加）app={} fp={}: {}",
+                    value.count, app, value.fingerprint, err
+                );
+            } else {
+                written += 1;
             }
-            written += 1;
 
-            // Subtract only the count included in this successful write. Events
-            // recorded while MongoDB was processing it remain queued for the
-            // next flush.
+            // 扣减已处理（写入成功或已放弃重发）的那部分计数
             if let Some(app_summary) = model::SUMMARY_MAP.get(&app) {
                 if let Some(mut current) = app_summary.summaries.get_mut(&value.fingerprint) {
                     current.count = current.count.saturating_sub(value.count);

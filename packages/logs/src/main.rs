@@ -67,6 +67,14 @@ async fn main() -> std::io::Result<()> {
     max_message_bytes, message_timeout_ms, queue_max_kbytes
   );
   let producer_data = web::Data::new(Arc::new(producer));
+  // /record 的最大并发：超出直接 503 快速失败，不排队
+  let record_limit = std::env::var("RECORD_MAX_CONCURRENCY")
+    .ok()
+    .and_then(|v| v.parse::<usize>().ok())
+    .unwrap_or(32)
+    .max(1);
+  let record_slots = web::Data::new(Arc::new(tokio::sync::Semaphore::new(record_limit)));
+  info!("record 并发上限: {}", record_limit);
   let producer_for_shutdown = producer_data.get_ref().clone();
 
   // 交付回调只在 poll 时触发；不 poll 就永远不知道消息是否真的进了 Kafka
@@ -106,6 +114,7 @@ async fn main() -> std::io::Result<()> {
       .app_data(web::Data::new(db.clone()))
     //   .app_data(web::Data::new(server.clone()))
       .app_data(producer_data.clone())
+      .app_data(record_slots.clone())
     //   .wrap(middleware::Auth)
       .configure(routes::services)
   })
@@ -126,13 +135,27 @@ async fn main() -> std::io::Result<()> {
     info!("Kafka producer flushed, shutdown complete.");
 
     info!("Flushing alert fact & summary...");
-    match alert::gc::alert_flush_opportunistic(&flush_client).await {
-      Some(Ok(stats)) => info!(
+    // 用 spawn + 对 JoinHandle 限时等待：不会取消 driver future（超时只是不再等它），
+    // 比"锁被占用就直接跳过"更安全；明确的等待上限见 SHUTDOWN_FLUSH_WAIT_SECS
+    let wait_secs = std::env::var("SHUTDOWN_FLUSH_WAIT_SECS")
+      .ok()
+      .and_then(|v| v.parse::<u64>().ok())
+      .unwrap_or(20);
+    let shutdown_flush = {
+      let client = flush_client.clone();
+      tokio::spawn(async move { alert::gc::alert_flush(&client).await })
+    };
+    match tokio::time::timeout(Duration::from_secs(wait_secs), shutdown_flush).await {
+      Ok(Ok(Ok(stats))) => info!(
         "alert fact & summary flushed: facts={} summaries={} failed={}",
         stats.facts, stats.summaries, stats.failed
       ),
-      Some(Err(err)) => error!("Failed to flush alert fact & summary during shutdown: {}", err),
-      None => error!("上一轮刷新仍在进行，跳过退出前的最后一次落库（不等待、不取消）"),
+      Ok(Ok(Err(err))) => error!("Failed to flush alert fact & summary during shutdown: {}", err),
+      Ok(Err(join_err)) => error!("刷新任务异常结束: {}", join_err),
+      Err(_) => error!(
+        "等待聚合落库超过 {}s 仍未完成，不再等待（未取消进行中的写操作；未落库的内存计数会丢失）",
+        wait_secs
+      ),
     }
 
     info!("Shutdown signal received, stopping server...");
