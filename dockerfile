@@ -48,11 +48,22 @@ COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
-RUN deno install --frozen=false --node-modules-dir=true && deno cache --node-modules-dir ./src/main.ts 
+RUN deno install --frozen=false --node-modules-dir=true && deno cache --node-modules-dir ./src/main.ts
 
-# 2. 安装 Playwright 的 Chromium 浏览器
-# 使用 --with-deps 补全缺少的系统库
-RUN deno run -A npm:playwright install --with-deps chromium
+# 2. 下载 Playwright 的 Chromium 浏览器。
+# Deno 的 node:http 尚未实现下载器用到的 ClientRequest.options.lookup，
+# 直接在 Deno 里执行 `playwright install` 会报 ERR_NOT_IMPLEMENTED，
+# 因此改用下面的 Node 阶段下载后再拷进运行镜像。
+# 版本需与 deno.lock 中锁定的 playwright 保持一致；
+# 基础镜像同为 Debian bookworm，glibc 与运行镜像一致。
+FROM node:20-bookworm-slim AS playwright-browsers
+
+WORKDIR /app
+
+COPY ./.npmrc ./
+
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm i -g playwright@1.63.0 && \
+    playwright install chromium
 
 FROM debian:bookworm-slim AS server-runner
 
@@ -83,7 +94,7 @@ RUN fc-cache -fv && fc-list :lang=zh
 COPY --from=server /usr/bin/deno /usr/local/bin/deno
 
 # 3. 拷贝浏览器二进制文件 (仅 Chromium)
-COPY --from=server /root/.cache/ms-playwright /root/.cache/ms-playwright
+COPY --from=playwright-browsers /root/.cache/ms-playwright /root/.cache/ms-playwright
 
 # 4. 拷贝你的应用代码和依赖缓存
 COPY --from=server /app /app
