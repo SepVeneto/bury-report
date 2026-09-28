@@ -12,7 +12,7 @@ import { createDebug, getRecentDays } from "./utils/tools.ts";
 import { Device } from "./model/device.ts";
 import { AlertError, AlertSetting } from "./model/alert.ts";
 import { triggerNotify } from "./apis/alert.ts";
-import { clearTasks } from "./apis/task.ts";
+import { restoreTasks } from "./apis/task.ts";
 // import { debug } from './utils/collect.ts'
 
 // debug()
@@ -84,14 +84,15 @@ function initSched() {
   push.name = 'PUSH_ALERT'
   TaskManager.add('PUSH_ALERT', push)
 
-  clearSched()
+  restoreSched()
 }
 
 /**
- * 重启后 TaskManager 为空，重启前排期的任务不会再执行，
- * 因此把数据库里的定时任务一并清空，避免列表里残留永远不会执行的任务
+ * 重启后 TaskManager 为空且不再恢复定时器，
+ * 因此把库里的任务恢复出来（而不是清空任务列表）：
+ * 执行时间还没到的标记为已取消，其余保持原状态
  */
-async function clearSched() {
+async function restoreSched() {
   const log = createDebug('task')
   try {
     const reporter = client.db('reporter')
@@ -103,10 +104,10 @@ async function clearSched() {
         return
       }
       const appDb = client.db(`app_${item.id}`)
-      await clearTasks(appDb, log)
+      await restoreTasks(appDb, log)
     }))
   } catch (err) {
-    console.error('[task] 清空定时任务失败:', err)
+    console.error('[task] 恢复定时任务失败:', err)
   }
 }
 

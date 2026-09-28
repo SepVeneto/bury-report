@@ -250,27 +250,62 @@ export function scheduleTask(
 }
 
 /**
- * 服务重启后 TaskManager 是空的，重启前排期的任务不会再被执行；
- * 这里把这些任务记录一并清掉，避免列表里残留永远不会执行的 pending 任务
+ * 服务重启后 TaskManager 里的定时器全部丢失，且这里不重新注册。
+ * 把库里的任务恢复出来（而不是清空/删除）：
+ * - 执行时间还没到 -> 标记为已取消
+ * - 执行时间已过 / 没有设置执行时间 -> 维持原来的状态不变
+ *
+ * 另外，历史版本在启动时会把任务软删除（is_delete: true），导致列表查不到数据，
+ * 而任务没有真正的删除入口，所以这里顺手把被误删的记录恢复显示。
  */
-export async function clearTasks(
+export async function restoreTasks(
   db: Db,
   log: (...args: unknown[]) => void = () => { },
 ) {
   const task = new Task(db)
-  const res = await task.col.updateMany(
-    { is_delete: { $ne: true } },
-    {
-      $set: {
-        is_delete: true,
-        update_time: new Date(),
-      } as unknown as Partial<ITask>,
-    },
-  )
-  if (res.modifiedCount) {
-    log(`已清空重启前的定时任务 ${res.modifiedCount} 条`)
+  const now = dayjs()
+  const records = await task.col.find().toArray()
+
+  let revived = 0
+  let cancelled = 0
+
+  for (const item of records) {
+    const set: Record<string, unknown> = {}
+    const unset: Record<string, 1> = {}
+
+    if (item.is_delete === true) {
+      set.is_delete = false
+      revived++
+    }
+
+    const executeTime = item.execute_time ? dayjs(item.execute_time) : null
+    if (executeTime?.isValid() && executeTime.isAfter(now)) {
+      // 执行时间还没到：重启后不重新注册定时器，标记为已取消
+      if (item.status !== TaskStatus.Abort) {
+        set.status = TaskStatus.Abort
+        cancelled++
+      }
+      if (item.job_id) {
+        unset.job_id = 1
+      }
+    }
+    // 执行时间已过 / 没有执行时间：维持原来的状态不变
+
+    if (Object.keys(set).length || Object.keys(unset).length) {
+      await task.col.updateOne(
+        { _id: item._id },
+        {
+          ...(Object.keys(set).length ? { $set: { ...set, update_time: new Date() } } : {}),
+          ...(Object.keys(unset).length ? { $unset: unset } : {}),
+        } as unknown as Partial<ITask>,
+      )
+    }
   }
-  return res.modifiedCount
+
+  if (records.length) {
+    log(`重启后恢复任务 ${records.length} 条：执行时间还没到的 ${cancelled} 条标记为已取消（不重新注册定时器），其余保持原状态，恢复显示 ${revived} 条`)
+  }
+  return { total: records.length, revived, cancelled }
 }
 
 async function issue(
