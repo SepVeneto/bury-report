@@ -109,7 +109,7 @@ COPY ./packages/web/lib ./packages/web/lib
 COPY ./.npmrc ./pnpm-* ./package.json ./
 COPY ./packages/web/package.json ./packages/web/package.json
 
-RUN npm i -g pnpm && pnpm i
+RUN npm i -g pnpm@10 && pnpm i
 
 COPY ./packages/web/.env.production\
      ./packages/web/index.html\
