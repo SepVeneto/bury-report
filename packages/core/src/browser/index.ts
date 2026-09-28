@@ -2,7 +2,7 @@ import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
 import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
-import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, MAX_KEEPALIVE_TOTAL_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, pickWithinBudget, readQueue, removeSentRecords, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, MAX_KEEPALIVE_TOTAL_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, normalizeMaxRetry, pickWithinBudget, readQueue, removeSentRecords, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
 import { ErrorPlugin } from './plugins/error'
@@ -10,9 +10,20 @@ import { CollectPlugin } from './plugins/collect'
 // @ts-expect-error: ignore
 import globalThis from 'core-js/internals/global-this.js'
 
+type ProxyControl = {
+  // 停止上报代理的发送循环
+  stop?: () => void
+  // 重试耗尽时的回调，用于中止所有上报相关的操作
+  onExhausted?: () => void
+}
+
 export class BuryReport implements BuryReportBase {
   public report?: ReportFn
   public options: Options
+  // 重试耗尽后置为 true，之后不再产生任何上报
+  public aborted = false
+  // 由上报代理回填的停止句柄，用于在中止时切断发送循环
+  private proxyControl: ProxyControl = {}
 
   private static pluginsOrder: BuryReportPlugin[] = []
   private static instance?: BuryReport
@@ -34,6 +45,10 @@ export class BuryReport implements BuryReportBase {
         if (e.data.type === 'exception') {
           console.log('[report-core] worker terminated')
           window.__BR_WORKER__ = undefined
+        } else if (e.data.type === 'exhausted') {
+          // worker 内部重试同样耗尽：中止一切上报相关的操作（含录屏）
+          console.warn('[@sepveneto/report-core] report disabled: worker retry exhausted')
+          this.abort()
         }
       }
     }
@@ -42,9 +57,39 @@ export class BuryReport implements BuryReportBase {
 
     if (!config?.report) return
 
-    this.report = createProxy(config)
+    this.proxyControl.onExhausted = () => this.abort()
+    this.report = createProxy(config, this.proxyControl)
 
     this.init()
+  }
+
+  // 中止所有上报相关的操作：切断发送循环、销毁插件采集行为（录屏、错误监听等）并终止 worker。
+  // 上报连续失败次数超过 maxRetry 后自动触发，业务也可主动调用
+  abort() {
+    if (this.aborted) return
+    this.aborted = true
+
+    this.proxyControl.stop?.()
+
+    BuryReport.pluginsOrder.forEach(plugin => {
+      if (typeof plugin.destroy !== 'function') return
+      try {
+        plugin.destroy(this)
+      } catch (error) {
+        console.warn('[@sepveneto/report-core] plugin destroy failed: ' + error)
+      }
+    })
+    BuryReport.pluginsOrder = []
+
+    const worker = window.__BR_WORKER__
+    if (worker) {
+      try {
+        worker.terminate?.()
+      } catch (error) {
+        console.warn('[@sepveneto/report-core] worker terminate failed: ' + error)
+      }
+      window.__BR_WORKER__ = undefined
+    }
   }
 
   static registerPlugin(plugin: BuryReportPlugin) {
@@ -134,14 +179,38 @@ function shouldEnablePlugin(plugin: BuryReportPlugin, options: Options) {
   }
 }
 
-function createProxy(options: Options) {
+function createProxy(options: Options, control: ProxyControl = {}) {
   const { appid } = options
   const sendInterval = normalizeInterval(options.interval)
+  const maxRetry = normalizeMaxRetry(options.maxRetry)
   let sendTimer: number | undefined
   let sending = false
+  // 连续失败次数：成功一次即清零，超过 maxRetry 判定上报服务不可用
+  let failStreak = 0
+  // 已中止：不再调度发送，report 也不再入队
+  let stopped = false
   // 发送期间又触发的即时（immediate）上报：当前请求结束后立即补发，
   // 而不是被跳过、推迟到下个时间窗口执行
   let pendingImmediate = false
+
+  const stopSending = () => {
+    stopped = true
+    pendingImmediate = false
+    clearInterval(sendTimer)
+    sendTimer = undefined
+  }
+  control.stop = stopSending
+
+  // 重试耗尽：停止发送并通知外部中止上报相关的操作（含录屏）
+  const exhaust = () => {
+    if (stopped) return
+    stopSending()
+    try {
+      control.onExhausted?.()
+    } catch (err) {
+      console.warn('[@sepveneto/report-core] abort report failed: ' + err)
+    }
+  }
 
   // 按引用移除已投递的记录（内存缓存是同一批对象引用），保留期间新增的数据
   const dropRefs = (list: any[], sent: any[]) => {
@@ -151,6 +220,8 @@ function createProxy(options: Options) {
   }
 
   const sendRequest = async (keepalive = false, immediate = false) => {
+    // 已中止上报：不再发起任何请求
+    if (stopped) return
     // 上一次发送未结束时不并发重复发送（keepalive 页面关闭场景除外）；
     // 带即时语义的请求登记一次待补发，等当前请求结束后立即发送
     if (sending && !keepalive) {
@@ -233,6 +304,8 @@ function createProxy(options: Options) {
             deviceid: getUuid(),
             store: cache,
             keepalive,
+            // 0 表示不限制：worker 内部同样按该次数判断是否停止重试
+            maxRetry: Number.isFinite(maxRetry) ? maxRetry : 0,
           })
         } catch (err) {
           console.warn('[report-core] worker postMessage error: ' + err)
@@ -272,6 +345,8 @@ function createProxy(options: Options) {
       clearInterval(sendTimer)
       sendTimer = undefined
 
+      if (stopped) return
+
       // 发送期间触发的即时上报：当前请求结束后立即补发，而不是被推迟到下个时间窗口
       if (pendingImmediate) {
         pendingImmediate = false
@@ -279,11 +354,23 @@ function createProxy(options: Options) {
         return
       }
 
-      // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
-      if (failed && !keepalive) {
+      // keepalive（页面关闭）失败不重试，也不参与失败计数
+      if (keepalive) return
+
+      if (failed) {
+        failStreak += 1
+        // 重试指定次数后仍然失败：中止上报相关操作（含录屏）
+        if (failStreak > maxRetry) {
+          console.warn(`[@sepveneto/report-core] report disabled after ${failStreak - 1} retries`)
+          exhaust()
+          return
+        }
+        // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
         sendTimer = globalThis.setTimeout(() => {
           sendRequest()
         }, sendInterval) as unknown as number
+      } else {
+        failStreak = 0
       }
     }
   }
@@ -295,6 +382,9 @@ function createProxy(options: Options) {
   ) => {
     // 上报链路的任何异常都不能抛给业务调用方（含入参异常）
     try {
+      // 已中止上报：直接丢弃，避免队列继续增长
+      if (stopped) return
+
       // TODO: 网络日志是否需要区分发起时间和响应时间
       const record = storageReport(type, data, Date.now())
 

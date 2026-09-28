@@ -14,9 +14,9 @@ function makeRecord(type: string, stamp = 0, size = 16) {
   }
 }
 
-function dispatch(store: any[], keepalive = false) {
+function dispatch(store: any[], keepalive = false, maxRetry?: number) {
   ;(globalThis as any).self.onmessage({
-    data: { type: 'report', store, appid: 'a', sessionid: 's', deviceid: 'u', keepalive },
+    data: { type: 'report', store, appid: 'a', sessionid: 's', deviceid: 'u', keepalive, maxRetry },
   })
 }
 
@@ -132,5 +132,43 @@ describe('worker 上报可靠性', () => {
     const gzipText = new TextDecoder().decode(body.subarray(1))
     const header = gzipText.slice(0, gzipText.indexOf('|'))
     expect(header).toBe('s:a')
+  })
+
+  it('连续失败超过 maxRetry 后停止重试并通知主线程', async () => {
+    selfState.fetch.mockRejectedValue(new Error('down'))
+    dispatch([makeRecord('custom', 1)], false, 2)
+    await flush()
+
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+
+    // maxRetry=2：首次 + 2 次重试都失败后停止，且只剩 0 个重试定时器
+    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'exhausted' })
+    expect(vi.getTimerCount()).toBe(0)
+
+    // 耗尽后新的上报不再触发请求
+    const calls = selfState.fetch.mock.calls.length
+    dispatch([makeRecord('custom', 2)], false, 2)
+    await flush()
+    expect(selfState.fetch.mock.calls.length).toBe(calls)
+  })
+
+  it('失败后成功会清零计数，不会误触发中止', async () => {
+    selfState.fetch
+      .mockRejectedValueOnce(new Error('down'))
+      .mockRejectedValueOnce(new Error('down'))
+      .mockResolvedValue({ ok: true })
+
+    dispatch([makeRecord('custom', 1)], false, 2)
+    await flush()
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+
+    expect(selfState.postMessage).not.toHaveBeenCalled()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

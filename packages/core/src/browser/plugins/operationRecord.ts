@@ -22,13 +22,19 @@ class OperationRecordPlugin implements BuryReportPlugin {
   private reportTimer?: number
   private isHooked = false
   private lastSnapshotAt = 0
+  // rrweb 的停止函数，用于中止录屏
+  private stopRecord?: () => void
+  private originPush?: any
+  private originReplace?: any
 
   hook() {
     if (this.isHooked) return
     this.isHooked = true
 
-    const originalPush = window.history.pushState
-    const originalReplace = window.history.replaceState
+    this.originPush = window.history.pushState
+    this.originReplace = window.history.replaceState
+    const originalPush = this.originPush
+    const originalReplace = this.originReplace
     const takeSnapshot = () => this.takeDeferredSnapshot()
 
     window.history.pushState = function (...args) {
@@ -41,11 +47,33 @@ class OperationRecordPlugin implements BuryReportPlugin {
     }
   }
 
+  // 停止录屏：上报重试耗尽后由 SDK 调用，避免继续采集无用数据
+  destroy() {
+    try {
+      this.stopRecord?.()
+    } catch (err) {
+      console.warn('[@sepveneto/report-core] stop record failed: ' + err)
+    }
+    this.stopRecord = undefined
+
+    clearTimeout(this.reportTimer)
+    this.reportTimer = undefined
+    this.events = []
+
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
+
+    if (this.isHooked) {
+      if (this.originPush) window.history.pushState = this.originPush
+      if (this.originReplace) window.history.replaceState = this.originReplace
+      this.isHooked = false
+    }
+  }
+
   init(ctx: BuryReport) {
     this.ctx = ctx
     const config = ctx.options.operationRecord || {}
 
-    rrweb.record({
+    this.stopRecord = rrweb.record({
       emit: (event) => {
         this.events.push(event)
         if (!this.reportTimer) {
@@ -71,7 +99,7 @@ class OperationRecordPlugin implements BuryReportPlugin {
         scroll: 300,
         input: 'last',
       },
-    })
+    }) as unknown as () => void
 
     // 从第三方场景回到 portal（页面重新可见）时重建检查点
     document.addEventListener('visibilitychange', this.onVisibilityChange)

@@ -1,5 +1,5 @@
 import { COLLECT_API, OPERATION_TRACK } from '@/constant'
-import { MAX_KEEPALIVE_BYTES, estimateSize, splitBySize } from '@/utils'
+import { MAX_KEEPALIVE_BYTES, estimateSize, normalizeMaxRetry, splitBySize } from '@/utils'
 import pako from 'pako'
 
 // 失败后的重试间隔，仅存在于 worker 内部，不影响主线程
@@ -42,10 +42,16 @@ export function packTrackPayloads(
 
 let retryBuffer: any[] = []
 let retryTimer: any
+// 连续失败次数：成功一次即清零；超过 maxRetry 判定服务不可用并停止重试
+let failStreak = 0
+let maxRetry = normalizeMaxRetry(undefined)
+let exhausted = false
 
 self.onmessage = (evt) => {
   switch (evt.data.type) {
     case 'report': {
+      // 主线程透传的重试上限；0/非正数表示不限制
+      if (evt.data.maxRetry != null) maxRetry = normalizeMaxRetry(evt.data.maxRetry)
       // worker 内的异常不能变成未处理的 rejection
       handleReport(evt.data).catch(err => {
         console.warn('[@sepveneto/report-core] handle report failed: ' + err)
@@ -58,6 +64,9 @@ self.onmessage = (evt) => {
 }
 
 async function handleReport({ store, appid, sessionid, deviceid, keepalive }: any) {
+  // 重试已耗尽：忽略后续数据，等待主线程终止 worker
+  if (exhausted) return
+
   const incoming = (store || []).map((item: any) => ({ ...item, appid })).sort((a: any, b: any) => a.stamp - b.stamp)
   const data = [...retryBuffer, ...incoming]
   retryBuffer = []
@@ -80,13 +89,37 @@ async function handleReport({ store, appid, sessionid, deviceid, keepalive }: an
 
   // 普通发送：失败的数据留在 worker 内自动重试，不打扰主线程
   const failed = await sendWithRetry(data)
-  if (failed.length) {
-    retryBuffer = [...failed, ...retryBuffer].slice(0, MAX_RETRY_COUNT)
-    scheduleRetry()
-  } else {
+  handleSendResult(failed)
+}
+
+// 统一处理一次发送结果：成功清零计数，失败累计并在超过上限时停止重试并通知主线程
+function handleSendResult(failed: any[]) {
+  if (!failed.length) {
+    failStreak = 0
     clearTimeout(retryTimer)
     retryTimer = undefined
+    return
   }
+
+  retryBuffer = [...failed, ...retryBuffer].slice(0, MAX_RETRY_COUNT)
+  failStreak += 1
+
+  // 重试指定次数后仍然失败：通知主线程中止上报相关操作（含录屏）
+  if (failStreak > maxRetry) {
+    exhausted = true
+    console.warn(`[@sepveneto/report-core] worker report disabled after ${failStreak - 1} retries`)
+    retryBuffer = []
+    clearTimeout(retryTimer)
+    retryTimer = undefined
+    try {
+      self.postMessage({ type: 'exhausted' })
+    } catch (err) {
+      console.warn('[@sepveneto/report-core] post exhausted failed: ' + err)
+    }
+    return
+  }
+
+  scheduleRetry()
 }
 
 async function sendWithRetry(data: any[]) {
@@ -125,10 +158,7 @@ function scheduleRetry() {
     const data = retryBuffer
     retryBuffer = []
     const failed = await sendWithRetry(data)
-    if (failed.length) {
-      retryBuffer = [...failed, ...retryBuffer].slice(0, MAX_RETRY_COUNT)
-      scheduleRetry()
-    }
+    handleSendResult(failed)
   }, RETRY_DELAY)
 }
 

@@ -67,6 +67,12 @@ export class PerfPlugin implements BuryReportPlugin {
       }
     }
   }
+
+  // 上报重试耗尽后不再观察性能条目
+  destroy() {
+    this.observer?.disconnect()
+    this.observer = undefined
+  }
 }
 
 function supportPerformanceObject() {

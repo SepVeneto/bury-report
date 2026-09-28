@@ -49,6 +49,11 @@ export class ErrorPlugin implements BuryReportPlugin {
     window.removeEventListener('unhandledrejection', this.unhandleRejectionErrorListener)
   }
 
+  // 上报重试耗尽后中止错误监听，恢复宿主原本的 console.error
+  destroy() {
+    this.resetListener()
+  }
+
   public onUncaughtError() {
     window.addEventListener('error', this.uncaughtErrorListener, true)
   }

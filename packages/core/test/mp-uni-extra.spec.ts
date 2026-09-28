@@ -111,6 +111,26 @@ describe('mp 上报周期与缓存', () => {
     vi.advanceTimersByTime(1000)
     expect(requestMock).toHaveBeenCalledTimes(2)
   })
+
+  it('连续失败超过 maxRetry 后停止上报', () => {
+    new BuryReport({ url: 'https://mp/report', appid: 'a', report: true, interval: 1, maxRetry: 1 })
+    const reporter = getReport()
+
+    reporter('custom', { a: 1 }, { immediate: true })
+    // 首次失败：安排一次重试
+    requestMock.mock.calls[0][0].fail({ errMsg: 'request:fail timeout' })
+    vi.advanceTimersByTime(1000)
+    expect(requestMock).toHaveBeenCalledTimes(2)
+
+    // 重试仍失败：超过 maxRetry 后中止
+    requestMock.mock.calls[1][0].fail({ errMsg: 'request:fail timeout' })
+
+    reporter('custom', { a: 2 }, { immediate: true })
+    vi.advanceTimersByTime(10 * 1000)
+
+    // 中止后不再产生任何请求
+    expect(requestMock).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('mp NetworkPlugin 补充分支', () => {

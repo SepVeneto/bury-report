@@ -266,3 +266,95 @@ describe('页面生命周期联动', () => {
     expect(collect).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('上报重试上限', () => {
+  function registerRecordPlugin() {
+    const destroy = vi.fn()
+    class FakeRecordPlugin {
+      name = 'OperationRecordPlugin'
+      init() {}
+      destroy = destroy
+    }
+    ;(BuryReport as any).registerPlugin(new FakeRecordPlugin() as any)
+    return destroy
+  }
+
+  it('连续失败超过 maxRetry 后停止上报并中止录屏', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('down'))
+    vi.stubGlobal('fetch', fetchMock)
+    const destroy = registerRecordPlugin()
+
+    new BuryReport({
+      url: URL,
+      appid: 'a',
+      report: true,
+      maxRetry: 2,
+      operationRecord: { enable: true },
+    })
+    const report = getReport()
+
+    report('custom', { a: 1 }, { immediate: true })
+    await flush()
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+
+    // maxRetry=2：首次 + 2 次重试都失败后中止
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect((BuryReport as any).instance.aborted).toBe(true)
+    // 录屏等插件被销毁
+    expect(destroy).toHaveBeenCalledTimes(1)
+
+    // 中止后不再产生任何请求
+    report('custom', { a: 2 }, { immediate: true })
+    vi.advanceTimersByTime(60 * 1000)
+    await flush()
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('maxRetry=0 表示不限制重试次数', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('down'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    new BuryReport({ url: URL, appid: 'a', report: true, maxRetry: 0 })
+    getReport()('custom', { a: 1 }, { immediate: true })
+
+    for (let i = 0; i < 8; i++) {
+      await flush()
+      vi.advanceTimersByTime(10 * 1000)
+    }
+    await flush()
+
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(8)
+    expect((BuryReport as any).instance.aborted).toBe(false)
+  })
+
+  it('收到 worker 重试耗尽通知后中止上报相关操作并终止 worker', () => {
+    const worker = { postMessage: vi.fn(), onmessage: null as any, terminate: vi.fn() }
+    vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
+    const destroy = registerRecordPlugin()
+
+    new BuryReport({ url: URL, appid: 'a', report: true, operationRecord: { enable: true } })
+
+    expect(typeof worker.onmessage).toBe('function')
+    worker.onmessage({ data: { type: 'exhausted' } })
+
+    expect((BuryReport as any).instance.aborted).toBe(true)
+    expect(destroy).toHaveBeenCalledTimes(1)
+    expect(worker.terminate).toHaveBeenCalledTimes(1)
+    expect(dom.window.__BR_WORKER__).toBeUndefined()
+  })
+
+  it('worker 上报时透传 maxRetry', async () => {
+    const worker = { postMessage: vi.fn(), onmessage: null as any }
+    vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
+
+    new BuryReport({ url: URL, appid: 'a', report: true, maxRetry: 3 })
+    getReport()('track', { e: [] }, { store: false, immediate: true })
+    await flush()
+
+    expect(worker.postMessage).toHaveBeenCalledTimes(1)
+    expect(worker.postMessage.mock.calls[0][0]).toMatchObject({ type: 'report', maxRetry: 3 })
+  })
+})

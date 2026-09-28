@@ -3,11 +3,15 @@ import { COLLECT_INFO, REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
 // @ts-expect-error: ignore
 import globalThis from 'core-js/internals/global-this.js'
 
+// 上报失败后默认的最大连续重试次数，超过后中止上报相关操作
+export const DEFAULT_MAX_RETRY = 5
+
 const DEFAULT_CONFIG = {
   collect: true,
   error: true,
   report: true,
   interval: 10,
+  maxRetry: DEFAULT_MAX_RETRY,
   network: {
     enable: false,
     success: true,
@@ -29,6 +33,14 @@ export function withDefault(config: Options) {
 export function normalizeInterval(interval?: number) {
   const seconds = Number(interval)
   return (Number.isFinite(seconds) && seconds > 0 ? seconds : 10) * 1000
+}
+
+// 上报失败最大连续重试次数：未配置时用默认值，显式配成非正数表示不限制（Infinity）
+export function normalizeMaxRetry(maxRetry?: number) {
+  if (maxRetry == null) return DEFAULT_MAX_RETRY
+  const times = Number(maxRetry)
+  if (!Number.isFinite(times) || times <= 0) return Infinity
+  return Math.floor(times)
 }
 
 export function mergeConfig(

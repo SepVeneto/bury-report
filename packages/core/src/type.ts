@@ -39,6 +39,13 @@ export interface Options {
    */
   report?: boolean
   /**
+   * 上报失败后的最大连续重试次数。
+   * 重试该次数后仍然失败时，判定上报服务不可用，中止一切上报相关的操作（含录屏）。
+   * 设为 0 或负数表示不限制重试次数。
+   * @default 5
+   */
+  maxRetry?: number
+  /**
    * 网络请求相关配置
    */
   network?: {
@@ -176,4 +183,10 @@ export abstract class BuryReportPlugin {
   public abstract name: string
 
   public abstract init: (ctx: BuryReportBase) => void
+
+  /**
+   * 停止该插件产生的所有采集/上报行为。
+   * 上报重试耗尽后由 SDK 调用，用于中止上报相关的操作（如录屏、错误监听等）。
+   */
+  public destroy?: (ctx: BuryReportBase) => void
 }

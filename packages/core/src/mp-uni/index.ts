@@ -1,7 +1,7 @@
 import { NetworkPlugin as _NetworkPlugin } from './plugins/network'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
 import { REPORT_REQUEST } from '@/constant'
-import { MAX_MEMORY_COUNT, flushMemoryToStorage, normalizeInterval, readQueue, removeSentRecords, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import { MAX_MEMORY_COUNT, flushMemoryToStorage, normalizeInterval, normalizeMaxRetry, readQueue, removeSentRecords, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 import { ErrorPlugin as _ErrorPlugin } from './plugins/error'
 import { CollectPlugin as _CollectPlugin } from './plugins/collect'
 import { TrackPlugin as _TrackPlugin } from './plugins/track'
@@ -14,6 +14,10 @@ export const TrackPlugin = _TrackPlugin
 export class BuryReport implements BuryReportBase {
   public report?: ReportFn
   public options: Options
+  // 重试耗尽后置为 true，之后不再产生任何上报
+  public aborted = false
+  // 由上报代理回填的停止句柄，用于在中止时切断发送循环
+  private proxyControl: { stop?: () => void; onExhausted?: () => void } = {}
 
   private static pluginsOrder: BuryReportPlugin[] = []
 
@@ -22,9 +26,29 @@ export class BuryReport implements BuryReportBase {
 
     if (!config?.report) return
 
-    this.report = createProxy(config)
+    this.proxyControl.onExhausted = () => this.abort()
+    this.report = createProxy(config, this.proxyControl)
 
     this.init()
+  }
+
+  // 中止上报相关的操作：切断发送循环并销毁插件采集行为。
+  // 上报连续失败次数超过 maxRetry 后自动触发，业务也可主动调用
+  abort() {
+    if (this.aborted) return
+    this.aborted = true
+
+    this.proxyControl.stop?.()
+
+    BuryReport.pluginsOrder.forEach(plugin => {
+      if (typeof plugin.destroy !== 'function') return
+      try {
+        plugin.destroy(this)
+      } catch (error) {
+        console.warn('[@sepveneto/report-core] plugin destroy failed: ' + error)
+      }
+    })
+    BuryReport.pluginsOrder = []
   }
 
   static registerPlugin(plugin: BuryReportPlugin) {
@@ -51,34 +75,73 @@ export function report(type: string, data: Record<string, any>, immediate = fals
   globalThis[REPORT_REQUEST]?.(type, data, { immediate })
 }
 
-function createProxy(options: Options) {
+function createProxy(options: Options, control: { stop?: () => void; onExhausted?: () => void } = {}) {
   const { appid, interval = 10, url } = options
   const sendInterval = normalizeInterval(interval)
+  const maxRetry = normalizeMaxRetry(options.maxRetry)
   let sending = false
   let sendTimer: number | undefined
   // 发送期间又触发的即时（immediate）上报：当前请求结束后立即补发，
   // 而不是被跳过、推迟到下个时间窗口执行
   let pendingImmediate = false
+  // 连续失败次数：成功一次即清零，超过 maxRetry 判定上报服务不可用
+  let failStreak = 0
+  // 已中止：不再调度发送，report 也不再入队
+  let stopped = false
   // store:false 的数据（如网络日志）只放内存，避免写入小程序本地缓存
   let memoryOnly: any[] = []
+
+  const stopSending = () => {
+    stopped = true
+    pendingImmediate = false
+    clearTimeout(sendTimer)
+    sendTimer = undefined
+  }
+  control.stop = stopSending
+
+  // 重试耗尽：停止发送并通知外部中止上报相关的操作
+  const exhaust = () => {
+    if (stopped) return
+    stopSending()
+    try {
+      control.onExhausted?.()
+    } catch (err) {
+      console.warn('[@sepveneto/report-core] abort report failed: ' + err)
+    }
+  }
 
   // 一次发送结束后的统一收尾：处理待补发的即时请求，或在失败时排期重试
   const finish = (retry = false) => {
     sending = false
+    if (stopped) return
     if (pendingImmediate) {
       pendingImmediate = false
       // 发送期间新触发的即时上报：立即补发，而不是等下一个时间窗口
       sendRequest()
       return
     }
-    if (retry && !sendTimer) {
-      sendTimer = globalThis.setTimeout(sendRequest, sendInterval) as unknown as number
+    if (retry) {
+      failStreak += 1
+      // 重试指定次数后仍然失败：中止上报相关操作
+      if (failStreak > maxRetry) {
+        console.warn(`[@sepveneto/report-core] report disabled after ${failStreak - 1} retries`)
+        exhaust()
+        return
+      }
+      if (!sendTimer) {
+        sendTimer = globalThis.setTimeout(sendRequest, sendInterval) as unknown as number
+      }
+    } else {
+      failStreak = 0
     }
   }
 
   const sendRequest = (immediate = false) => {
     clearTimeout(sendTimer)
     sendTimer = undefined
+
+    // 已中止上报：不再发起任何请求
+    if (stopped) return
 
     // 上一个请求尚未结束：不并发重复发送；带即时语义的请求登记待补发
     if (sending) {
@@ -142,6 +205,9 @@ function createProxy(options: Options) {
   ) => {
     // 上报链路的任何异常都不能抛给业务调用方（含入参异常）
     try {
+      // 已中止上报：直接丢弃，避免队列继续增长
+      if (stopped) return
+
       const { immediate = false, store = true } = options || {}
       const record = storageReport(type, data, Date.now())
 
