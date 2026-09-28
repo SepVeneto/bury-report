@@ -15,6 +15,15 @@ export class NetworkPlugin implements BuryReportPlugin {
     const { success, fail } = network
     const report = ctx.report
 
+    // 采集逻辑的异常绝不能影响宿主的请求链路（监听器内抛错会变成全局未捕获错误）
+    const safeCollect = (fn: () => void) => {
+      try {
+        fn()
+      } catch (err) {
+        console.warn('[@sepveneto/report-core] collect xhr info failed: ' + err)
+      }
+    }
+
     class CustomRequest extends XMLHttpRequest {
       private _start = 0
       private _body: any
@@ -29,35 +38,40 @@ export class NetworkPlugin implements BuryReportPlugin {
 
         if (success || fail) {
           super.addEventListener('loadend', () => {
-            const duration = performance.now() - this._start
-            if (this.status === 200) {
-              if (!success) return
-              const info = this._collectInfo('success', {
-                duration,
-                profile: getNetworkProfile(this.responseURL),
-              })
-              report?.(COLLECT_API, info, { store: false })
-            } else {
-              // 非200的请求由 fail 决定是否上报
-              if (!fail) return
-              const info = this._collectInfo('fail', { duration })
-              report?.(COLLECT_API, info, { store: false })
-            }
+            safeCollect(() => {
+              const duration = performance.now() - this._start
+              if (this.status === 200) {
+                if (!success) return
+                const info = this._collectInfo('success', {
+                  duration,
+                  profile: getNetworkProfile(this.responseURL),
+                })
+                report?.(COLLECT_API, info, { store: false })
+              } else {
+                // 非200的请求由 fail 决定是否上报
+                if (!fail) return
+                const info = this._collectInfo('fail', { duration })
+                report?.(COLLECT_API, info, { store: false })
+              }
+            })
           })
         }
         // fail 决定是否上报失败的请求（中断/错误/超时）
         fail && super.addEventListener('abort', () => {
-          const info = this._collectInfo('abort')
-          report?.(COLLECT_API, info, { store: false })
+          safeCollect(() => {
+            report?.(COLLECT_API, this._collectInfo('abort'), { store: false })
+          })
         })
 
         fail && super.addEventListener('error', () => {
-          const info = this._collectInfo('error')
-          report?.(COLLECT_API, info, { store: false })
+          safeCollect(() => {
+            report?.(COLLECT_API, this._collectInfo('error'), { store: false })
+          })
         })
         fail && super.addEventListener('timeout', () => {
-          const info = this._collectInfo('timeout', { timeout: this.timeout })
-          report?.(COLLECT_API, info, { store: false })
+          safeCollect(() => {
+            report?.(COLLECT_API, this._collectInfo('timeout', { timeout: this.timeout }), { store: false })
+          })
         })
         super.open(...args)
       }

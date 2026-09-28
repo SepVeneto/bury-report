@@ -6,7 +6,7 @@ use log::{debug, error};
 use maplit::hashmap;
 use mongodb::{Database, Client};
 use anyhow::anyhow;
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 
 use crate::{
     alert::alert_error, db, model::{
@@ -40,7 +40,7 @@ pub async fn record(
     client: &Client,
     db: &Database,
     data: &logs::RecordPayload,
-    producer: &BaseProducer,
+    producer: &KafkaProducer,
     ip: Option<String>,
 ) -> ServiceResult<()> {
     debug!("record log");
@@ -91,6 +91,8 @@ pub async fn record(
                 },
                 logs::RecordItem::Error(err) => {
                     logs_error::Model::insert_one(db, &err).await?;
+                    // V1 单条上报的错误同样要参与告警（此前只有 V2 批量会告警）
+                    alert_error(producer, &appid, &err);
                 },
                 logs::RecordItem::Track(track) => {
                     send_to_kafka(producer, &track);

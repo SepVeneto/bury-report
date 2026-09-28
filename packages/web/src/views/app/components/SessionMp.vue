@@ -1,7 +1,7 @@
 <template>
   <h2>用户浏览路径</h2>
 
-  <ElTimeline v-if="session.inited.value">
+  <ElTimeline v-if="session.inited.value && events.length > 0">
     <ElTimelineItem
       v-for="(item, index) in events"
       :key="index"
@@ -124,11 +124,16 @@ function getTimelineType(type: string) {
     return 'primary'
   }
 }
-function formatTime(timeStr: string) {
-  if (isNaN(Number(timeStr))) {
-    return timeStr
+function formatTime(timeStr?: string) {
+  if (timeStr === undefined || timeStr === null || String(timeStr).trim() === '') {
+    return '--:--'
   }
-  return dayjs(timeStr).format('HH:mm:ss')
+  // 客户端上报的是毫秒时间戳字符串（如 "1756190000000"）。
+  // dayjs 解析"纯数字字符串"时会按日期格式处理（把数字当年月日），拿到的是错误时间，
+  // 所以先转成数字；非数字的格式化时间（"2026-01-01 00:00:00"）才交给 dayjs 解析字符串。
+  const time = Number(timeStr)
+  const date = isNaN(time) ? dayjs(timeStr) : dayjs(time)
+  return date.isValid() ? date.format('HH:mm:ss') : String(timeStr)
 }
 
 function normalizeEvents(events: MpRecord[]) {
@@ -136,54 +141,63 @@ function normalizeEvents(events: MpRecord[]) {
 
   for (let i = 0; i < events.length; i++) {
     const event = events[i]
+    const track = event?.data
 
-    if (event.data.type === 'AppLaunch') {
+    // 只处理小程序页面轨迹；录屏等其它记录没有 data.type，直接跳过
+    if (!track || typeof track.type !== 'string') {
+      continue
+    }
+
+    // 首条事件没有"上一条"，旧实现直接读 events[i - 1].data 会抛错，
+    // 导致整个时间轴渲染失败（表现为时间轴空白/显示异常）
+    const prevType = events[i - 1]?.data?.type
+
+    if (track.type === 'AppLaunch') {
       normalized.push({
         type: 'AppLaunch',
         time: formatTime(event.device_time),
-        path: genUrl(event.data.data.path, event.data.data.query),
-        scene: event.data.data.scene,
-        referrer: event.data.data.referrerInfo,
+        path: genUrl(track.data.path, track.data.query),
+        scene: track.data.scene,
+        referrer: track.data.referrerInfo,
       })
-    } else if (event.data.type === 'AppShow') {
-      // 启动应用也会触发，和AppLaunch重复
-      if (events[i - 1].data.type === 'AppLaunch') {
+    } else if (track.type === 'AppShow') {
+      // 启动应用、切回前台都会触发 AppShow，和 AppLaunch / PageShow 重复
+      if (['AppLaunch', 'PageShow'].includes(prevType)) {
         continue
       } else {
         // 切回前台
         normalized.push({
           type: 'AppShow',
           time: formatTime(event.device_time),
-          path: event.data.data.path,
+          path: track.data.path,
         })
       }
-    } else if (event.data.type === 'PageShow') {
+    } else if (track.type === 'PageShow') {
       // 切回前台也触发，和AppShow重复
       // 页面初次加载也会触发，忽略
-      if (['PageLoad', 'AppShow'].includes(events[i - 1].data.type)) {
+      if (['PageLoad', 'AppShow', 'AppLaunch'].includes(prevType)) {
         continue
       } else {
         // 后退，tabbar切换都会触发，视为重新进入页面
         normalized.push({
-          type: 'Enter',
+          type: 'ReEnter',
           time: formatTime(event.device_time),
-          path: event.data.data.path,
+          path: track.data.path,
           duration: 0,
         })
       }
-    } else if (['PageUnload', 'PageHide'].includes(event.data.type)) {
+    } else if (['PageUnload', 'PageHide'].includes(track.type)) {
       // 前进，tabbar切换都会触发，视为离开页面，只更新duration
-      // 作为路由栈出入是成对的，所以把duration更新到上一个事件中
-      if (normalized.length === 0) return
-      normalized[normalized.length - 1].duration = (event.data as MpPageUnload).data.duration
-    } else if (event.data.type === 'PageLoad') {
+      // 作为路由栈出入是成对的，所以把duration更新到对应的页面节点中
+      applyDuration(normalized, track.data.path, (track as MpPageUnload).data.duration)
+    } else if (track.type === 'PageLoad') {
       normalized.push({
         type: 'Enter',
         time: formatTime(event.device_time),
-        path: genUrl(event.data.data.path, event.data.data.query),
+        path: genUrl(track.data.path, track.data.query),
         duration: 0,
       })
-    } else if (event.data.type === 'AppHide') {
+    } else if (track.type === 'AppHide') {
       normalized.push({
         type: 'AppHide',
         time: formatTime(event.device_time),
@@ -194,6 +208,39 @@ function normalizeEvents(events: MpRecord[]) {
   }
 
   return normalized
+}
+
+/**
+ * 停留时长属于"最近一次进入的那个页面"，写回时有三个坑（都能在真实会话里复现）：
+ * 1. 中间会夹着 AppHide / AppShow 节点，不能直接写到数组最后一条；
+ * 2. PageHide 之后紧跟的 PageUnload 时长是 0（SDK 在 PageHide 时已经清掉进入时间），
+ *    不能让 0 覆盖掉真实停留时长；
+ * 3. 一次上报里可能同时有别的页面的 PageUnload，必须按路径匹配，不能挂到别人的节点上。
+ */
+function applyDuration(list: Event[], path?: string, duration?: number) {
+  if (typeof duration !== 'number' || duration <= 0) {
+    return
+  }
+
+  for (let i = list.length - 1; i >= 0; i--) {
+    const item = list[i]
+    if (!['Enter', 'ReEnter'].includes(item.type)) {
+      continue
+    }
+    if (path && !samePath(item.path, path)) {
+      continue
+    }
+    // 同一个页面节点可能经历「前台停留 → 切后台 → 回到前台再停留」，
+    // PageHide 的时长是分段上报的，累加才是这个页面节点真正的停留时长
+    item.duration = (item.duration ?? 0) + duration
+    return
+  }
+}
+
+/** 节点上的路径带 query，离开事件的路径不带，比较时只比 path 部分 */
+function samePath(nodePath?: string, path?: string) {
+  if (!nodePath || !path) return true
+  return nodePath.split('?')[0] === path.split('?')[0]
 }
 
 function isEmptyObject(data?: Record<string, any>) {

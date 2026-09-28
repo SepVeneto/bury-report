@@ -1,12 +1,14 @@
 import { Router } from '@oak/oak'
-import { Session, DeviceLog, CustomId, ICustomId } from "../model/device.ts";
-import { RecordApi, RecordError } from '../model/record.ts'
+import { Session, DeviceLog, CustomId, ICustomId, MpTrack } from "../model/device.ts";
+import { RecordApi, RecordError, RecordTrack } from '../model/record.ts'
 import { RecordLog } from "../model/record.ts";
 import { Filter } from "../model/index.ts";
+import { Db } from 'mongodb'
 import COS from 'cos-nodejs-sdk-v5'
 import { Redis } from 'ioredis'
 import { desensitize } from "../utils/index.ts";
 import { VideoTransformer } from "../utils/rrweb2video.ts";
+import { dedupeReplayRecords, loadReplayPayloads, mergeReplayPayloads } from "../utils/replay.ts";
 
 const cos = new COS({
   SecretId: Deno.env.get('SECRECT_ID'),
@@ -20,6 +22,29 @@ if (!BUCKET || !REGION) {
 }
 
 const router = new Router()
+
+/**
+ * 会话的录屏分片列表。worker 的过期补偿与上传/删除存在竞争，同一个文件可能被重复挂到
+ * `event_urls` 上，先按 key 去重，避免同一段回放被读取两次。
+ */
+function getEventKeys(urls?: string[]) {
+  return Array.from(new Set(urls ?? []))
+}
+
+/**
+ * 旧版本的回放数据：统一切到 COS 分片之前，录屏事件落在 `records_track`、
+ * 小程序页面轨迹落在 `records_mp_track`；老会话没有 `event_urls`，回放数据只有这一份。
+ * 迁移之后这两个集合不再写入，新会话查出来是空的。
+ */
+async function getLegacyReplayRecords(db: Db, session: string) {
+  const filter = new Filter()
+  filter.equal('session', session)
+  const [tracks, mpTracks] = await Promise.all([
+    new RecordTrack(db).getAll(filter),
+    new MpTrack(db).getAll(filter),
+  ])
+  return [...tracks, ...mpTracks]
+}
 
 router.get('/custom-id', async (ctx) => {
   const custom = new CustomId(ctx.db)
@@ -87,10 +112,11 @@ router.get('/device/:deviceId/session/list', async (ctx) => {
 })
 
 router.get('/session/:sessionId', async ctx => {
-  const log = new RecordLog(ctx.db)
-  const networkLog = new RecordApi(ctx.db)
-  const errorLog = new RecordError(ctx.db)
-  const session = new Session(ctx.db)
+  const db = ctx.db
+  const log = new RecordLog(db)
+  const networkLog = new RecordApi(db)
+  const errorLog = new RecordError(db)
+  const session = new Session(db)
   const filter = new Filter()
   filter.equal('session', ctx.params.sessionId)
   const sessionFilter = new Filter()
@@ -101,24 +127,38 @@ router.get('/session/:sessionId', async ctx => {
     ctx.resMsg = '没有找到指定的会话'
     return
   }
-  const eventFutures = detail.event_urls?.map(url => {
+  const eventFutures = getEventKeys(detail.event_urls).map(url => {
     return cos.getObjectUrl({
       Bucket: BUCKET,
       Region: REGION,
       Key: url.replace(`https://${BUCKET}.cos.${REGION}.myqcloud.com/`, ''),
     })
-  }) || []
+  })
   const eventUrls = await Promise.all(eventFutures)
   const net = await networkLog.getAll(filter)
   const err = await errorLog.getAll(filter)
   const logs = await log.getAll(filter)
+  // 回放的拼接与去重统一在 server 完成：客户端分片重试、上报服务二次拆分、worker 补偿
+  // 都会让同一段数据在 COS 里出现多次。
+  // 旧版本前端没有 `merged` 参数，仍然自己按 event_urls 读 COS，不受影响（也不会多拉一份数据）。
+  const replay = ctx.request.url.searchParams.get('merged') === '1'
+    ? mergeReplayPayloads([
+      ...await loadReplayPayloads(eventUrls),
+      ...await getLegacyReplayRecords(db, ctx.params.sessionId),
+    ])
+    : null
 
-  ctx.resBody = {
+  const resBody: Record<string, unknown> = {
     event_urls: eventUrls,
-    net: net,
-    err: err,
-    log: logs,
+    net: dedupeReplayRecords(net),
+    err: dedupeReplayRecords(err),
+    log: dedupeReplayRecords(logs),
   }
+  if (replay) {
+    resBody.events = replay.events
+    resBody.records = replay.records
+  }
+  ctx.resBody = resBody
 })
 
 router.post('/session/:sessionId/sync', async ctx => {
@@ -138,7 +178,8 @@ router.post('/session/:sessionId/sync', async ctx => {
 router.post('/session/:sessionId/export', async ctx => {
   ctx.response.headers.set("X-Accel-Buffering", "no");
   const target = await ctx.sendEvents()
-  const session = new Session(ctx.db)
+  const db = ctx.db
+  const session = new Session(db)
   const sessionFilter = new Filter()
   sessionFilter.equal('session', ctx.params.sessionId)
   const detail = await session.findOne(sessionFilter)
@@ -147,21 +188,18 @@ router.post('/session/:sessionId/export', async ctx => {
     ctx.resMsg = '没有找到指定的会话'
     return
   }
-  const eventFutures = detail.event_urls?.map(url => {
+  const eventFutures = getEventKeys(detail.event_urls).map(url => {
     return cos.getObjectUrl({
       Bucket: BUCKET,
       Region: REGION,
       Key: url.replace(`https://${BUCKET}.cos.${REGION}.myqcloud.com/`, ''),
     })
-  }) || []
-  const eventUrls = await Promise.all(eventFutures.map(async url => {
-    const res = await fetch(url)
-    return (await res.json()) as any[]
-  }))
-  const events = eventUrls.reduce((acc, item) => {
-    acc.push(...(item.map(each => each.data.events)))
-    return acc
-  }, []).flat()
+  })
+  const eventUrls = await Promise.all(eventFutures)
+  const { events } = mergeReplayPayloads([
+    ...await loadReplayPayloads(eventUrls),
+    ...await getLegacyReplayRecords(db, ctx.params.sessionId),
+  ])
   const transformer = new VideoTransformer()
   let timer: number | null = setInterval(() => {
     target.dispatchMessage(transformer.state)

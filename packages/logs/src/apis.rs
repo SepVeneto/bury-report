@@ -22,6 +22,8 @@ pub enum ApiError {
     CommonError(#[from] anyhow::Error),
     #[error("FOO!")]
     InvalidError(),
+    #[error("服务繁忙，请稍后重试")]
+    TooManyRequests,
 }
 impl From<std::io::Error> for ApiError {
     fn from(err: std::io::Error) -> Self {
@@ -48,6 +50,9 @@ impl actix_web::error::ResponseError for ApiError {
         match self {
             ApiError::InvalidError {} => {
                 HttpResponse::BadRequest().into()
+            },
+            ApiError::TooManyRequests => {
+                HttpResponse::ServiceUnavailable().json(Response::err(503, self.to_string()))
             },
             _ => Response::err(500, self.to_string()).to_json().unwrap()
         }

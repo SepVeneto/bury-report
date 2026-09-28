@@ -19,6 +19,8 @@ export async function initApp(db: Db) {
       'records_api',
       'records_log',
       'records_track',
+      // 旧版本的小程序页面轨迹（回放数据），仍要按 session 查
+      'records_mp_track',
       'records_session'
     ].map(name => {
       const col = db.collection(name)

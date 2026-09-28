@@ -3,6 +3,6 @@
     "croner": "npm:croner",
     "@josefabio/deno-canvas": "jsr:@josefabio/deno-canvas@^1.5.2",
     "@oak/oak": "jsr:@oak/oak@^17.1.6",
-    "@std/path": "jsr:@std/path",
+    "@std/path": "jsr:@std/path"
   }
 }

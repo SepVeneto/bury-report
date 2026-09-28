@@ -96,6 +96,12 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
         name: 'CustomError',
         ...e,
       })
+    } catch (e) {
+      console.warn(e)
+    }
+    // 无论上报是否成功，都必须执行宿主原本的 console.error，不能吞掉业务日志；
+    // 同时原函数自身的异常也不外泄，避免让业务感知到上报 SDK 的存在
+    try {
       _tempError.apply(this, args)
     } catch (e) {
       console.warn(e)

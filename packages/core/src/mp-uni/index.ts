@@ -82,8 +82,17 @@ function createProxy(options: Options) {
         method: 'POST',
         data: JSON.stringify({ appid, data: payload }),
         timeout: 3000,
-        success: () => {
+        success: (res: any) => {
           sending = false
+          // uni.request 对任意 HTTP 状态码都会回调 success，只有 2xx 才视为投递成功；
+          // 其余（如 5xx）保留队列，下个周期自动重试
+          const status = res?.statusCode
+          if (typeof status === 'number' && (status < 200 || status >= 300)) {
+            if (!sendTimer) {
+              sendTimer = globalThis.setTimeout(sendRequest, sendInterval) as unknown as number
+            }
+            return
+          }
           writeQueue([])
           memoryOnly = []
         },
@@ -110,27 +119,32 @@ function createProxy(options: Options) {
     data: Record<string, any>,
     options: { immediate?: boolean, store?: boolean } = {},
   ) => {
-    const { immediate = false, store = true } = options
-    const record = storageReport(type, data, Date.now())
+    // 上报链路的任何异常都不能抛给业务调用方（含入参异常）
+    try {
+      const { immediate = false, store = true } = options || {}
+      const record = storageReport(type, data, Date.now())
 
-    if (store) {
-      writeMemory(record)
-    } else {
-      memoryOnly.push(record)
-      if (memoryOnly.length > MAX_MEMORY_COUNT) {
-        memoryOnly.splice(0, memoryOnly.length - MAX_MEMORY_COUNT)
+      if (store) {
+        writeMemory(record)
+      } else {
+        memoryOnly.push(record)
+        if (memoryOnly.length > MAX_MEMORY_COUNT) {
+          memoryOnly.splice(0, memoryOnly.length - MAX_MEMORY_COUNT)
+        }
       }
-    }
 
-    if (immediate) {
-      sendRequest()
-    }
+      if (immediate) {
+        sendRequest()
+      }
 
-    if (!sendTimer) {
-      sendTimer = globalThis.setTimeout(
-        sendRequest,
-        sendInterval,
-      ) as unknown as number
+      if (!sendTimer) {
+        sendTimer = globalThis.setTimeout(
+          sendRequest,
+          sendInterval,
+        ) as unknown as number
+      }
+    } catch (err) {
+      console.warn('[@sepveneto/report-core] report failed: ' + err)
     }
   }
 

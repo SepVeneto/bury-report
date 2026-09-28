@@ -1,10 +1,10 @@
 use std::sync::Arc;
-use log::debug;
+use log::{debug, warn};
 
 use actix_web::{HttpRequest, post, web};
 // use flate2::read::GzDecoder;
 use mongodb::{Client, Database};
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 use crate::model::logs::RecordPayload;
 use crate::services::task::RawRecord;
 use crate::services::task::send_raw_to_kafak;
@@ -30,10 +30,20 @@ async fn record_log(
     client: web::Data<Client>,
     db: web::Data<Database>,
     req: HttpRequest,
-    producer: web::Data<Arc<BaseProducer>>,
+    producer: web::Data<Arc<KafkaProducer>>,
     // svr: web::Data<Addr<WsActor>>,
+    slots: web::Data<Arc<tokio::sync::Semaphore>>,
     json_body: web::Payload,
 ) -> ApiResult {
+    // 有界并发：池满 / Mongo 变慢时不再让请求无限排队（排队会一直占着 body 与处理状态），
+    // 超出并发上限直接快速失败，交给客户端按自己的重试策略处理
+    let _permit = match slots.try_acquire() {
+        Ok(permit) => permit,
+        Err(_) => {
+            warn!("/record 并发已达上限，快速失败（避免请求堆积占用内存）");
+            return Err(ApiError::TooManyRequests);
+        }
+    };
     // default size limit 256KB
     // 10MB
     let mut ip = None;

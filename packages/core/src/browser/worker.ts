@@ -1,11 +1,44 @@
 import { COLLECT_API, OPERATION_TRACK } from '@/constant'
-import { MAX_KEEPALIVE_BYTES, splitBySize } from '@/utils'
+import { MAX_KEEPALIVE_BYTES, estimateSize, splitBySize } from '@/utils'
 import pako from 'pako'
 
 // 失败后的重试间隔，仅存在于 worker 内部，不影响主线程
 const RETRY_DELAY = 10 * 1000
 // 重试缓冲上限，避免 worker 内存无限增长
 const MAX_RETRY_COUNT = 100
+// 单条 track 消息（gzip 后）的目标上限。服务端/broker 的单条上限通常是 1MB~10MB，
+// 而这里会把多批事件合并投递（叠加重试缓冲后可能到十几 MB，直接被拒收），所以先按估算切分。
+// 服务端还有一道兜底拆分，用于覆盖尚未升级的老版本客户端。
+const MAX_TRACK_MESSAGE_BYTES = 1 * 1024 * 1024
+// rrweb JSON 的压缩比经验值：用于在不额外压缩的前提下估算体积
+const TRACK_COMPRESS_RATIO = 8
+
+/**
+ * 把一批 track 记录按估算体积切成多条消息。
+ * 单条记录自身超预算时仍会单独成组，交给服务端兜底拆分。
+ */
+export function packTrackPayloads(
+  records: any[],
+  maxBytes = MAX_TRACK_MESSAGE_BYTES,
+): any[][] {
+  if (!records.length) return []
+  const budget = maxBytes * TRACK_COMPRESS_RATIO
+  const chunks: any[][] = []
+  let current: any[] = []
+  let size = 0
+  for (const record of records) {
+    const itemSize = estimateSize(record)
+    if (current.length && size + itemSize > budget) {
+      chunks.push(current)
+      current = []
+      size = 0
+    }
+    current.push(record)
+    size += itemSize
+  }
+  if (current.length) chunks.push(current)
+  return chunks
+}
 
 let retryBuffer: any[] = []
 let retryTimer: any
@@ -13,7 +46,10 @@ let retryTimer: any
 self.onmessage = (evt) => {
   switch (evt.data.type) {
     case 'report': {
-      void handleReport(evt.data)
+      // worker 内的异常不能变成未处理的 rejection
+      handleReport(evt.data).catch(err => {
+        console.warn('[@sepveneto/report-core] handle report failed: ' + err)
+      })
       break
     }
     default:
@@ -34,9 +70,11 @@ async function handleReport({ store, appid, sessionid, deviceid, keepalive }: an
     for (const chunk of splitBySize([...other, ...api], MAX_KEEPALIVE_BYTES)) {
       degradationReport({ appid, data: chunk }, true).catch((err) => console.warn(err))
     }
-    // 录屏事件流必须原子送达：拆分会因部分送达导致整段数据不完整、回放解析失败，
-    // 单请求要么全量送达、要么整条丢弃（回放锚点已在段开始时经普通路径送达）
-    tracks.length > 0 && degradationReport({ sessionid, deviceid, appid, data: tracks }, true, 'gzip').catch((err) => console.warn(err))
+    // 录屏按估算体积分片投递：单条过大的 payload 会被 broker/服务端拒收，整段录屏丢失；
+    // 分片后同 session 仍走同一个 Kafka key，顺序不变，回放端按时间戳合并即可
+    for (const chunk of packTrackPayloads(tracks)) {
+      degradationReport({ sessionid, deviceid, appid, data: chunk }, true, 'gzip').catch((err) => console.warn(err))
+    }
     return
   }
 
@@ -66,12 +104,14 @@ async function sendWithRetry(data: any[]) {
     }
   }
   if (tracks.length) {
-    try {
-      const first = tracks[0]
-      await degradationReport({ sessionid: first.session, deviceid: first.uuid, appid, data: tracks }, false, 'gzip')
-    } catch (err) {
-      console.warn(err)
-      failed.push(...tracks)
+    for (const chunk of packTrackPayloads(tracks)) {
+      try {
+        const first = chunk[0]
+        await degradationReport({ sessionid: first.session, deviceid: first.uuid, appid, data: chunk }, false, 'gzip')
+      } catch (err) {
+        console.warn(err)
+        failed.push(...chunk)
+      }
     }
   }
   return failed

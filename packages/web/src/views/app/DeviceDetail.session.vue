@@ -39,6 +39,8 @@
   <ElDialog
     v-model="session.show"
     destroy-on-close
+    width="min(1040px, 94vw)"
+    top="5vh"
     style="min-height: 700px;"
   >
     <SessionH5

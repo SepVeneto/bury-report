@@ -9,6 +9,7 @@ use crate::model::ModelError;
 use anyhow::Result;
 
 pub mod record_logs;
+pub mod split;
 pub mod task;
 
 #[derive(Debug, Error)]

@@ -2,7 +2,7 @@ use crate::{alert::{is_expired, model::{ALERT_MAP, AlertFact, AlertFactInfo, Uni
 use bson::DateTime;
 use dashmap::DashMap;
 use log::debug;
-use rdkafka::producer::BaseProducer;
+use crate::services::task::KafkaProducer;
 use crate::services::task::send_json_to_kafka;
 use serde_json::json;
 
@@ -37,10 +37,14 @@ pub fn check_notify(
     let mut fact = alert_fact.map
         .entry(fp.to_string())
         .and_modify(|s| {
-            s.ttl = rule.ttl();
             s.last_seen = now;
             s.need_update = true;
             s.strategy = rule.strategy();
+            // 只有规则真的带 ttl 时才覆盖：Once 的 rule.ttl() 为 None，
+            // 覆盖会把首次设置的 7 天 TTL 清成 None，导致该 fact 永远不被回收
+            if let Some(ttl) = rule.ttl() {
+                s.ttl = Some(ttl);
+            }
             s.count += 1;
             s.flush_count += 1;
         })
@@ -93,7 +97,7 @@ pub fn check_notify(
 }
 
 pub fn trigger(
-    producer: &BaseProducer,
+    producer: &KafkaProducer,
     rule: &UnionRule,
     summary: &String,
     fact: &AlertFactInfo,
