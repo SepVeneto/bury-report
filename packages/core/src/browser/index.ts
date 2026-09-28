@@ -256,7 +256,7 @@ function createProxy(options: Options) {
       // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
       if (failed && !keepalive) {
         sendTimer = globalThis.setTimeout(() => {
-          void sendRequest()
+          sendRequest()
         }, sendInterval) as unknown as number
       }
     }
@@ -292,13 +292,13 @@ function createProxy(options: Options) {
       }
 
       if (immediate) {
-        void sendRequest(keepalive)
+        sendRequest(keepalive)
       }
 
       if (!sendTimer) {
         sendTimer = globalThis.setTimeout(
           () => {
-            void sendRequest()
+            sendRequest()
           },
           sendInterval,
         ) as unknown as number
