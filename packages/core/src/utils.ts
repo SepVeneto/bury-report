@@ -304,6 +304,42 @@ export function pickWithinBudget(items: any[], budget: number) {
   return { sent, used, rest: items.slice(sent.length) }
 }
 
+// 从当前队列里精确移除“本次实际发送”的那批记录，保留发送期间新进入的记录。
+// 按序列化内容做多重集匹配：只删除确实出现在已发送批次里的记录，
+// 请求期间新增（或已被上限裁剪掉）的记录不受影响，避免请求成功时整表清空造成丢数据。
+export function removeSentRecords(current: any[], sent: any[]) {
+  if (!sent.length) return current
+
+  const pending = new Map<string, number>()
+  for (const item of sent) {
+    let key: string
+    try {
+      key = JSON.stringify(item)
+    } catch {
+      continue
+    }
+    pending.set(key, (pending.get(key) || 0) + 1)
+  }
+
+  const result: any[] = []
+  for (const item of current) {
+    let key: string
+    try {
+      key = JSON.stringify(item)
+    } catch {
+      result.push(item)
+      continue
+    }
+    const count = pending.get(key)
+    if (count) {
+      pending.set(key, count - 1)
+      continue
+    }
+    result.push(item)
+  }
+  return result
+}
+
 let memoryBuffer: any[] = []
 let flushTimer: number | undefined
 

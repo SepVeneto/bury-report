@@ -243,6 +243,86 @@ describe('要求2：服务端失败不丢客户端数据', () => {
     // 未发出的部分留在队列里，下次会话继续上报
     expect(readQueue().length).toBe(queuedBefore - sent)
   })
+
+  it('小程序端未知状态码按失败处理，不清空队列', () => {
+    const storage = new Map<string, string>()
+    const requestMock = vi.fn()
+    vi.stubGlobal('uni', {
+      request: requestMock,
+      setStorageSync: (key: string, value: any) => storage.set(key, String(value)),
+      getStorageSync: (key: string) => storage.get(key),
+      removeStorageSync: (key: string) => storage.delete(key),
+    })
+    resetStorageCache()
+    writeQueue([])
+
+    new MpBuryReport({ url: 'https://mp/report', appid: 'a', report: true, interval: 1 })
+    getReport()('custom', { a: 1 }, { immediate: true })
+
+    // 缺少 statusCode 属于未知状态，不能当作成功清空队列
+    requestMock.mock.calls[0][0].success({})
+    expect(readQueue()).toHaveLength(1)
+
+    vi.advanceTimersByTime(1000)
+    expect(requestMock).toHaveBeenCalledTimes(2)
+    requestMock.mock.calls[1][0].success({ statusCode: 200 })
+    expect(readQueue()).toEqual([])
+  })
+
+  it('小程序端请求成功只删除本次发送的记录，保留发送期间新进入的数据', () => {
+    const storage = new Map<string, string>()
+    const requestMock = vi.fn()
+    vi.stubGlobal('uni', {
+      request: requestMock,
+      setStorageSync: (key: string, value: any) => storage.set(key, String(value)),
+      getStorageSync: (key: string) => storage.get(key),
+      removeStorageSync: (key: string) => storage.delete(key),
+    })
+    resetStorageCache()
+    writeQueue([])
+
+    new MpBuryReport({ url: 'https://mp/report', appid: 'a', report: true })
+    const reporter = getReport()
+
+    reporter('sent', { i: 1 }, { immediate: true })
+    // 请求进行中又有新数据落盘
+    reporter('during', { i: 2 })
+    vi.advanceTimersByTime(1000)
+    expect(readQueue().map((item: any) => item.type)).toEqual(['sent', 'during'])
+
+    requestMock.mock.calls[0][0].success({ statusCode: 200 })
+    // 只删除本次实际发送的 sent，发送期间新进入的 during 必须保留
+    expect(readQueue().map((item: any) => item.type)).toEqual(['during'])
+  })
+
+  it('小程序端发送中的 immediate 会在当前请求结束后立即补发', () => {
+    const storage = new Map<string, string>()
+    const requestMock = vi.fn()
+    vi.stubGlobal('uni', {
+      request: requestMock,
+      setStorageSync: (key: string, value: any) => storage.set(key, String(value)),
+      getStorageSync: (key: string) => storage.get(key),
+      removeStorageSync: (key: string) => storage.delete(key),
+    })
+    resetStorageCache()
+    writeQueue([])
+
+    new MpBuryReport({ url: 'https://mp/report', appid: 'a', report: true, interval: 1 })
+    const reporter = getReport()
+
+    reporter('first', { i: 1 }, { immediate: true })
+    expect(requestMock).toHaveBeenCalledTimes(1)
+
+    reporter('second', { i: 2 }, { immediate: true })
+    // 前一个请求未结束时不并发发送
+    expect(requestMock).toHaveBeenCalledTimes(1)
+
+    // 前一个请求成功后立即补发第二个，而不是等下一个时间窗口
+    requestMock.mock.calls[0][0].success({ statusCode: 200 })
+    expect(requestMock).toHaveBeenCalledTimes(2)
+    const payload = JSON.parse(requestMock.mock.calls[1][0].data)
+    expect(payload.data.map((item: any) => item.data.i)).toEqual([2])
+  })
 })
 
 describe('体积计算性能相关行为', () => {

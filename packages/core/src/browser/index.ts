@@ -2,7 +2,7 @@ import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
 import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
-import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, MAX_KEEPALIVE_TOTAL_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, pickWithinBudget, readQueue, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, MAX_KEEPALIVE_TOTAL_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, pickWithinBudget, readQueue, removeSentRecords, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
 import { ErrorPlugin } from './plugins/error'
@@ -139,10 +139,24 @@ function createProxy(options: Options) {
   const sendInterval = normalizeInterval(options.interval)
   let sendTimer: number | undefined
   let sending = false
+  // 发送期间又触发的即时（immediate）上报：当前请求结束后立即补发，
+  // 而不是被跳过、推迟到下个时间窗口执行
+  let pendingImmediate = false
 
-  const sendRequest = async (keepalive = false) => {
-    // 上一次发送未结束时不重复发送（keepalive 页面关闭场景除外）
-    if (sending && !keepalive) return
+  // 按引用移除已投递的记录（内存缓存是同一批对象引用），保留期间新增的数据
+  const dropRefs = (list: any[], sent: any[]) => {
+    if (!sent.length) return list
+    const sentSet = new Set(sent)
+    return list.filter(item => !sentSet.has(item))
+  }
+
+  const sendRequest = async (keepalive = false, immediate = false) => {
+    // 上一次发送未结束时不并发重复发送（keepalive 页面关闭场景除外）；
+    // 带即时语义的请求登记一次待补发，等当前请求结束后立即发送
+    if (sending && !keepalive) {
+      if (immediate) pendingImmediate = true
+      return
+    }
     sending = true
 
     let failed = false
@@ -228,21 +242,26 @@ function createProxy(options: Options) {
         }
       }
 
-      // 只清空已投递的数据；失败或未发送的数据保留，下个周期 / 下次会话重试
+      // 只删除“本次实际投递成功”的那批记录，保留发送期间新进入队列 / 缓存的数据，
+      // 避免请求期间产生的新数据在成功时被一并清空导致丢失
+      let sentQueueRecords: any[] | undefined
+      if (keepalive) sentQueueRecords = list.slice(0, sentQueue)
+      else if (queueOk) sentQueueRecords = list
+      if (sentQueueRecords) {
+        writeQueue(removeSentRecords(readQueue(), sentQueueRecords))
+      }
+
       if (worker) {
-        // 队列：非 keepalive 失败时整体保留；keepalive 时只移除预算内已发出的部分
-        if (keepalive) writeQueue(list.slice(sentQueue))
-        else if (queueOk) writeQueue([])
-        // 缓存已交给 worker（worker 内部负责失败重试）
-        if (window.__BR_WORKER__) BuryReport.cache = []
+        // 缓存已交给 worker（worker 内部负责失败重试）；仅 worker 存活时移除已交付的这批
+        if (window.__BR_WORKER__) {
+          BuryReport.cache = dropRefs(BuryReport.cache, cache)
+        }
       } else if (keepalive) {
-        // 无 worker：只移除预算内已发出的部分，其余留到下次会话
-        writeQueue(list.slice(sentQueue))
-        BuryReport.cache = cache.slice(sentCache)
+        // 无 worker：只移除预算内已发出的缓存部分，其余留到下次会话
+        BuryReport.cache = dropRefs(BuryReport.cache, cache.slice(0, sentCache))
       } else if (queueOk) {
-        // 无 worker：缓存已并入主线程请求，成功后清空
-        writeQueue([])
-        BuryReport.cache = []
+        // 无 worker：缓存已并入主线程请求，成功后移除已发出的这批
+        BuryReport.cache = dropRefs(BuryReport.cache, cache)
       }
     } catch (err) {
       // 任何发送过程中的异常都不能影响宿主，仅记录警告
@@ -252,6 +271,13 @@ function createProxy(options: Options) {
       sending = false
       clearInterval(sendTimer)
       sendTimer = undefined
+
+      // 发送期间触发的即时上报：当前请求结束后立即补发，而不是被推迟到下个时间窗口
+      if (pendingImmediate) {
+        pendingImmediate = false
+        sendRequest()
+        return
+      }
 
       // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
       if (failed && !keepalive) {
@@ -292,7 +318,7 @@ function createProxy(options: Options) {
       }
 
       if (immediate) {
-        sendRequest(keepalive)
+        sendRequest(keepalive, immediate)
       }
 
       if (!sendTimer) {

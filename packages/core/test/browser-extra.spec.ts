@@ -115,10 +115,10 @@ describe('上报选项', () => {
     expect(fetchMock).toHaveBeenCalledWith(URL, expect.objectContaining({ keepalive: true }))
   })
 
-  it('发送中的并发上报会被跳过，避免重复请求', async () => {
-    let resolveFetch: any
+  it('发送中的并发上报不并发重复请求，但会在当前请求结束后立即补发', async () => {
+    const resolvers: any[] = []
     const fetchMock = vi.fn(() => new Promise(resolve => {
-      resolveFetch = resolve
+      resolvers.push(resolve)
     }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -128,9 +128,38 @@ describe('上报选项', () => {
     report('first', { i: 1 }, { immediate: true })
     report('second', { i: 2 }, { immediate: true })
 
+    // 前一个请求未结束时不并发发送，避免重复请求
     expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    // 前一个请求结束后，第二个 immediate 立即补发，而不是等下一个时间窗口
+    resolvers[0]({ ok: true })
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const body = JSON.parse((fetchMock.mock.calls[1] as any[])[1].body)
+    expect(body.data.map((item: any) => item.data.i)).toEqual([2])
+  })
+
+  it('请求成功时只删除本次实际发送的记录，保留发送期间新进入的数据', async () => {
+    let resolveFetch: any
+    const fetchMock = vi.fn(() => new Promise(resolve => {
+      resolveFetch = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    const report = getReport()
+
+    report('sent', { i: 1 }, { immediate: true })
+    // 请求进行中又有新数据落盘
+    report('during', { i: 2 }, { flush: true })
+    expect(readQueue().map((item: any) => item.type)).toEqual(['sent', 'during'])
+
     resolveFetch({ ok: true })
     await flush()
+
+    // 只删除本次实际发送的 sent，发送期间新进入的 during 必须保留
+    expect(readQueue().map((item: any) => item.type)).toEqual(['during'])
   })
 
   it('存储不可用导致没有可发送数据时不发起请求', async () => {
