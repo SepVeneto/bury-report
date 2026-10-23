@@ -252,6 +252,64 @@ describe('上报数据可靠性', () => {
     expect(readQueue()).toEqual([])
   })
 
+  it('普通请求进行中触发 keepalive 后仍会排空未发送的数据', async () => {
+    let resolveNormal: any
+    let normalCalls = 0
+    const fetchMock = vi.fn((_url: string, init: any) => {
+      if (!init.keepalive && normalCalls++ === 0) {
+        return new Promise(resolve => {
+          resolveNormal = resolve
+        })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    const report = getReport()
+    report('first', { blob: 'x'.repeat(32 * 1024) }, { immediate: true, flush: true })
+    report('second', { blob: 'x'.repeat(32 * 1024) }, { flush: true })
+
+    // 普通请求尚未结束，页面隐藏触发 keepalive；keepalive 预算只能带走第一条
+    dom.window.dispatchEvent(new Event('pagehide'))
+    expect(fetchMock.mock.calls.some(call => call[1].keepalive)).toBe(true)
+
+    resolveNormal({ ok: true })
+    await flush()
+
+    // keepalive 预算外的数据由当前请求结束后的排空流程继续发送
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(2)
+    expect(readQueue()).toEqual([])
+  })
+
+  it('请求进行中新增的上报会在当前请求结束后继续发送，无需等待下一次上报', async () => {
+    let resolveFirst: any
+    const fetchMock = vi.fn(() => {
+      if (!resolveFirst) {
+        return new Promise(resolve => {
+          resolveFirst = resolve
+        })
+      }
+      return Promise.resolve({ ok: true })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    const report = getReport()
+
+    report('first', { i: 1 }, { immediate: true })
+    report('second', { i: 2 }, { flush: true })
+    expect(readQueue().map(item => item.type)).toEqual(['first', 'second'])
+
+    resolveFirst({ ok: true })
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    const body = JSON.parse(fetchMock.mock.calls[1][1].body)
+    expect(body.data.map(item => item.type)).toEqual(['second'])
+    expect(readQueue()).toEqual([])
+  })
+
   it('keepalive 发送按大小分片，避免单请求超限', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetchMock)

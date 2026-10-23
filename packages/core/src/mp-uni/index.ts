@@ -84,6 +84,8 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
   // 发送期间又触发的即时（immediate）上报：当前请求结束后立即补发，
   // 而不是被跳过、推迟到下个时间窗口执行
   let pendingImmediate = false
+  // 发送期间新增的任意上报：当前请求结束后继续排空，避免数据依赖业务再次上报触发
+  let pendingSend = false
   // 连续失败次数：成功一次即清零，超过 maxRetry 判定上报服务不可用
   let failStreak = 0
   // 已中止：不再调度发送，report 也不再入队
@@ -91,11 +93,24 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
   // store:false 的数据（如网络日志）只放内存，避免写入小程序本地缓存
   let memoryOnly: any[] = []
 
+  const clearSendTimer = () => {
+    clearTimeout(sendTimer)
+    sendTimer = undefined
+  }
+
+  const scheduleSend = () => {
+    if (stopped || sendTimer !== undefined) return
+    sendTimer = globalThis.setTimeout(() => {
+      sendTimer = undefined
+      sendRequest()
+    }, sendInterval) as unknown as number
+  }
+
   const stopSending = () => {
     stopped = true
     pendingImmediate = false
-    clearTimeout(sendTimer)
-    sendTimer = undefined
+    pendingSend = false
+    clearSendTimer()
   }
   control.stop = stopSending
 
@@ -114,12 +129,11 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
   const finish = (retry = false) => {
     sending = false
     if (stopped) return
-    if (pendingImmediate) {
-      pendingImmediate = false
-      // 发送期间新触发的即时上报：立即补发，而不是等下一个时间窗口
-      sendRequest()
-      return
-    }
+
+    const needsFollowUp = pendingSend || pendingImmediate
+    pendingSend = false
+    pendingImmediate = false
+
     if (retry) {
       failStreak += 1
       // 重试指定次数后仍然失败：中止上报相关操作
@@ -128,26 +142,27 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
         exhaust()
         return
       }
-      if (!sendTimer) {
-        sendTimer = globalThis.setTimeout(sendRequest, sendInterval) as unknown as number
-      }
+      scheduleSend()
     } else {
       failStreak = 0
+      if (needsFollowUp) sendRequest()
     }
   }
 
   const sendRequest = (immediate = false) => {
-    clearTimeout(sendTimer)
-    sendTimer = undefined
-
     // 已中止上报：不再发起任何请求
     if (stopped) return
 
     // 上一个请求尚未结束：不并发重复发送；带即时语义的请求登记待补发
     if (sending) {
+      pendingSend = true
       if (immediate) pendingImmediate = true
       return
     }
+
+    clearSendTimer()
+    pendingSend = false
+    pendingImmediate = false
     sending = true
 
     // 记录本次实际发送的数据，成功后只删除这批，保留发送期间新进入的记录
@@ -220,16 +235,13 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
         }
       }
 
+      if (sending) pendingSend = true
+
       if (immediate) {
         sendRequest(true)
       }
 
-      if (!sendTimer) {
-        sendTimer = globalThis.setTimeout(
-          sendRequest,
-          sendInterval,
-        ) as unknown as number
-      }
+      scheduleSend()
     } catch (err) {
       console.warn('[@sepveneto/report-core] report failed: ' + err)
     }

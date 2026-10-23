@@ -192,12 +192,27 @@ function createProxy(options: Options, control: ProxyControl = {}) {
   // 发送期间又触发的即时（immediate）上报：当前请求结束后立即补发，
   // 而不是被跳过、推迟到下个时间窗口执行
   let pendingImmediate = false
+  // 发送期间新增的任意上报：当前请求结束后继续排空，避免后续数据依赖业务再次上报触发
+  let pendingSend = false
+
+  const clearSendTimer = () => {
+    clearTimeout(sendTimer)
+    sendTimer = undefined
+  }
+
+  const scheduleSend = () => {
+    if (stopped || sendTimer !== undefined) return
+    sendTimer = globalThis.setTimeout(() => {
+      sendTimer = undefined
+      sendRequest()
+    }, sendInterval) as unknown as number
+  }
 
   const stopSending = () => {
     stopped = true
     pendingImmediate = false
-    clearInterval(sendTimer)
-    sendTimer = undefined
+    pendingSend = false
+    clearSendTimer()
   }
   control.stop = stopSending
 
@@ -225,10 +240,18 @@ function createProxy(options: Options, control: ProxyControl = {}) {
     // 上一次发送未结束时不并发重复发送（keepalive 页面关闭场景除外）；
     // 带即时语义的请求登记一次待补发，等当前请求结束后立即发送
     if (sending && !keepalive) {
+      pendingSend = true
       if (immediate) pendingImmediate = true
       return
     }
-    sending = true
+    // keepalive 只负责页面关闭时的尽力发送，不接管普通发送的状态与定时器
+    const overlapsNormalSend = keepalive && sending
+    if (!keepalive) {
+      clearSendTimer()
+      pendingSend = false
+      pendingImmediate = false
+    }
+    if (!overlapsNormalSend) sending = true
 
     let failed = false
     try {
@@ -341,21 +364,16 @@ function createProxy(options: Options, control: ProxyControl = {}) {
       console.warn('[@sepveneto/report-core] send request failed: ' + err)
       failed = true
     } finally {
-      sending = false
-      clearInterval(sendTimer)
-      sendTimer = undefined
+      if (!overlapsNormalSend) sending = false
 
       if (stopped) return
 
-      // 发送期间触发的即时上报：当前请求结束后立即补发，而不是被推迟到下个时间窗口
-      if (pendingImmediate) {
-        pendingImmediate = false
-        sendRequest()
-        return
-      }
-
-      // keepalive（页面关闭）失败不重试，也不参与失败计数
+      // keepalive（页面关闭）失败不重试，也不参与普通发送的失败计数与调度
       if (keepalive) return
+
+      const needsFollowUp = pendingSend || pendingImmediate
+      pendingSend = false
+      pendingImmediate = false
 
       if (failed) {
         failStreak += 1
@@ -366,11 +384,11 @@ function createProxy(options: Options, control: ProxyControl = {}) {
           return
         }
         // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
-        sendTimer = globalThis.setTimeout(() => {
-          sendRequest()
-        }, sendInterval) as unknown as number
+        scheduleSend()
       } else {
         failStreak = 0
+        // 请求期间新增过数据时继续排空；即使定时器被替换或清除，也不会把后续数据留在缓存中
+        if (needsFollowUp) sendRequest()
       }
     }
   }
@@ -407,18 +425,13 @@ function createProxy(options: Options, control: ProxyControl = {}) {
         }
       }
 
+      if (sending) pendingSend = true
+
       if (immediate) {
         sendRequest(keepalive, immediate)
       }
 
-      if (!sendTimer) {
-        sendTimer = globalThis.setTimeout(
-          () => {
-            sendRequest()
-          },
-          sendInterval,
-        ) as unknown as number
-      }
+      scheduleSend()
     } catch (err) {
       console.warn('[@sepveneto/report-core] report failed: ' + err)
     }

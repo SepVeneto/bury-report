@@ -323,6 +323,37 @@ describe('要求2：服务端失败不丢客户端数据', () => {
     const payload = JSON.parse(requestMock.mock.calls[1][0].data)
     expect(payload.data.map((item: any) => item.data.i)).toEqual([2])
   })
+
+  it('小程序端请求跨周期时，锁期间新增的数据会在当前请求结束后继续发送', () => {
+    const storage = new Map<string, string>()
+    const requestMock = vi.fn()
+    vi.stubGlobal('uni', {
+      request: requestMock,
+      setStorageSync: (key: string, value: any) => storage.set(key, String(value)),
+      getStorageSync: (key: string) => storage.get(key),
+      removeStorageSync: (key: string) => storage.delete(key),
+    })
+    resetStorageCache()
+    writeQueue([])
+
+    new MpBuryReport({ url: 'https://mp/report', appid: 'a', report: true, interval: 1 })
+    const reporter = getReport()
+
+    reporter('first', { i: 1 }, { immediate: true })
+    reporter('during', { i: 2 })
+
+    // 当前请求跨过一个发送周期，周期任务命中锁后不能吞掉 during
+    vi.advanceTimersByTime(1000)
+    expect(requestMock).toHaveBeenCalledTimes(1)
+
+    requestMock.mock.calls[0][0].success({ statusCode: 200 })
+    expect(requestMock).toHaveBeenCalledTimes(2)
+    const payload = JSON.parse(requestMock.mock.calls[1][0].data)
+    expect(payload.data.map((item: any) => item.type)).toEqual(['during'])
+
+    requestMock.mock.calls[1][0].success({ statusCode: 200 })
+    expect(readQueue()).toEqual([])
+  })
 })
 
 describe('体积计算性能相关行为', () => {
