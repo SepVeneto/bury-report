@@ -22,13 +22,15 @@
         style="flex: 1;"
         shadow="never"
       >
-        <ElLink
-          v-for="item in data?.device"
+        <div
+          v-for="item in devices"
           :key="item"
-          @click="handleSelect(item)"
+          class="index-item"
         >
-          {{ item }}
-        </ElLink>
+          <ElLink @click="handleSelect(item, 'uuid')">
+            {{ item }}
+          </ElLink>
+        </div>
       </ElCard>
 
       <ElCard
@@ -36,13 +38,15 @@
         style="flex: 1;"
         shadow="never"
       >
-        <ElLink
-          v-for="item in data?.session"
+        <div
+          v-for="item in sessions"
           :key="item"
-          @click="handleSelect(item)"
+          class="index-item"
         >
-          {{ item }}
-        </ElLink>
+          <ElLink @click="handleSelect(item, 'session')">
+            {{ item }}
+          </ElLink>
+        </div>
       </ElCard>
     </div>
   </div>
@@ -51,18 +55,22 @@
 <script lang="ts" setup>
 import type { IReferer } from '@/apis'
 import { queryCustomId } from '@/apis'
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 
 const customId = ref('')
 const data = shallowRef<IReferer>()
-const props = defineProps<{ closeFn:(content: string) => void }>()
+const devices = computed(() => [...(data.value?.device || [])].reverse())
+const sessions = computed(() => [...(data.value?.session || [])].reverse())
+const props = defineProps<{
+  closeFn:(content: string, type: 'uuid' | 'session') => void
+}>()
 
 async function handleSearch() {
   const res = await queryCustomId(customId.value)
   data.value = res
 }
 
-function handleSelect(content: string) {
-  props.closeFn?.(content)
+function handleSelect(content: string, type: 'uuid' | 'session') {
+  props.closeFn?.(content, type)
 }
 </script>

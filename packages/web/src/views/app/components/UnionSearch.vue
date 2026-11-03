@@ -6,7 +6,10 @@
       :clearable="false"
       style="width: 120px;"
     />
-    <QuickSearch v-model="value" />
+    <QuickSearch
+      v-model="value"
+      @select="handleIndexSelect"
+    />
   </div>
 </template>
 
@@ -26,8 +29,10 @@ const typeOptions = [
     value: 'uuid',
   },
 ]
-const type = ref('session')
-const value = ref('')
+const TYPE_STORAGE_KEY = '__BR_UNION_SEARCH_TYPE__'
+const storedType = readStoredType()
+const type = ref<'session' | 'uuid'>(storedType)
+const value = ref(model.value?.[storedType] || '')
 
 watch([type, value], () => {
   typeOptions.forEach(({ value: key }) => {
@@ -40,4 +45,27 @@ watch([type, value], () => {
     }
   })
 })
+
+watch(type, value => writeStoredType(value), { immediate: true })
+
+function handleIndexSelect(payload: { value: string, type: 'uuid' | 'session' }) {
+  type.value = payload.type
+  value.value = payload.value
+}
+
+function readStoredType(): 'session' | 'uuid' {
+  try {
+    return localStorage.getItem(TYPE_STORAGE_KEY) === 'uuid' ? 'uuid' : 'session'
+  } catch {
+    return 'session'
+  }
+}
+
+function writeStoredType(value: 'session' | 'uuid') {
+  try {
+    localStorage.setItem(TYPE_STORAGE_KEY, value)
+  } catch {
+    // 本地存储不可用时保持当前会话内状态
+  }
+}
 </script>

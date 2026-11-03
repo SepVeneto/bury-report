@@ -20,14 +20,18 @@ import { createDialog } from '@sepveneto/basic-comp'
 import QuickSearchIndex from './QuickSearch.index.vue'
 
 const model = defineModel<string>()
+const emit = defineEmits<{
+  select: [payload: { value: string, type: 'uuid' | 'session' }]
+}>()
 withDefaults(defineProps<{ placeholder?: string }>(), {
   placeholder: '支持自定义ID索引',
 })
 
 function handleIndex() {
   const { open, close } = createDialog(QuickSearchIndex, {
-    closeFn: (content: string) => {
+    closeFn: (content: string, type: 'uuid' | 'session') => {
       model.value = content
+      emit('select', { value: content, type })
       close()
     },
   })
