@@ -38,6 +38,7 @@ export class PerfPlugin implements BuryReportPlugin {
 
   init(ctx: BuryReport) {
     this.ctx = ctx
+    document.addEventListener('pagehide', this.onPageHide)
     if (supportPerformanceObject()) {
       this.handleEntry(performance)
     }
@@ -47,6 +48,16 @@ export class PerfPlugin implements BuryReportPlugin {
         this.handleEntry(list)
       })
       this.observer.observe({ entryTypes: ['paint'] })
+    }
+  }
+
+  private onPageHide = () => {
+    this.collect()
+  }
+
+  private collect() {
+    if (this.ctx && supportPerformanceObject()) {
+      this.handleEntry(performance)
     }
   }
 
@@ -70,6 +81,7 @@ export class PerfPlugin implements BuryReportPlugin {
 
   // 上报重试耗尽后不再观察性能条目
   destroy() {
+    document.removeEventListener('pagehide', this.onPageHide)
     this.observer?.disconnect()
     this.observer = undefined
   }

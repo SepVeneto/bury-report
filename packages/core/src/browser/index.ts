@@ -1,7 +1,7 @@
 import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
 import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
-import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
+import { LIFECYCLE, OPERATION_TRACK, REPORT_REQUEST } from '@/constant'
 import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, MAX_KEEPALIVE_TOTAL_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, normalizeMaxRetry, pickWithinBudget, readQueue, removeSentRecords, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
@@ -265,10 +265,44 @@ function createProxy(options: Options, control: ProxyControl = {}) {
       // 有 worker 时，store:false 的缓存数据交给 worker 上报；
       // 无 worker（创建失败或已终止）时并入主线程请求，避免数据丢失
       const queuePayload = list.map(item => ({ appid, ...item }))
-      const cachePayload = worker ? [] : cache.map(item => ({ appid, ...item }))
+      // 页面卸载时 Worker 可能先于 keepalive 请求被浏览器终止，因此 cache 必须
+      // 跟随主线程的 keepalive 一起发送，不能只投递给 Worker。
+      // 录屏数据仍交给 Worker：它有独立的 gzip 协议和体积控制，不能混入普通日志。
+      const workerCache = keepalive && worker
+        ? cache.filter(item => item.type === OPERATION_TRACK)
+        : cache
+      const mainCache = keepalive && worker
+        ? cache.filter(item => item.type !== OPERATION_TRACK)
+        : cache
+      const cachePayload = worker && !keepalive ? [] : mainCache.map(item => ({ appid, ...item }))
+
+      const postWorkerCache = () => {
+        if (!worker || !workerCache.length) return
+        try {
+          worker.postMessage({
+            type: 'report',
+            appid,
+            sessionid: getSessionId(),
+            deviceid: getUuid(),
+            store: workerCache,
+            keepalive,
+            // 0 表示不限制：worker 内部同样按该次数判断是否停止重试
+            maxRetry: Number.isFinite(maxRetry) ? maxRetry : 0,
+          })
+          // 已交给 worker（worker 内部负责失败重试）；仅 worker 存活时移除已交付的这批
+          if (window.__BR_WORKER__) {
+            BuryReport.cache = dropRefs(BuryReport.cache, workerCache)
+          }
+        } catch (err) {
+          console.warn('[report-core] worker postMessage error: ' + err)
+          // worker 不可用：保留缓存，下个周期降级由主线程发送
+          failed = true
+          window.__BR_WORKER__ = undefined
+        }
+      }
+
       // keepalive 下实际发出的条数，未发出的部分保留给下次会话
       let sentQueue = list.length
-      let sentCache = cache.length
 
       let queueOk = true
       if (keepalive) {
@@ -277,25 +311,52 @@ function createProxy(options: Options, control: ProxyControl = {}) {
         const queuePart = pickWithinBudget(queuePayload, MAX_KEEPALIVE_TOTAL_BYTES)
         const cachePart = pickWithinBudget(cachePayload, MAX_KEEPALIVE_TOTAL_BYTES - queuePart.used)
         sentQueue = queuePart.sent.length
-        sentCache = cachePart.sent.length
 
-        // 按大小分片同步发出（keepalive 请求已提交给浏览器，尽力送达）
-        for (const chunk of splitBySize([...queuePart.sent, ...cachePart.sent], MAX_KEEPALIVE_BYTES)) {
-          fetch(options.url, {
-            method: 'post',
-            mode: 'no-cors',
-            headers: {
-              'Content-Type': 'text/plain; charset=utf-8',
-            },
-            keepalive: true,
-            cache: 'no-store',
-            credentials: 'omit',
-            priority: 'low',
-            body: JSON.stringify({ appid, data: chunk }),
-          }).catch(err => {
+        const chunks = splitBySize([...queuePart.sent, ...cachePart.sent], MAX_KEEPALIVE_BYTES)
+        // 按大小分片同步发起。请求已交给浏览器后，页面可能立刻销毁，
+        // 因而不能在这之前删除持久化记录；只有 fulfilled 的分片才允许清理。
+        const requests = chunks.map(chunk => {
+          try {
+            return fetch(options.url, {
+              method: 'post',
+              mode: 'no-cors',
+              headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+              },
+              keepalive: true,
+              cache: 'no-store',
+              credentials: 'omit',
+              priority: 'low',
+              body: JSON.stringify({ appid, data: chunk }),
+            }).catch((err) => {
+              console.warn('[report-core] fetch error: ' + err)
+              throw err
+            })
+          } catch (err) {
             console.warn('[report-core] fetch error: ' + err)
-          })
-        }
+            return Promise.reject(err)
+          }
+        })
+
+        // 录屏数据不等待普通 keepalive 的 Promise，必须在 pagehide 返回前立即交给 Worker。
+        postWorkerCache()
+        const results = await Promise.allSettled(requests)
+        const sentQueueRecords: any[] = []
+        const sentMainCacheRecords: any[] = []
+        let offset = 0
+        results.forEach((result, index) => {
+          const chunk = chunks[index]
+          if (result.status === 'fulfilled') {
+            chunk.forEach((_item, itemIndex) => {
+              const sentIndex = offset + itemIndex
+              if (sentIndex < sentQueue) sentQueueRecords.push(list[sentIndex])
+              else sentMainCacheRecords.push(mainCache[sentIndex - sentQueue])
+            })
+          }
+          offset += chunk.length
+        })
+        writeQueue(removeSentRecords(readQueue(), sentQueueRecords))
+        BuryReport.cache = dropRefs(BuryReport.cache, sentMainCacheRecords)
       } else if (queuePayload.length || cachePayload.length) {
         try {
           await fetch(options.url, {
@@ -318,44 +379,17 @@ function createProxy(options: Options, control: ProxyControl = {}) {
         }
       }
 
-      if (worker && cache.length) {
-        try {
-          worker.postMessage({
-            type: 'report',
-            appid,
-            sessionid: getSessionId(),
-            deviceid: getUuid(),
-            store: cache,
-            keepalive,
-            // 0 表示不限制：worker 内部同样按该次数判断是否停止重试
-            maxRetry: Number.isFinite(maxRetry) ? maxRetry : 0,
-          })
-        } catch (err) {
-          console.warn('[report-core] worker postMessage error: ' + err)
-          // worker 不可用：保留缓存，下个周期降级由主线程发送
-          failed = true
-          window.__BR_WORKER__ = undefined
-        }
-      }
+      if (!keepalive) postWorkerCache()
 
       // 只删除“本次实际投递成功”的那批记录，保留发送期间新进入队列 / 缓存的数据，
       // 避免请求期间产生的新数据在成功时被一并清空导致丢失
       let sentQueueRecords: any[] | undefined
-      if (keepalive) sentQueueRecords = list.slice(0, sentQueue)
-      else if (queueOk) sentQueueRecords = list
+      if (!keepalive && queueOk) sentQueueRecords = list
       if (sentQueueRecords) {
         writeQueue(removeSentRecords(readQueue(), sentQueueRecords))
       }
 
-      if (worker) {
-        // 缓存已交给 worker（worker 内部负责失败重试）；仅 worker 存活时移除已交付的这批
-        if (window.__BR_WORKER__) {
-          BuryReport.cache = dropRefs(BuryReport.cache, cache)
-        }
-      } else if (keepalive) {
-        // 无 worker：只移除预算内已发出的缓存部分，其余留到下次会话
-        BuryReport.cache = dropRefs(BuryReport.cache, cache.slice(0, sentCache))
-      } else if (queueOk) {
+      if (!worker && !keepalive && queueOk) {
         // 无 worker：缓存已并入主线程请求，成功后移除已发出的这批
         BuryReport.cache = dropRefs(BuryReport.cache, cache)
       }

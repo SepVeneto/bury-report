@@ -123,6 +123,25 @@ describe('PerfPlugin', () => {
     expect(c.report).toHaveBeenCalledTimes(1)
   })
 
+  it('免登后立即刷新时，在 pagehide 补采尚未回调的 FCP', async () => {
+    const PerfPlugin = await loadPerf()
+    const c = ctx({ stamp: 'build-stamp' })
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+    expect(c.report).not.toHaveBeenCalled()
+
+    // FCP 已写入 paint 缓冲区，但 PerformanceObserver 回调尚未执行，
+    // 此时业务在免登成功后立即刷新页面。
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntries = () => [fcp(1.234)]
+    dom.document.dispatchEvent({ type: 'pagehide', timeStamp: 2 } as any)
+
+    expect(c.report).toHaveBeenCalledWith(PERF_INFO, {
+      fcp: 1234,
+      if: false,
+      stamp: 'build-stamp',
+    })
+  })
+
   it('首屏隐藏时间早于 FCP 时不上报', async () => {
     const PerfPlugin = await loadPerf()
     const c = ctx()

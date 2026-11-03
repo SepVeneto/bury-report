@@ -8,7 +8,8 @@ import { NetworkPlugin } from '../src/browser/plugins/network'
 import { ErrorPlugin as BrowserErrorPlugin } from '../src/browser/plugins/error'
 import { ErrorPlugin as MpErrorPlugin } from '../src/mp-uni/plugins/error'
 import { getBrowserInfo } from '../src/browser/plugins/collect'
-import { LIFECYCLE, OPERATION_TRACK, REPORT_REQUEST } from '../src/constant'
+import { COLLECT_API, LIFECYCLE, OPERATION_TRACK, REPORT_REQUEST } from '../src/constant'
+import { readQueue } from '../src/utils'
 
 const { takeFullSnapshot, record } = vi.hoisted(() => ({
   takeFullSnapshot: vi.fn(),
@@ -37,6 +38,8 @@ async function flush() {
 
 beforeEach(() => {
   dom.bus.clear()
+  dom.localStorage.clear()
+  dom.sessionStorage.clear()
   vi.useFakeTimers()
   dom.window.XMLHttpRequest = OriginalXHR
   dom.window.history.pushState = originalPushState
@@ -110,6 +113,86 @@ describe('keepalive 分片发送失败', () => {
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining('[report-core] fetch error'),
     )
+  })
+
+  it('keepalive 被浏览器拒绝时保留刷新前日志，供下次会话补发', async () => {
+    let rejectKeepalive: ((reason?: any) => void) | undefined
+    const fetchMock = vi.fn((_url: string, init: any) => {
+      if (!init.keepalive) return Promise.resolve({ ok: true })
+      return new Promise((_resolve, reject) => {
+        rejectKeepalive = reject
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const reporter = new BuryReport({ url: URL, appid: 'a', report: true })
+    reporter.report?.('custom', { action: 'instant-login' }, { flush: true })
+    expect(readQueue().some(item => item.type === 'custom')).toBe(true)
+
+    // 模拟操作后立即刷新：pagehide 发起的 keepalive 请求最终被浏览器拒绝
+    dom.window.dispatchEvent(new Event('pagehide'))
+    expect(fetchMock.mock.calls.some(call => call[1].keepalive)).toBe(true)
+    expect(rejectKeepalive).toBeTypeOf('function')
+    rejectKeepalive?.(new Error('keepalive rejected'))
+    await flush()
+
+    // 请求失败后不能删除本地记录，否则新页面没有机会补发
+    expect(readQueue().filter(item => item.type === 'custom')).toHaveLength(1)
+  })
+
+  it('异步免登成功后立即跳转时，store:false 网络日志由主线程 keepalive 兜底', async () => {
+    const worker = {
+      postMessage: vi.fn(),
+      onmessage: null as any,
+    }
+    vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const reporter = new BuryReport({ url: URL, appid: 'a', report: true })
+    // CommonUserToken 的 XHR loadend 产生网络日志，随后业务立即 safeEnter 跳转
+    reporter.report?.(COLLECT_API, {
+      type: 'success',
+      url: '/api/third/CommonUserToken',
+      status: 200,
+    }, { store: false })
+
+    dom.window.dispatchEvent(new Event('pagehide'))
+    await flush()
+
+    const keepaliveBodies = fetchMock.mock.calls
+      .filter(call => call[1].keepalive)
+      .map(call => JSON.parse(call[1].body))
+    expect(keepaliveBodies.some(body => body.data.some((item: any) => item.type === COLLECT_API))).toBe(true)
+    expect(worker.postMessage).not.toHaveBeenCalled()
+  })
+
+  it('keepalive 时录屏数据仍交给 Worker 的 gzip 通道', async () => {
+    const worker = {
+      postMessage: vi.fn(),
+      onmessage: null as any,
+    }
+    vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const reporter = new BuryReport({ url: URL, appid: 'a', report: true })
+    reporter.report?.(OPERATION_TRACK, {
+      events: [{ type: 3, timestamp: 1, data: {} }],
+    }, { store: false })
+
+    dom.window.dispatchEvent(new Event('pagehide'))
+    await flush()
+
+    expect(worker.postMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'report',
+      keepalive: true,
+      store: [expect.objectContaining({ type: OPERATION_TRACK })],
+    }))
+    const keepaliveBodies = fetchMock.mock.calls
+      .filter(call => call[1].keepalive)
+      .map(call => JSON.parse(call[1].body))
+    expect(keepaliveBodies.every(body => body.data.every((item: any) => item.type !== OPERATION_TRACK))).toBe(true)
   })
 })
 

@@ -214,7 +214,7 @@ describe('要求2：服务端失败不丢客户端数据', () => {
     )
   })
 
-  it('keepalive 只在总量预算内发送，剩余数据保留到下次会话', () => {
+  it('keepalive 只在总量预算内发送，剩余数据保留到下次会话', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetchMock)
     new BuryReport({ url: URL, appid: 'a', report: true })
@@ -226,6 +226,8 @@ describe('要求2：服务端失败不丢客户端数据', () => {
 
     fetchMock.mockClear()
     dom.window.dispatchEvent(new Event('pagehide'))
+    // keepalive 请求确认成功后才清理已发送记录
+    for (let i = 0; i < 5; i++) await Promise.resolve()
 
     const sent = fetchMock.mock.calls.reduce(
       (sum: number, call: any[]) => sum + JSON.parse(call[1].body).data.length,
