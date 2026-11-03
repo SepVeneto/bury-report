@@ -1,3 +1,9 @@
 <template>
-  <ElEmpty description="施工中" />
+  <FcpOverview />
 </template>
+
+<script setup lang="ts">
+import FcpOverview from './components/FcpOverview.vue'
+
+defineOptions({ name: 'DashboardView' })
+</script>

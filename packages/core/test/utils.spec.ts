@@ -45,6 +45,7 @@ describe('withDefault / 配置合并', () => {
     expect(config.collect).toBe(true)
     expect(config.error).toBe(true)
     expect(config.interval).toBe(10)
+    expect(config.fcpThreshold).toBe(2500)
     expect(config.network).toEqual({ enable: false, success: true, fail: true, responseLimit: 100 })
     expect(config.operationRecord).toEqual({
       enable: false,
@@ -54,8 +55,15 @@ describe('withDefault / 配置合并', () => {
   })
 
   it('用户配置覆盖默认值（含嵌套）', () => {
-    const config = withDefault({ url: 'u', appid: 'a', interval: 5, network: { enable: true, fail: false } })
+    const config = withDefault({
+      url: 'u',
+      appid: 'a',
+      interval: 5,
+      fcpThreshold: 2000,
+      network: { enable: true, fail: false },
+    })
     expect(config.interval).toBe(5)
+    expect(config.fcpThreshold).toBe(2000)
     expect(config.network.enable).toBe(true)
     expect(config.network.fail).toBe(false)
     // 未配置的字段保留默认值

@@ -15,6 +15,12 @@
       :config="tableConfig"
       :api="getList"
     >
+      <template #expand="{ row }">
+        <PerfInfoLog
+          :info-id="row.id"
+          :log-type="row.type"
+        />
+      </template>
       <template #uuid="{ row }">
         <DeviceLink
           :uuid="row.uuid"
@@ -28,7 +34,10 @@
         />
       </template>
       <template #data="{ row }">
-        <span>{{ row.data }}</span>
+        <span v-if="row.type === '__BR_PERF_INFO__'">
+          FCP {{ formatPerfFcp(row.data) }}
+        </span>
+        <span v-else>{{ row.data }}</span>
       </template>
     </bc-table>
 
@@ -47,6 +56,7 @@ import UnlimitPagination from '@/components/UnlimitPagination.vue'
 import { useRouter } from 'vue-router'
 import { formatDatetime } from '@/util/tools'
 import UnionSearch from './components/UnionSearch.vue'
+import PerfInfoLog from './components/PerfInfoLog.vue'
 
 defineOptions({
   name: 'LogView',
@@ -59,6 +69,7 @@ const params = ref({
 })
 const tableRef = ref()
 const tableConfig = shallowRef([
+  { type: 'expand' },
   { label: '日志类型', prop: 'type', width: 300 },
   { label: '上报时间', prop: 'create_time', width: 180 },
   { label: '发起时间', prop: 'device_time', width: 180, filter: formatDatetime },
@@ -83,5 +94,19 @@ function getList() {
 }
 function handleSearch() {
   tableRef.value.getList()
+}
+
+function formatPerfFcp(data: unknown) {
+  const record = data && typeof data === 'object'
+    ? data as Record<string, unknown>
+    : {}
+  const fcpMs = Number(record.fcpMs)
+  const legacyFcp = Number(record.fcp)
+  const fcp = Number.isFinite(fcpMs) && fcpMs > 0
+    ? fcpMs
+    : Number.isFinite(legacyFcp) && legacyFcp > 0
+      ? legacyFcp / 1000
+      : 0
+  return `${(fcp / 1000).toFixed(2)} s`
 }
 </script>

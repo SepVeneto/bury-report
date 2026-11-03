@@ -355,16 +355,18 @@ describe('perf 剩余分支', () => {
     expect(c.report).not.toHaveBeenCalled()
   })
 
-  it('非数字 startTime 原样上报', async () => {
+  it('非数字 startTime 无法判断阈值时安全跳过', async () => {
     vi.resetModules()
     const { PerfPlugin } = await import('../src/browser/plugins/perf')
     const c = { options: { url: URL, appid: 'a' }, report: vi.fn() }
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    plugin.handleEntry(entries([{ entryType: 'paint', name: 'first-contentful-paint', startTime: '1.5' }]))
+    expect(() => plugin.handleEntry(entries([
+      { entryType: 'paint', name: 'first-contentful-paint', startTime: '1.5' },
+    ]))).not.toThrow()
 
-    expect(c.report.mock.calls[0][1].fcp).toBe('1.5')
+    expect(c.report).not.toHaveBeenCalled()
   })
 })
 

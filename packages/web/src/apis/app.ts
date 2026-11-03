@@ -103,6 +103,96 @@ export function getAppChart(appid: string, chartType: string) {
   })
 }
 
+export type FcpResourceImpact = {
+  url: string
+  type: string
+  count: number
+  averageResponseTime: number
+  averageDuration: number
+  maxDuration: number
+  averageFcp: number
+  slowCount: number
+  slowRate: number
+}
+
+export type FcpTimelineSample = {
+  id: string
+  create_time: string
+  uuid?: string
+  session?: string
+  fcp: number
+  resourceCount: number
+  requests: {
+    url: string
+    type: string
+    startTime: number
+    responseEnd: number
+    responseTime: number
+    duration: number
+  }[]
+  topResources: {
+    url: string
+    type: string
+    startTime: number
+    responseEnd: number
+    responseTime: number
+    duration: number
+  }[]
+}
+
+export type FcpAnalysis = {
+  range: {
+    start: string
+    end: string
+  }
+  sampleLimit: number
+  sampled: boolean
+  summary: {
+    total: number
+    totalInWindow: number
+    average: number
+    p50: number
+    p75: number
+    p90: number
+    p95: number
+    max: number
+    slowThreshold: number
+    slowCount: number
+    slowRate: number
+    resourceCoverage: number
+  }
+  trend: {
+    date: string
+    count: number
+    average: number
+    p75: number
+    slowRate: number
+  }[]
+  distribution: {
+    label: string
+    count: number
+  }[]
+  resources: FcpResourceImpact[]
+  recentSamples: FcpTimelineSample[]
+  recentSlow: FcpTimelineSample[]
+}
+
+export function getFcpAnalysis(params: {
+  timerange?: string[]
+  threshold?: number
+}) {
+  return request<FcpAnalysis>({
+    url: '/record/fcp-analysis',
+    params: new Query(params).build(),
+  })
+}
+
+export function getFcpInfoDetail(id: string) {
+  return request<FcpTimelineSample>({
+    url: `/record/fcp/${id}`,
+  })
+}
+
 type DeviceCommon = {
   ip?: string
   /**

@@ -12,6 +12,7 @@ const DEFAULT_CONFIG = {
   report: true,
   interval: 10,
   maxRetry: DEFAULT_MAX_RETRY,
+  fcpThreshold: 2500,
   network: {
     enable: false,
     success: true,

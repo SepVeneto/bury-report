@@ -27,6 +27,9 @@ export async function initApp(db: Db) {
       return col.createIndexes([{ key: { uuid: 1, }}, { key: { session: 1 }}])
     })
     await Promise.all(futures)
+    // FCP/日志按类型和时间范围查询
+    await db.collection('records_log').createIndex({ type: 1, create_time: -1 })
+    await db.collection('records_log').createIndex({ uuid: 1, type: 1, create_time: -1 })
   }
 
   {

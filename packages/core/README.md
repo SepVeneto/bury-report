@@ -109,10 +109,23 @@ module.exports = {
 | report | boolean | ❎ | process.env.NODE.ENV === 'production' | 是否发送上报请求。 |
 | error | boolean | ❎ | true | 是否自动上报运行时错误（如JS错误、Promise拒绝） |
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
+| fcpThreshold | number | ❎ | 2500 | FCP 请求时间轴采集阈值，单位毫秒，默认 2.5 秒。FCP 每个会话都会上报；只有 FCP 超过该阈值时才收集并上报 FCP 前完成请求的 Resource Timing 时间轴 |
 | entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
 | network | { enable: boolean, success: boolean, fail: boolean, responseLimit: number } | ❎ | { enable: false, success: true, fail: true, responseLimit: 100 } | 网络请求的上报配置，成功请求由 success 控制，失败请求（非200状态码、超时、主动取消）由 fail 控制，默认对100KB返回内容进行限制 |
 | interval | number | ❎ | 10 | 数据上报的周期，默认每隔10s上传一次 |
 | maxRetry | number | ❎ | 5 | 上报失败后的最大连续重试次数，重试该次数后仍失败则中止一切上报相关的操作（含录屏、错误监听、网络代理）；设为0或负数表示不限制 |
+
+当 FCP 超过 `fcpThreshold` 时，`__BR_PERF_INFO__` 会额外包含
+`resourceCount` 和 `resources`。`resources` 最多保留 200 条在 FCP 前完成的 Resource Timing 请求：
+
+| 字段 | 说明 |
+| :--- | :--- |
+| url | 请求地址，最长保留 1000 字符 |
+| type | Resource Timing 的 `initiatorType`，包括 `script`、`link`、`fetch`、`xmlhttprequest` 等 |
+| startTime | 请求开始时间，单位毫秒 |
+| responseEnd | 请求完成时间，单位毫秒 |
+| responseTime | `responseEnd - requestStart`，单位毫秒 |
+| duration | 资源总耗时 `duration`，单位毫秒 |
 
 ### 关于占用空间
 使用的上报功能不同，需要的空间大小也不一样
