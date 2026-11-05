@@ -118,8 +118,9 @@ export class PerfPlugin implements BuryReportPlugin {
     this.disconnectObserver()
 
     const fcp = this.metrics.fcp?.value
-    const resourceInfo = this.collectResources && fcp !== undefined
-      ? collectResourceTimings(fcp, this.resourceEntries)
+    const lcp = this.metrics.lcp?.value
+    const resourceInfo = this.collectResources && fcp !== undefined && lcp !== undefined
+      ? collectResourceTimings(fcp, lcp, this.resourceEntries)
       : { count: 0, resources: [] } as any
     const ratings: Record<string, Metric['rating']> = {}
     const metricIds: Record<string, string> = {}
@@ -214,6 +215,7 @@ function normalizeFcpThreshold(value: unknown) {
 
 function collectResourceTimings(
   fcpStartTime: number | undefined,
+  lcpStartTime: number,
   rememberedEntries: Map<string, PerformanceResourceTiming>,
 ) {
   const resourceEntries = new Map(rememberedEntries)
@@ -236,7 +238,7 @@ function collectResourceTimings(
   const resources: ResourceTimingInfo[] = []
   for (const entry of resourceEntries.values()) {
     try {
-      const resource = toResourceTiming(entry, fcpStartTime)
+      const resource = toResourceTiming(entry, fcpStartTime, lcpStartTime)
       if (!resource) continue
       resources.push(resource)
       if (resource.phase === 'before-fcp') beforeFcpCount++
@@ -283,9 +285,11 @@ function resourceEntryKey(entry: PerformanceResourceTiming) {
 function toResourceTiming(
   entry: PerformanceResourceTiming,
   fcpStartTime: number | undefined,
+  lcpStartTime: number,
 ): ResourceTimingInfo | undefined {
   const type = String(entry.initiatorType || '')
   const startTime = finiteNumber(entry.startTime, finiteNumber(entry.fetchStart, 0))
+  if (startTime > lcpStartTime) return undefined
   const duration = finiteNumber(entry.duration, 0)
   const responseEnd = finiteNumber(entry.responseEnd, 0) || startTime + duration
   const requestStart = finiteNumber(entry.requestStart, 0)

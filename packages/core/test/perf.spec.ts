@@ -217,6 +217,7 @@ describe('PerfPlugin', () => {
     plugin.init(c as any)
 
     emitVital('FCP', 2000)
+    emitVital('LCP', 3000)
     pageHide()
 
     expect(c.report.mock.calls[0][1]).toMatchObject({
@@ -260,6 +261,7 @@ describe('PerfPlugin', () => {
     ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntries = () => []
     ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => []
     emitVital('FCP', 3000)
+    emitVital('LCP', 4000)
     pageHide()
 
     expect(c.report.mock.calls[0][1].resources[0]).toMatchObject({
@@ -287,6 +289,7 @@ describe('PerfPlugin', () => {
     plugin.init(c as any)
 
     emitVital('FCP', 2000)
+    emitVital('LCP', 3000)
     pageHide()
 
     expect(c.report.mock.calls[0][1].resources[0]).toMatchObject({
@@ -317,6 +320,7 @@ describe('PerfPlugin', () => {
     plugin.init(c as any)
 
     emitVital('FCP', 2000)
+    emitVital('LCP', 3000)
     pageHide()
 
     const data = c.report.mock.calls[0][1]
@@ -337,12 +341,61 @@ describe('PerfPlugin', () => {
     plugin.init(c as any)
 
     emitVital('FCP', 1500)
+    emitVital('LCP', 3000)
     pageHide()
 
     const data = c.report.mock.calls[0][1]
     expect(getEntriesByType).not.toHaveBeenCalled()
     expect(data.fcp).toBe(1500)
     expect(data).not.toHaveProperty('resources')
+  })
+
+  it('资源清单只统计到 LCP，LCP 后发起的请求会被排除', async () => {
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => [
+      resource({
+        name: 'https://cdn.example/before-lcp.js',
+        startTime: 1000,
+        responseEnd: 1500,
+      }),
+      resource({
+        name: 'https://cdn.example/at-lcp.js',
+        startTime: 2500,
+        responseEnd: 3000,
+      }),
+      resource({
+        name: 'https://cdn.example/after-lcp.js',
+        startTime: 3500,
+        responseEnd: 4000,
+      }),
+    ]
+    const PerfPlugin = await loadPerf()
+    const c = ctx({ fcpThreshold: 1000 })
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    emitVital('FCP', 1500)
+    emitVital('LCP', 2500)
+    pageHide()
+
+    const data = c.report.mock.calls[0][1]
+    expect(data.resourceCount).toBe(2)
+    expect(data.resources.map((item: any) => item.url)).toEqual([
+      'https://cdn.example/before-lcp.js',
+      'https://cdn.example/at-lcp.js',
+    ])
+  })
+
+  it('没有 LCP 截止点时不上报资源清单', async () => {
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => [resource({})]
+    const PerfPlugin = await loadPerf()
+    const c = ctx({ fcpThreshold: 1000 })
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    emitVital('FCP', 2000)
+    pageHide()
+
+    expect(c.report.mock.calls[0][1]).not.toHaveProperty('resources')
   })
 
   it('visibilitychange 和 pagehide 只产生一条性能记录', async () => {
@@ -387,6 +440,7 @@ describe('PerfPlugin', () => {
     plugin.init(c as any)
 
     emitVital('FCP', 2000)
+    emitVital('LCP', 3000)
     expect(() => pageHide()).not.toThrow()
 
     expect(c.report.mock.calls[0][1].fcp).toBe(2000)

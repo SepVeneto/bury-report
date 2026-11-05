@@ -109,7 +109,7 @@ module.exports = {
 | report | boolean | ❎ | process.env.NODE.ENV === 'production' | 是否发送上报请求。 |
 | error | boolean | ❎ | true | 是否自动上报运行时错误（如JS错误、Promise拒绝） |
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
-| fcpThreshold | number | ❎ | 2500 | FCP 资源清单采集阈值，单位毫秒。web-vitals 指标始终上报；只有 FCP 超过该阈值时才收集并上报 FCP 前后资源清单 |
+| fcpThreshold | number | ❎ | 2500 | FCP 资源清单采集阈值，单位毫秒。web-vitals 指标始终上报；只有 FCP 超过该阈值时才收集并上报资源清单 |
 | entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
 | network | { enable: boolean, success: boolean, fail: boolean, responseLimit: number } | ❎ | { enable: false, success: true, fail: true, responseLimit: 100 } | 网络请求的上报配置，成功请求由 success 控制，失败请求（非200状态码、超时、主动取消）由 fail 控制，默认对100KB返回内容进行限制 |
 | interval | number | ❎ | 10 | 数据上报的周期，默认每隔10s上传一次 |
@@ -117,8 +117,8 @@ module.exports = {
 
 页面隐藏或触发 `pagehide` 时，`__BR_PERF_INFO__` 会通过 `web-vitals`
 上报 FCP、LCP、INP 和 TTFB，单位均为毫秒。FCP 超过 `fcpThreshold` 时，
-同一记录还会包含 FCP 前后发起的 Resource Timing 资源清单；总数超过 200 条时，
-FCP 前后两个阶段各保留 100 条。
+同一记录还会包含 `startTime <= LCP` 的 Resource Timing 资源清单，清单中的
+请求仍用 FCP 标记发起和完成阶段；总数超过 200 条时，FCP 前后两个阶段各保留 100 条。
 
 | 字段 | 说明 |
 | :--- | :--- |
