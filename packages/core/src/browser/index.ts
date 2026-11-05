@@ -111,8 +111,13 @@ export class BuryReport implements BuryReportBase {
     BuryReport.pluginsOrder = BuryReport.pluginsOrder.filter(plugin => shouldEnablePlugin(plugin, this.options))
     this.triggerPlugin('init')
 
+    // visibilitychange(hidden) 与 pagehide 通常连续触发。第一次事件已经通过
+    // keepalive flush 队列，第二次只做录屏收尾，避免同一批记录并发发送两遍。
+    let hiddenLifecycleReported = false
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'hidden') {
+        if (hiddenLifecycleReported) return
+        hiddenLifecycleReported = true
         const operation: any = BuryReport.pluginsOrder.find(item => item.name === 'OperationRecordPlugin')
         if (operation && operation.collect) {
           operation.collect()
@@ -123,6 +128,8 @@ export class BuryReport implements BuryReportBase {
           flush: true,
           keepalive: true,
         })
+      } else {
+        hiddenLifecycleReported = false
       }
     })
     window.addEventListener('pagehide', (evt) => {
@@ -130,6 +137,8 @@ export class BuryReport implements BuryReportBase {
       if (operation && operation.collect) {
         operation.collect()
       }
+      if (hiddenLifecycleReported) return
+      hiddenLifecycleReported = true
       this.report?.(LIFECYCLE, { t: 'pagehide', c: evt.persisted }, {
         immediate: true,
         store: true,

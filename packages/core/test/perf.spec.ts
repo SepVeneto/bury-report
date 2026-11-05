@@ -179,10 +179,6 @@ describe('PerfPlugin', () => {
       navigationType: 'navigate',
       if: false,
       stamp: 'build-stamp',
-    }, {
-      immediate: true,
-      flush: true,
-      keepalive: true,
     })
     expect(FakeObserver.instances[0].disconnect).toHaveBeenCalledTimes(1)
   })
@@ -530,5 +526,29 @@ describe('PerfPlugin', () => {
 
     expect(c.report).not.toHaveBeenCalled()
     expect(FakeObserver.instances[0].disconnect).toHaveBeenCalledTimes(1)
+  })
+
+  it('页面隐藏时 PERF_INFO 只随 Lifecycle 发送一次', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    const { BuryReport } = await import('../src/browser/index')
+    new BuryReport({
+      url: 'http://report.example/record',
+      appid: 'perf-check',
+      report: true,
+    })
+
+    emitVital('TTFB', 100)
+    emitVital('FCP', 1500)
+    emitVital('LCP', 2500)
+    dom.document.visibilityState = 'hidden'
+    dom.document.dispatchEvent({ type: 'visibilitychange' })
+    dom.document.dispatchEvent({ type: 'pagehide' })
+
+    const records = fetchMock.mock.calls.flatMap(call => {
+      const body = JSON.parse(call[1].body)
+      return body.data || []
+    })
+    expect(records.filter((item: any) => item.type === PERF_INFO)).toHaveLength(1)
   })
 })

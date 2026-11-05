@@ -155,10 +155,6 @@ export class PerfPlugin implements BuryReportPlugin {
             resources: resourceInfo.resources,
           }
         : {}),
-    }, {
-      immediate: true,
-      flush: true,
-      keepalive: true,
     })
   }
 
