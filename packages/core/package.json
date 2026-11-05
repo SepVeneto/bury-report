@@ -65,10 +65,10 @@
     }
   },
   "dependencies": {
-    "unplugin": "^1.5.1",
-    "web-vitals": "^6.2.3"
+    "unplugin": "^1.5.1"
   },
   "devDependencies": {
+    "web-vitals": "^6.2.3",
     "@babel/parser": "^7.23.6",
     "@dcloudio/types": "^3.4.3",
     "@rrweb/record": "2.0.0-alpha.18",
