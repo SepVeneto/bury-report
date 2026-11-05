@@ -94,7 +94,7 @@ pnpm test:coverage
 | `test/browser-plugins.spec.ts` / `test/network-extra.spec.ts` | NetworkPlugin 的 success/fail 开关、传输异常（abort/error/timeout）、体积与响应头截断、performance profile 采集 |
 | `test/error-branches.spec.ts` / `test/error-console.spec.ts` / `test/error-extra.spec.ts` | ErrorPlugin 的错误归一化（Error/字符串/对象/null/循环引用）、资源与脚本错误、console.error 代理兜底 |
 | `test/collect-info.spec.ts` | CollectPlugin 的环境采集：iOS/Android/iPadOS/Windows/macOS/Linux/Other 识别、浏览器与 IE 版本、屏幕方向、主题、窗口尺寸与 CSS 变量边距、iOS 横屏屏幕修正 |
-| `test/perf.spec.ts` / `test/edge-cases.spec.ts` | PerfPlugin 的全量 FCP 上报、请求时间轴阈值、FCP 前请求采集、隐藏时间与超时判定、iframe 判定、observer 生命周期及异常隔离 |
+| `test/perf.spec.ts` / `test/edge-cases.spec.ts` | PerfPlugin 基于 web-vitals 上报 FCP/LCP/INP/TTFB、页面隐藏统一上报、阈值命中时采集 FCP 前后资源清单、动态异步资源、跨域计时保护、iframe 判定、observer 生命周期及异常隔离 |
 | `test/operation-record.spec.ts` / `test/operation-record-extra.spec.ts` | 录屏批处理、检查点重建、路由懒快照与节流、rAF/setTimeout 兜底、增强插件观察器、原子上报 |
 | `test/worker.spec.ts` / `test/worker-extra.spec.ts` | worker 内部上报：分片、gzip 录屏协议、失败重试与上限、排序、未知消息 |
 | `test/polyfill.spec.ts` / `test/misc-extra.spec.ts` | iOS13 `Uint8Array.from` 手动实现与幂等性 |

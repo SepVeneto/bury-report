@@ -1,17 +1,32 @@
 <template>
   <div class="fcp-timeline">
+    <div
+      v-if="sample"
+      class="metrics-grid"
+    >
+      <div
+        v-for="item in metrics"
+        :key="item.name"
+        class="metric-card"
+      >
+        <span>{{ item.label }}</span>
+        <strong>{{ formatSeconds(item.value) }}</strong>
+        <small v-if="item.rating">{{ item.rating }}</small>
+      </div>
+    </div>
+
     <div class="timeline-legend">
       <ElTag
         type="success"
         effect="plain"
       >
-        FCP 前 API 请求
+        FCP 前发起
       </ElTag>
       <ElTag
         type="warning"
         effect="plain"
       >
-        FCP 前资源请求
+        FCP 后发起
       </ElTag>
       <span class="legend-note">鼠标悬停请求可查看详细计时信息</span>
     </div>
@@ -50,6 +65,8 @@
                 <dd>{{ request.type }}</dd>
                 <dt>关系</dt>
                 <dd>{{ requestRelation(request) }}</dd>
+                <dt>完成阶段</dt>
+                <dd>{{ completionRelation(request) }}</dd>
                 <dt>开始</dt>
                 <dd>{{ formatSeconds(request.startTime) }}</dd>
                 <dt>完成</dt>
@@ -64,13 +81,16 @@
 
           <div
             class="request-row"
-            :class="{ 'is-api': isApiRequest(request) }"
+            :class="{
+              'is-api': isApiRequest(request),
+              'is-after-fcp': request.phase === 'after-fcp',
+            }"
           >
             <div class="request-name">
               <ElTag
                 size="small"
                 effect="plain"
-                :type="isApiRequest(request) ? 'success' : 'warning'"
+                :type="request.phase === 'after-fcp' ? 'warning' : 'success'"
               >
                 {{ request.type }}
               </ElTag>
@@ -94,7 +114,7 @@
 
     <ElEmpty
       v-else
-      description="该 FCP 样本没有 FCP 前完成的请求"
+      description="该性能样本没有资源请求"
     />
   </div>
 </template>
@@ -107,9 +127,15 @@ const props = defineProps<{
   sample?: FcpTimelineSample
 }>()
 
+const metrics = computed(() => [
+  { name: 'fcp', label: 'FCP', value: props.sample?.fcp, rating: props.sample?.ratings?.fcp },
+  { name: 'lcp', label: 'LCP', value: props.sample?.lcp, rating: props.sample?.ratings?.lcp },
+  { name: 'inp', label: 'INP', value: props.sample?.inp, rating: props.sample?.ratings?.inp },
+  { name: 'ttfb', label: 'TTFB', value: props.sample?.ttfb, rating: props.sample?.ratings?.ttfb },
+])
+
 const requests = computed(() => {
   return [...(props.sample?.requests || [])]
-    .filter(item => item.responseEnd <= (props.sample?.fcp || 0))
     .sort((a, b) => a.startTime - b.startTime)
 })
 const totalTime = computed(() => {
@@ -137,10 +163,22 @@ function isApiRequest(request: FcpTimelineSample['requests'][number]) {
 }
 
 function requestRelation(request: FcpTimelineSample['requests'][number]) {
-  return isApiRequest(request) ? 'FCP 前 API 请求' : 'FCP 前资源请求'
+  const phase = request.phase === 'after-fcp'
+    ? 'FCP 后发起'
+    : request.phase === 'before-fcp'
+      ? 'FCP 前发起'
+      : 'FCP 阶段未知'
+  return `${phase}的${isApiRequest(request) ? ' API 请求' : '资源请求'}`
 }
 
-function formatSeconds(value: number) {
+function completionRelation(request: FcpTimelineSample['requests'][number]) {
+  if (request.responsePhase === 'before-fcp') return 'FCP 前完成'
+  if (request.responsePhase === 'after-fcp') return 'FCP 后完成'
+  return '完成阶段未知'
+}
+
+function formatSeconds(value: number | null | undefined) {
+  if (value === null || value === undefined) return '不可用'
   return `${((Number(value) || 0) / 1000).toFixed(2)} s`
 }
 
@@ -153,6 +191,34 @@ function shortUrl(url: string, max = 58) {
 <style lang="scss" scoped>
 .fcp-timeline {
   min-width: 0;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.metric-card {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 8px;
+  background: var(--el-fill-color-extra-light);
+
+  span,
+  small {
+    color: var(--el-text-color-secondary);
+    font-size: 11px;
+  }
+
+  strong {
+    color: var(--el-text-color-primary);
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .timeline-legend {
@@ -274,6 +340,10 @@ function shortUrl(url: string, max = 58) {
   background: #67c23a;
 }
 
+.request-row.is-after-fcp .request-bar {
+  opacity: 0.6;
+}
+
 .fcp-line {
   position: absolute;
   z-index: 2;
@@ -321,6 +391,10 @@ function shortUrl(url: string, max = 58) {
 }
 
 @media (max-width: 900px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+
   .timeline-head,
   .request-row {
     grid-template-columns: minmax(180px, 40%) minmax(220px, 1fr) 75px;

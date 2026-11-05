@@ -336,40 +336,6 @@ describe('小程序周期发送失败重排', () => {
   })
 })
 
-describe('perf 剩余分支', () => {
-  function entries(list: any[]) {
-    return { getEntries: () => list } as any
-  }
-
-  it('页面加载时已隐藏则不记录首屏隐藏时间', async () => {
-    Object.defineProperty(dom.document, 'visibilityState', { value: 'hidden', configurable: true })
-    vi.resetModules()
-    const { PerfPlugin } = await import('../src/browser/plugins/perf')
-    Object.defineProperty(dom.document, 'visibilityState', { value: 'visible', configurable: true })
-
-    const c = { options: { url: URL, appid: 'a' }, report: vi.fn() }
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-    plugin.handleEntry(entries([{ entryType: 'paint', name: 'first-contentful-paint', startTime: 1 }]))
-
-    expect(c.report).not.toHaveBeenCalled()
-  })
-
-  it('非数字 startTime 无法判断阈值时安全跳过', async () => {
-    vi.resetModules()
-    const { PerfPlugin } = await import('../src/browser/plugins/perf')
-    const c = { options: { url: URL, appid: 'a' }, report: vi.fn() }
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    expect(() => plugin.handleEntry(entries([
-      { entryType: 'paint', name: 'first-contentful-paint', startTime: '1.5' },
-    ]))).not.toThrow()
-
-    expect(c.report).not.toHaveBeenCalled()
-  })
-})
-
 describe('OperationRecordPlugin hook 幂等', () => {
   it('重复 hook 只包装一次 history', () => {
     const report = vi.fn()

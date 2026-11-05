@@ -1,69 +1,50 @@
 import { PERF_INFO } from '@/constant'
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
+import { onFCP, onINP, onLCP, onTTFB } from 'web-vitals'
+import type { Metric } from 'web-vitals'
 
-const ONE_SECOND = 1e3
-const ONE_MINUTE = 60 * ONE_SECOND
-const TIMING_MAXIMUM_DELAY = 10 * ONE_MINUTE
-const MAX_FCP_REQUESTS = 200
+const PERF_SCHEMA_VERSION = 2
+const TIMING_MAXIMUM_DELAY = 10 * 60 * 1000
+const MAX_PERF_RESOURCES = 200
+const MAX_RESOURCES_PER_PHASE = MAX_PERF_RESOURCES / 2
 const MAX_RESOURCE_URL_LENGTH = 1000
 
-const firstHidden = { timestamp: Infinity }
-try {
-  if (document.visibilityState === 'hidden') {
-    firstHidden.timestamp = 0
-  } else {
-    const cb = (evt: Event) => {
-      firstHidden.timestamp = evt.timeStamp
-      document.removeEventListener('pagehide', cb)
-    }
-    document.addEventListener('pagehide', cb)
-  }
-} catch {
-  // 页面生命周期 API 不可用时仍保留 FCP 采集能力
-}
+type PerfMetricName = 'fcp' | 'lcp' | 'inp' | 'ttfb'
+type ResourcePhase = 'before-fcp' | 'after-fcp' | 'unknown'
 
-function isNumber(value: any) {
-  return typeof value === 'number'
-}
-
-function formatTime(time: any) {
-  if (!isNumber(time)) {
-    return time
-  }
-  return round(time * 1e3, 0)
-}
-function round(num: number, decimals: number) {
-  return +num.toFixed(decimals)
+type CapturedMetric = {
+  value: number
+  rating: Metric['rating']
+  id: string
+  navigationType: Metric['navigationType']
 }
 
 export class PerfPlugin implements BuryReportPlugin {
   public name = 'paintPlugin'
   private ctx?: BuryReport
   private observer?: PerformanceObserver
-  private finished = false
+  private reported = false
+  private collectResources = false
+  private metrics: Partial<Record<PerfMetricName, CapturedMetric>> = {}
+  private resourceEntries = new Map<string, PerformanceResourceTiming>()
 
   init(ctx: BuryReport) {
     this.ctx = ctx
+    this.observeResources()
+    this.observeWebVitals()
+
     try {
+      document.addEventListener('visibilitychange', this.onVisibilityChange)
       document.addEventListener('pagehide', this.onPageHide)
     } catch (err) {
       warn(err)
     }
+  }
 
+  private onVisibilityChange = () => {
     try {
-      if (supportPerformanceObject()) {
-        this.handleEntry(performance)
-      }
-    } catch (err) {
-      warn(err)
-    }
-
-    try {
-      if (window.PerformanceObserver) {
-        this.observer = new PerformanceObserver(list => {
-          this.handleEntry(list)
-        })
-        this.observer.observe({ entryTypes: ['paint'] })
+      if (document.visibilityState === 'hidden') {
+        this.report()
       }
     } catch (err) {
       warn(err)
@@ -72,63 +53,119 @@ export class PerfPlugin implements BuryReportPlugin {
 
   private onPageHide = () => {
     try {
-      this.collect()
+      this.report()
     } catch (err) {
       warn(err)
     }
   }
 
-  private collect() {
-    if (!this.finished && this.ctx && supportPerformanceObject()) {
-      this.handleEntry(performance)
-    }
+  private observeWebVitals() {
+    observeMetric(onFCP, metric => this.rememberMetric('fcp', metric))
+    observeMetric(onLCP, metric => this.rememberMetric('lcp', metric))
+    observeMetric(onINP, metric => this.rememberMetric('inp', metric))
+    observeMetric(onTTFB, metric => this.rememberMetric('ttfb', metric))
   }
 
-  handleEntry(entries: PerformanceObserverEntryList) {
+  private observeResources() {
     try {
-      if (this.finished) return
-
-      const fcpEntry = entries.getEntries().find(entry => {
-        return entry.entryType === 'paint' && entry.name === 'first-contentful-paint'
-      })
-
-      if (!fcpEntry) return
-
-      this.finished = true
-      this.disconnectObserver()
-
-      if (fcpEntry.startTime >= firstHidden.timestamp || fcpEntry.startTime >= TIMING_MAXIMUM_DELAY) {
-        return
-      }
-
-      const threshold = normalizeFcpThreshold(this.ctx?.options.fcpThreshold)
-      if (!isNumber(fcpEntry.startTime)) return
-
-      const fcp = formatTime(fcpEntry.startTime)
-      // FCP 每个会话都上报；只有慢 FCP 才继续采集请求时间轴。
-      const resourceInfo = fcpEntry.startTime > threshold
-        ? collectResourceTimings(fcpEntry.startTime)
-        : { count: 0, resources: [] }
-      this.ctx?.report?.(PERF_INFO, {
-        fcp,
-        if: isInIframe(),
-        stamp: this.ctx?.options.stamp || '',
-        ...(resourceInfo.resources.length
-          ? {
-              resourceCount: resourceInfo.count,
-              resources: resourceInfo.resources,
-            }
-          : {}),
-      })
+      if (!supportPerformanceObject()) return
+      this.rememberResourceEntries(performance.getEntries())
     } catch (err) {
       warn(err)
     }
+
+    try {
+      if (!window.PerformanceObserver) return
+      this.observer = new PerformanceObserver(list => {
+        try {
+          this.rememberResourceEntries(list.getEntries())
+        } catch (err) {
+          warn(err)
+        }
+      })
+      try {
+        this.observer.observe({ type: 'resource', buffered: true })
+      } catch {
+        this.observer.observe({ entryTypes: ['resource'] })
+      }
+    } catch (err) {
+      warn(err)
+    }
+  }
+
+  private rememberMetric(name: PerfMetricName, metric: Metric) {
+    if (this.reported || !isNumber(metric.value) || metric.value < 0) return
+    if (name === 'fcp' && (metric.value === 0 || metric.value >= TIMING_MAXIMUM_DELAY)) return
+    if (name === 'fcp') {
+      const threshold = normalizeFcpThreshold(this.ctx?.options.fcpThreshold)
+      this.collectResources = metric.value > threshold
+      if (!this.collectResources) {
+        this.resourceEntries.clear()
+        this.disconnectObserver()
+      }
+    }
+    this.metrics[name] = {
+      value: round(metric.value, 1),
+      rating: metric.rating,
+      id: String(metric.id || ''),
+      navigationType: metric.navigationType,
+    }
+  }
+
+  private report() {
+    if (this.reported || !this.ctx) return
+    this.reported = true
+    this.disconnectObserver()
+
+    const fcp = this.metrics.fcp?.value
+    const resourceInfo = this.collectResources && fcp !== undefined
+      ? collectResourceTimings(fcp, this.resourceEntries)
+      : { count: 0, resources: [] } as any
+    const ratings: Record<string, Metric['rating']> = {}
+    const metricIds: Record<string, string> = {}
+    for (const [name, metric] of Object.entries(this.metrics)) {
+      if (!metric) continue
+      ratings[name] = metric.rating
+      metricIds[name] = metric.id
+    }
+    const navigationType = this.metrics.fcp?.navigationType ||
+      this.metrics.lcp?.navigationType ||
+      this.metrics.inp?.navigationType ||
+      this.metrics.ttfb?.navigationType
+
+    this.ctx.report?.(PERF_INFO, {
+      perfVersion: PERF_SCHEMA_VERSION,
+      fcp: this.metrics.fcp?.value ?? null,
+      lcp: this.metrics.lcp?.value ?? null,
+      inp: this.metrics.inp?.value ?? null,
+      ttfb: this.metrics.ttfb?.value ?? null,
+      ratings,
+      metricIds,
+      ...(navigationType ? { navigationType } : {}),
+      if: isInIframe(),
+      stamp: this.ctx.options.stamp || '',
+      ...(resourceInfo.resources.length
+        ? {
+            resourceCount: resourceInfo.count,
+            resourcesBeforeFcp: resourceInfo.beforeFcpCount,
+            resourcesAfterFcp: resourceInfo.afterFcpCount,
+            resourcesCompletedBeforeFcp: resourceInfo.completedBeforeFcpCount,
+            resourcesCompletedAfterFcp: resourceInfo.completedAfterFcpCount,
+            resources: resourceInfo.resources,
+          }
+        : {}),
+    }, {
+      immediate: true,
+      flush: true,
+      keepalive: true,
+    })
   }
 
   // 上报重试耗尽后不再观察性能条目
   destroy() {
-    this.finished = true
+    this.reported = true
     try {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange)
       document.removeEventListener('pagehide', this.onPageHide)
       this.disconnectObserver()
     } catch (err) {
@@ -145,14 +182,24 @@ export class PerfPlugin implements BuryReportPlugin {
       this.observer = undefined
     }
   }
+
+  private rememberResourceEntries(entries: PerformanceEntry[]) {
+    for (const entry of entries) {
+      if (entry.entryType !== 'resource') continue
+      const resource = entry as PerformanceResourceTiming
+      this.resourceEntries.set(resourceEntryKey(resource), resource)
+    }
+  }
 }
 
 type ResourceTimingInfo = {
   url: string
   type: string
+  phase: ResourcePhase
+  responsePhase: ResourcePhase
   startTime: number
   responseEnd: number
-  responseTime: number
+  responseTime: number | null
   duration: number
 }
 
@@ -165,54 +212,131 @@ function normalizeFcpThreshold(value: unknown) {
   }
 }
 
-function collectResourceTimings(fcpStartTime: number) {
-  const resources: ResourceTimingInfo[] = []
-  let count = 0
+function collectResourceTimings(
+  fcpStartTime: number | undefined,
+  rememberedEntries: Map<string, PerformanceResourceTiming>,
+) {
+  const resourceEntries = new Map(rememberedEntries)
+  let beforeFcpCount = 0
+  let afterFcpCount = 0
+  let completedBeforeFcpCount = 0
+  let completedAfterFcpCount = 0
 
   try {
     const entries = typeof performance.getEntriesByType === 'function'
       ? performance.getEntriesByType('resource')
       : performance.getEntries().filter(entry => entry.entryType === 'resource')
-    for (const entry of entries) {
-      try {
-        const resource = toResourceTiming(entry as PerformanceResourceTiming, fcpStartTime)
-        if (!resource) continue
-        count++
-        if (resources.length < MAX_FCP_REQUESTS) {
-          resources.push(resource)
-        }
-      } catch {
-        // 单条 Resource Timing 异常不影响其余资源和 FCP 上报
-      }
+    for (const entry of entries as PerformanceResourceTiming[]) {
+      resourceEntries.set(resourceEntryKey(entry), entry)
     }
   } catch (err) {
     warn(err)
   }
 
-  return { count, resources }
+  const resources: ResourceTimingInfo[] = []
+  for (const entry of resourceEntries.values()) {
+    try {
+      const resource = toResourceTiming(entry, fcpStartTime)
+      if (!resource) continue
+      resources.push(resource)
+      if (resource.phase === 'before-fcp') beforeFcpCount++
+      if (resource.phase === 'after-fcp') afterFcpCount++
+      if (resource.responsePhase === 'before-fcp') completedBeforeFcpCount++
+      if (resource.responsePhase === 'after-fcp') completedAfterFcpCount++
+    } catch {
+      // 单条 Resource Timing 异常不影响其余指标和资源上报
+    }
+  }
+
+  resources.sort((a, b) => a.startTime - b.startTime)
+  return {
+    count: resources.length,
+    beforeFcpCount,
+    afterFcpCount,
+    completedBeforeFcpCount,
+    completedAfterFcpCount,
+    resources: limitResources(resources),
+  }
+}
+
+function limitResources(resources: ResourceTimingInfo[]) {
+  if (resources.length <= MAX_PERF_RESOURCES) return resources
+
+  const beforeFcp = resources.filter(item => item.phase === 'before-fcp')
+    .slice(-MAX_RESOURCES_PER_PHASE)
+  const afterFcp = resources.filter(item => item.phase === 'after-fcp')
+    .slice(0, MAX_RESOURCES_PER_PHASE)
+  const selected = beforeFcp.length || afterFcp.length
+    ? [...beforeFcp, ...afterFcp]
+    : resources.slice(0, MAX_PERF_RESOURCES)
+  return selected.sort((a, b) => a.startTime - b.startTime)
+}
+
+function resourceEntryKey(entry: PerformanceResourceTiming) {
+  return [
+    String(entry.name || ''),
+    finiteNumber(entry.startTime, 0),
+    finiteNumber(entry.responseEnd, 0),
+  ].join('|')
 }
 
 function toResourceTiming(
   entry: PerformanceResourceTiming,
-  fcpStartTime: number,
+  fcpStartTime: number | undefined,
 ): ResourceTimingInfo | undefined {
   const type = String(entry.initiatorType || '')
-
-  const startTime = finiteNumber(entry.startTime, 0)
+  const startTime = finiteNumber(entry.startTime, finiteNumber(entry.fetchStart, 0))
   const duration = finiteNumber(entry.duration, 0)
-  const responseEnd = finiteNumber(entry.responseEnd, startTime + duration)
-  if (responseEnd <= 0) return undefined
-  if (responseEnd > fcpStartTime) return undefined
+  const responseEnd = finiteNumber(entry.responseEnd, 0) || startTime + duration
+  const requestStart = finiteNumber(entry.requestStart, 0)
+  const phase: ResourcePhase = fcpStartTime === undefined
+    ? 'unknown'
+    : startTime <= fcpStartTime
+      ? 'before-fcp'
+      : 'after-fcp'
+  const responsePhase: ResourcePhase = fcpStartTime === undefined
+    ? 'unknown'
+    : responseEnd <= fcpStartTime
+      ? 'before-fcp'
+      : 'after-fcp'
 
-  const requestStart = finiteNumber(entry.requestStart, startTime)
   return {
     url: String(entry.name || '').slice(0, MAX_RESOURCE_URL_LENGTH),
     type: type || 'other',
+    phase,
+    responsePhase,
     startTime: round(startTime, 0),
     responseEnd: round(responseEnd, 0),
-    responseTime: Math.max(0, round(responseEnd - requestStart, 0)),
-    duration: Math.max(0, round(duration || responseEnd - startTime, 0)),
+
+    // 跨域且没有 TAO 授权时，计时细节会被浏览器归零，无法准确计算。
+    responseTime: requestStart > 0
+      ? Math.max(0, round(responseEnd - requestStart, 0))
+      : null,
+
+    duration: Math.max(
+      0,
+      round(duration || responseEnd - startTime, 0),
+    ),
   }
+}
+
+function observeMetric(
+  register: (callback: (metric: Metric) => void) => void,
+  callback: (metric: Metric) => void,
+) {
+  try {
+    register(callback)
+  } catch (err) {
+    warn(err)
+  }
+}
+
+function isNumber(value: any) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function round(num: number, decimals: number) {
+  return +num.toFixed(decimals)
 }
 
 function finiteNumber(value: unknown, fallback: number) {

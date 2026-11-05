@@ -399,7 +399,8 @@ function resizeCharts() {
   resourceChart.value?.resize()
 }
 
-function formatSeconds(value: number) {
+function formatSeconds(value: number | null | undefined) {
+  if (value === null || value === undefined) return '不可用'
   return `${((Number(value) || 0) / 1000).toFixed(2)} s`
 }
 

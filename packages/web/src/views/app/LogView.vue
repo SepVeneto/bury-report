@@ -35,7 +35,7 @@
       </template>
       <template #data="{ row }">
         <span v-if="row.type === '__BR_PERF_INFO__'">
-          FCP {{ formatPerfFcp(row.data) }}
+          {{ formatPerfMetrics(row.data) }}
         </span>
         <span v-else>{{ row.data }}</span>
       </template>
@@ -96,10 +96,22 @@ function handleSearch() {
   tableRef.value.getList()
 }
 
-function formatPerfFcp(data: unknown) {
+function formatPerfMetrics(data: unknown) {
   const record = data && typeof data === 'object'
     ? data as Record<string, unknown>
     : {}
+  if (Number(record.perfVersion) >= 2) {
+    return [
+      ['FCP', record.fcp],
+      ['LCP', record.lcp],
+      ['INP', record.inp],
+      ['TTFB', record.ttfb],
+    ]
+      .filter(([, value]) => value !== null && value !== undefined && Number.isFinite(Number(value)))
+      .map(([name, value]) => `${name} ${(Number(value) / 1000).toFixed(2)}s`)
+      .join(' · ')
+  }
+
   const fcpMs = Number(record.fcpMs)
   const legacyFcp = Number(record.fcp)
   const fcp = Number.isFinite(fcpMs) && fcpMs > 0
@@ -107,6 +119,6 @@ function formatPerfFcp(data: unknown) {
     : Number.isFinite(legacyFcp) && legacyFcp > 0
       ? legacyFcp / 1000
       : 0
-  return `${(fcp / 1000).toFixed(2)} s`
+  return `FCP ${(fcp / 1000).toFixed(2)} s`
 }
 </script>

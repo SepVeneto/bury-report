@@ -107,7 +107,7 @@ export type FcpResourceImpact = {
   url: string
   type: string
   count: number
-  averageResponseTime: number
+  averageResponseTime: number | null
   averageDuration: number
   maxDuration: number
   averageFcp: number
@@ -121,21 +121,31 @@ export type FcpTimelineSample = {
   uuid?: string
   session?: string
   fcp: number
+  lcp?: number | null
+  inp?: number | null
+  ttfb?: number | null
+  ratings?: Record<string, string>
+  metricIds?: Record<string, string>
+  navigationType?: string
   resourceCount: number
   requests: {
     url: string
     type: string
+    phase: 'before-fcp' | 'after-fcp' | 'unknown'
+    responsePhase: 'before-fcp' | 'after-fcp' | 'unknown'
     startTime: number
     responseEnd: number
-    responseTime: number
+    responseTime: number | null
     duration: number
   }[]
   topResources: {
     url: string
     type: string
+    phase: 'before-fcp' | 'after-fcp' | 'unknown'
+    responsePhase: 'before-fcp' | 'after-fcp' | 'unknown'
     startTime: number
     responseEnd: number
-    responseTime: number
+    responseTime: number | null
     duration: number
   }[]
 }

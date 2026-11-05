@@ -34,6 +34,12 @@ router.get('/record/logs', async (ctx) => {
       item.data = {
         fcp: item.data.fcp,
         fcpMs: item.data.fcpMs,
+        lcp: item.data.lcp,
+        inp: item.data.inp,
+        ttfb: item.data.ttfb,
+        perfVersion: item.data.perfVersion,
+        ratings: item.data.ratings,
+        navigationType: item.data.navigationType,
       }
     }
   })
@@ -182,9 +188,11 @@ const FCP_DISTRIBUTION = [
 type FcpResourceSample = {
   url: string
   type: string
+  phase: 'before-fcp' | 'after-fcp' | 'unknown'
+  responsePhase: 'before-fcp' | 'after-fcp' | 'unknown'
   startTime: number
   responseEnd: number
-  responseTime: number
+  responseTime: number | null
   duration: number
 }
 
@@ -194,6 +202,12 @@ type FcpSample = {
   uuid?: string
   session?: string
   fcp: number
+  lcp?: number | null
+  inp?: number | null
+  ttfb?: number | null
+  ratings?: Record<string, string>
+  metricIds?: Record<string, string>
+  navigationType?: string
   resourceCount: number
   resources: FcpResourceSample[]
 }
@@ -213,6 +227,13 @@ type FcpAnalysisDocument = {
   data?: {
     fcp?: unknown
     fcpMs?: unknown
+    lcp?: unknown
+    inp?: unknown
+    ttfb?: unknown
+    perfVersion?: unknown
+    ratings?: unknown
+    metricIds?: unknown
+    navigationType?: unknown
     resourceCount?: unknown
     resources?: unknown
   }
@@ -230,6 +251,7 @@ export function buildFcpAnalysis(docs: FcpAnalysisDocument[], options: FcpAnalys
     type: string
     count: number
     responseTimeSum: number
+    responseTimeCount: number
     durationSum: number
     maxDuration: number
     fcpSum: number
@@ -249,13 +271,17 @@ export function buildFcpAnalysis(docs: FcpAnalysisDocument[], options: FcpAnalys
         type: resource.type || 'other',
         count: 0,
         responseTimeSum: 0,
+        responseTimeCount: 0,
         durationSum: 0,
         maxDuration: 0,
         fcpSum: 0,
         slowCount: 0,
       }
       item.count++
-      item.responseTimeSum += resource.responseTime
+      if (resource.responseTime !== null) {
+        item.responseTimeSum += resource.responseTime
+        item.responseTimeCount++
+      }
       item.durationSum += resource.duration
       item.maxDuration = Math.max(item.maxDuration, resource.duration)
       item.fcpSum += sample.fcp
@@ -269,7 +295,9 @@ export function buildFcpAnalysis(docs: FcpAnalysisDocument[], options: FcpAnalys
       url: item.url,
       type: item.type,
       count: item.count,
-      averageResponseTime: round(item.responseTimeSum / item.count),
+      averageResponseTime: item.responseTimeCount
+        ? round(item.responseTimeSum / item.responseTimeCount)
+        : null,
       averageDuration: round(item.durationSum / item.count),
       maxDuration: round(item.maxDuration),
       averageFcp: round(item.fcpSum / item.count),
@@ -337,7 +365,13 @@ function toTimelineSample(item: FcpSample) {
     uuid: item.uuid,
     session: item.session,
     fcp: round(item.fcp),
-    resourceCount: item.resourceCount,
+    lcp: item.lcp,
+    inp: item.inp,
+    ttfb: item.ttfb,
+    ratings: item.ratings,
+    metricIds: item.metricIds,
+    navigationType: item.navigationType,
+    resourceCount: Math.max(item.resourceCount, item.resources.length),
     requests: [...item.resources].sort((a, b) => a.startTime - b.startTime),
     topResources: [...item.resources]
       .sort((a, b) => b.duration - a.duration)
@@ -348,10 +382,16 @@ function toTimelineSample(item: FcpSample) {
 function toFcpSample(doc: FcpAnalysisDocument): FcpSample | undefined {
   const data = doc?.data
   if (!data || typeof data !== 'object') return
+  const perfVersion = normalizeNumber(data.perfVersion, 0)
   const fcpMs = Number(data.fcpMs)
+  const reportedFcp = perfVersion >= 2
+    ? normalizeOptionalNumber(data.fcp)
+    : null
   const legacyFcp = Number(data.fcp)
   // 旧版 SDK 将 PerformanceEntry.startTime（毫秒）再次乘以 1000 后上报。
-  const fcp = Number.isFinite(fcpMs) && fcpMs > 0
+  const fcp = reportedFcp !== null
+    ? reportedFcp
+    : Number.isFinite(fcpMs) && fcpMs > 0
     ? fcpMs
     : Number.isFinite(legacyFcp) && legacyFcp > 0
       ? legacyFcp / 1000
@@ -366,17 +406,29 @@ function toFcpSample(doc: FcpAnalysisDocument): FcpSample | undefined {
           : {}
         const startTime = normalizeNumber(resource.startTime, 0)
         const duration = normalizeNumber(resource.duration, 0)
+        const responseEnd = normalizeNumber(resource.responseEnd, 0)
+        const reportedPhase = String(resource.phase || '')
+        const reportedResponsePhase = String(resource.responsePhase || '')
         return {
           url: String(resource.url || ''),
           type: String(resource.type || 'other'),
+          phase: reportedPhase === 'before-fcp' || reportedPhase === 'after-fcp'
+            ? reportedPhase as FcpResourceSample['phase']
+            : startTime > 0
+              ? startTime <= fcp ? 'before-fcp' : 'after-fcp'
+              : 'unknown' as FcpResourceSample['phase'],
+          responsePhase: reportedResponsePhase === 'before-fcp' || reportedResponsePhase === 'after-fcp'
+            ? reportedResponsePhase as FcpResourceSample['responsePhase']
+            : (responseEnd || startTime + duration) <= fcp
+              ? 'before-fcp'
+              : 'after-fcp',
           startTime,
-          responseEnd: normalizeNumber(resource.responseEnd, startTime + duration),
-          responseTime: normalizeNumber(resource.responseTime, 0),
+          responseEnd: responseEnd || startTime + duration,
+          responseTime: normalizeOptionalNumber(resource.responseTime),
           duration,
         }
       })
-      // 线上历史数据可能包含后来扩展的全量请求，这里统一收紧为 FCP 前完成。
-      .filter(item => !!item.url && item.responseEnd <= fcp)
+      .filter(item => !!item.url)
     : []
 
   return {
@@ -385,7 +437,13 @@ function toFcpSample(doc: FcpAnalysisDocument): FcpSample | undefined {
     uuid: doc.uuid,
     session: doc.session,
     fcp,
-    resourceCount: resources.length,
+    lcp: normalizeOptionalNumber(data.lcp),
+    inp: normalizeOptionalNumber(data.inp),
+    ttfb: normalizeOptionalNumber(data.ttfb),
+    ratings: normalizeStringRecord(data.ratings),
+    metricIds: normalizeStringRecord(data.metricIds),
+    navigationType: typeof data.navigationType === 'string' ? data.navigationType : undefined,
+    resourceCount: normalizeNumber(data.resourceCount, resources.length),
     resources,
   }
 }
@@ -414,6 +472,21 @@ function round(value: number, digits = 1) {
 function normalizeNumber(value: unknown, fallback: number) {
   const number = Number(value)
   return Number.isFinite(number) && number >= 0 ? number : fallback
+}
+
+function normalizeOptionalNumber(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const number = Number(value)
+  return Number.isFinite(number) && number >= 0 ? number : null
+}
+
+function normalizeStringRecord(value: unknown) {
+  if (!value || typeof value !== 'object') return undefined
+  const result: Record<string, string> = {}
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item === 'string') result[key] = item
+  }
+  return result
 }
 
 function parseDate(value: unknown, fallback: Date) {

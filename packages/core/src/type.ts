@@ -23,9 +23,9 @@ export interface Options {
    */
   stamp?: string
   /**
-   * FCP 请求时间轴采集阈值，单位毫秒。
-   * FCP 每个会话都会上报；只有 FCP 超过该阈值时，才会额外采集并上报
-   * FCP 前已完成请求的 Resource Timing 时间轴。
+   * FCP 资源清单采集阈值，单位毫秒。
+   * web-vitals 指标始终上报；只有 FCP 超过该阈值时，才额外采集并上报
+   * FCP 前后发起的 Resource Timing 资源清单。
    * @default 2500
    */
   fcpThreshold?: number

@@ -41,6 +41,14 @@
               </template>
             </ElTableColumn>
             <ElTableColumn
+              label="阶段"
+              width="110"
+            >
+              <template #default="{ row: request }">
+                {{ formatPhase(request.phase, request.responsePhase) }}
+              </template>
+            </ElTableColumn>
+            <ElTableColumn
               label="请求地址"
               min-width="320"
               show-overflow-tooltip
@@ -127,8 +135,23 @@ async function loadDetail() {
   }
 }
 
-function formatSeconds(value: number) {
+function formatSeconds(value: number | null | undefined) {
+  if (value === null || value === undefined) return '不可用'
   return `${((Number(value) || 0) / 1000).toFixed(2)} s`
+}
+
+function formatPhase(phase: string, responsePhase: string) {
+  const start = phase === 'before-fcp'
+    ? '前'
+    : phase === 'after-fcp'
+      ? '后'
+      : '未知'
+  const end = responsePhase === 'before-fcp'
+    ? '前'
+    : responsePhase === 'after-fcp'
+      ? '后'
+      : '未知'
+  return `发起${start} / 完成${end}`
 }
 </script>
 

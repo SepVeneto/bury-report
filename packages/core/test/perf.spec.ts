@@ -2,6 +2,28 @@ import { dom } from './helpers/dom-stub'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERF_INFO } from '../src/constant'
 
+const vitals = vi.hoisted(() => {
+  const callbacks = new Map<string, (metric: any) => void>()
+  return {
+    callbacks,
+    reset() {
+      callbacks.clear()
+    },
+  }
+})
+
+vi.mock('web-vitals', () => {
+  const register = (name: string) => (callback: (metric: any) => void) => {
+    vitals.callbacks.set(name, callback)
+  }
+  return {
+    onFCP: register('FCP'),
+    onLCP: register('LCP'),
+    onINP: register('INP'),
+    onTTFB: register('TTFB'),
+  }
+})
+
 const ORIGINAL_WINDOW_PERFORMANCE = dom.window.performance
 const ORIGINAL_TOP = (dom.window as any).top
 
@@ -18,8 +40,6 @@ class FakeObserver {
   }
 }
 
-// perf.ts 里 `new PerformanceObserver(...)` 走的是全局标识符（Node 24 自带），
-// `if (window.PerformanceObserver)` 走的是 window，因此两处都要替换
 function stubObserver() {
   ;(dom.window as any).PerformanceObserver = FakeObserver
   vi.stubGlobal('PerformanceObserver', FakeObserver)
@@ -50,8 +70,18 @@ function entries(list: any[]) {
   return { getEntries: () => list } as any
 }
 
-function fcp(startTime: number) {
-  return { entryType: 'paint', name: 'first-contentful-paint', startTime }
+function metric(name: string, value: number, overrides: Record<string, any> = {}) {
+  return {
+    name,
+    value,
+    rating: 'good',
+    delta: value,
+    id: `${name}-id`,
+    entries: [],
+    navigationType: 'navigate',
+    navigationId: 1,
+    ...overrides,
+  }
 }
 
 function resource(overrides: Record<string, any>) {
@@ -67,17 +97,29 @@ function resource(overrides: Record<string, any>) {
   }
 }
 
+function emitVital(name: string, value: number, overrides: Record<string, any> = {}) {
+  const callback = vitals.callbacks.get(name)
+  if (!callback) throw new Error(`missing web-vitals callback: ${name}`)
+  callback(metric(name, value, overrides))
+}
+
+function pageHide() {
+  dom.document.dispatchEvent({ type: 'pagehide', timeStamp: 5000 })
+}
+
 beforeEach(() => {
   dom.bus.clear()
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   FakeObserver.cb = undefined
   FakeObserver.instances = []
+  vitals.reset()
   stubObserver()
   defineTop(dom.window)
   ;(dom.window as any).performance = ORIGINAL_WINDOW_PERFORMANCE
   ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntries = () => []
   ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => []
   dom.document.referrer = ''
+  dom.document.visibilityState = 'visible'
 })
 
 afterEach(() => {
@@ -88,62 +130,205 @@ afterEach(() => {
 })
 
 describe('PerfPlugin', () => {
-  it('页面生命周期 API 初始化异常时模块加载仍然不影响宿主', async () => {
-    const descriptor = Object.getOwnPropertyDescriptor(dom.document, 'visibilityState')
-    Object.defineProperty(dom.document, 'visibilityState', {
-      get() {
-        throw new Error('visibility unavailable')
-      },
-      configurable: true,
-    })
-
-    try {
-      await expect(loadPerf()).resolves.toBeTypeOf('function')
-    } finally {
-      if (descriptor) Object.defineProperty(dom.document, 'visibilityState', descriptor)
-    }
-  })
-
-  it('初始化时监听 paint 指标', async () => {
+  it('通过 web-vitals 注册 FCP、LCP、INP、TTFB 并持续观察资源', async () => {
     const PerfPlugin = await loadPerf()
-    const c = ctx()
+    const c = ctx({ fcpThreshold: 1000 })
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
+    expect([...vitals.callbacks.keys()].sort()).toEqual(['FCP', 'INP', 'LCP', 'TTFB'])
     expect(FakeObserver.instances).toHaveLength(1)
-    expect(FakeObserver.instances[0].observe).toHaveBeenCalledWith({ entryTypes: ['paint'] })
-    // 当前没有 paint 记录，不上报
+    expect(FakeObserver.instances[0].observe).toHaveBeenCalledWith({
+      type: 'resource',
+      buffered: true,
+    })
     expect(c.report).not.toHaveBeenCalled()
   })
 
-  it('采集到 FCP 时上报毫秒值并停止观察', async () => {
+  it('页面隐藏时一次性上报四项 web-vitals 指标', async () => {
     const PerfPlugin = await loadPerf()
     const c = ctx({ stamp: 'build-stamp' })
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    plugin.handleEntry(entries([fcp(1.234)]))
+    emitVital('TTFB', 120.45)
+    emitVital('FCP', 1234.56)
+    emitVital('LCP', 2345.67, { rating: 'needs-improvement' })
+    emitVital('INP', 88.88, { rating: 'poor' })
+    pageHide()
 
+    expect(c.report).toHaveBeenCalledTimes(1)
     expect(c.report).toHaveBeenCalledWith(PERF_INFO, {
-      fcp: 1234,
+      perfVersion: 2,
+      fcp: 1234.6,
+      lcp: 2345.7,
+      inp: 88.9,
+      ttfb: 120.5,
+      ratings: {
+        ttfb: 'good',
+        fcp: 'good',
+        lcp: 'needs-improvement',
+        inp: 'poor',
+      },
+      metricIds: {
+        ttfb: 'TTFB-id',
+        fcp: 'FCP-id',
+        lcp: 'LCP-id',
+        inp: 'INP-id',
+      },
+      navigationType: 'navigate',
       if: false,
       stamp: 'build-stamp',
+    }, {
+      immediate: true,
+      flush: true,
+      keepalive: true,
     })
     expect(FakeObserver.instances[0].disconnect).toHaveBeenCalledTimes(1)
   })
 
-  it('无 stamp 配置时上报空字符串', async () => {
+  it('资源清单同时包含 FCP 前和 FCP 后发起的请求', async () => {
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => [
+      resource({
+        name: 'https://cdn.example/before.js',
+        startTime: 100,
+        requestStart: 120,
+        responseEnd: 300,
+        duration: 200,
+      }),
+      resource({
+        name: 'https://cdn.example/pending.js',
+        startTime: 1200,
+        requestStart: 1250,
+        responseEnd: 2400,
+        duration: 1200,
+      }),
+      resource({
+        name: 'https://cdn.example/after.js',
+        startTime: 2500,
+        requestStart: 2520,
+        responseEnd: 2800,
+        duration: 300,
+      }),
+    ]
     const PerfPlugin = await loadPerf()
-    const c = ctx()
+    const c = ctx({ fcpThreshold: 1000 })
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    plugin.handleEntry(entries([fcp(1)]))
+    emitVital('FCP', 2000)
+    pageHide()
 
-    expect(c.report.mock.calls[0][1].stamp).toBe('')
+    expect(c.report.mock.calls[0][1]).toMatchObject({
+      resourceCount: 3,
+      resourcesBeforeFcp: 2,
+      resourcesAfterFcp: 1,
+      resourcesCompletedBeforeFcp: 1,
+      resourcesCompletedAfterFcp: 2,
+      resources: [
+        {
+          url: 'https://cdn.example/before.js',
+          phase: 'before-fcp',
+        },
+        {
+          url: 'https://cdn.example/pending.js',
+          phase: 'before-fcp',
+          responsePhase: 'after-fcp',
+          responseEnd: 2400,
+        },
+        {
+          url: 'https://cdn.example/after.js',
+          phase: 'after-fcp',
+        },
+      ],
+    })
   })
 
-  it('FCP 未超过阈值时仍上报 FCP，但不收集请求时间轴', async () => {
+  it('通过 resource observer 捕获并从缓冲区清理中恢复动态资源', async () => {
+    const PerfPlugin = await loadPerf()
+    const c = ctx({ fcpThreshold: 1000 })
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    FakeObserver.cb!(entries([
+      resource({
+        name: 'https://cdn.example/dynamic.js',
+        startTime: 200,
+        responseEnd: 500,
+      }),
+    ]))
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntries = () => []
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => []
+    emitVital('FCP', 3000)
+    pageHide()
+
+    expect(c.report.mock.calls[0][1].resources[0]).toMatchObject({
+      url: 'https://cdn.example/dynamic.js',
+      type: 'script',
+      phase: 'before-fcp',
+    })
+  })
+
+  it('跨域资源缺少 TAO 授权时保留资源并将响应耗时标记为未知', async () => {
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => [
+      resource({
+        name: 'https://cross-origin.example/app.js',
+        startTime: 100,
+        fetchStart: 100,
+        requestStart: 0,
+        responseStart: 0,
+        responseEnd: 0,
+        duration: 300,
+      }),
+    ]
+    const PerfPlugin = await loadPerf()
+    const c = ctx({ fcpThreshold: 1000 })
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    emitVital('FCP', 2000)
+    pageHide()
+
+    expect(c.report.mock.calls[0][1].resources[0]).toMatchObject({
+      url: 'https://cross-origin.example/app.js',
+      responseEnd: 400,
+      responseTime: null,
+      duration: 300,
+    })
+  })
+
+  it('资源超过上限时为 FCP 前后两个阶段各保留一半', async () => {
+    const resources = [
+      ...Array.from({ length: 300 }, (_, index) => resource({
+        name: `https://cdn.example/before/${index}.js`,
+        startTime: index + 1,
+        responseEnd: index + 2,
+      })),
+      ...Array.from({ length: 300 }, (_, index) => resource({
+        name: `https://cdn.example/after/${index}.js`,
+        startTime: 2001 + index,
+        responseEnd: 2002 + index,
+      })),
+    ]
+    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => resources
+    const PerfPlugin = await loadPerf()
+    const c = ctx({ fcpThreshold: 1000 })
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    emitVital('FCP', 2000)
+    pageHide()
+
+    const data = c.report.mock.calls[0][1]
+    expect(data.resourceCount).toBe(600)
+    expect(data.resourcesBeforeFcp).toBe(300)
+    expect(data.resourcesAfterFcp).toBe(300)
+    expect(data.resources).toHaveLength(200)
+    expect(data.resources.filter((item: any) => item.phase === 'before-fcp')).toHaveLength(100)
+    expect(data.resources.filter((item: any) => item.phase === 'after-fcp')).toHaveLength(100)
+  })
+
+  it('FCP 未超过阈值时不扫描或上报资源清单', async () => {
     const getEntriesByType = vi.fn(() => [resource({})])
     ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = getEntriesByType
     const PerfPlugin = await loadPerf()
@@ -151,94 +336,48 @@ describe('PerfPlugin', () => {
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    expect(() => plugin.handleEntry(entries([fcp(1500)]))).not.toThrow()
+    emitVital('FCP', 1500)
+    pageHide()
 
+    const data = c.report.mock.calls[0][1]
     expect(getEntriesByType).not.toHaveBeenCalled()
-    expect(c.report).toHaveBeenCalledWith(PERF_INFO, {
-      fcp: 1_500_000,
-      if: false,
-      stamp: '',
-    })
+    expect(data.fcp).toBe(1500)
+    expect(data).not.toHaveProperty('resources')
   })
 
-  it('FCP 超过阈值时只上报 FCP 前完成的所有请求类型', async () => {
-    const getEntriesByType = vi.fn(() => [
-      resource({
-        name: 'https://cdn.example/app.js',
-        initiatorType: 'script',
-        startTime: 100,
-        requestStart: 120,
-        responseEnd: 300,
-        duration: 200,
-      }),
-      resource({
-        name: 'https://cdn.example/app.css',
-        initiatorType: 'link',
-        startTime: 200,
-        requestStart: 220,
-        responseEnd: 500,
-        duration: 300,
-      }),
-      resource({
-        name: 'https://api.example/user',
-        initiatorType: 'fetch',
-        startTime: 300,
-        requestStart: 320,
-        responseEnd: 400,
-        duration: 100,
-      }),
-      resource({
-        name: 'https://cdn.example/late.png',
-        initiatorType: 'img',
-        startTime: 3500,
-        requestStart: 3600,
-        responseEnd: 4000,
-        duration: 500,
-      }),
-    ])
-    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = getEntriesByType
+  it('visibilitychange 和 pagehide 只产生一条性能记录', async () => {
     const PerfPlugin = await loadPerf()
-    const c = ctx({ fcpThreshold: 2000, stamp: 'build-stamp' })
+    const c = ctx({ fcpThreshold: 1000 })
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    plugin.handleEntry(entries([fcp(3000)]))
+    emitVital('FCP', 1000)
+    dom.document.visibilityState = 'hidden'
+    dom.document.dispatchEvent({ type: 'visibilitychange' })
+    pageHide()
 
-    expect(c.report).toHaveBeenCalledWith(PERF_INFO, {
-      fcp: 3_000_000,
-      if: false,
-      stamp: 'build-stamp',
-      resourceCount: 3,
-      resources: [
-        {
-          url: 'https://cdn.example/app.js',
-          type: 'script',
-          startTime: 100,
-          responseEnd: 300,
-          responseTime: 180,
-          duration: 200,
-        },
-        {
-          url: 'https://cdn.example/app.css',
-          type: 'link',
-          startTime: 200,
-          responseEnd: 500,
-          responseTime: 280,
-          duration: 300,
-        },
-        {
-          url: 'https://api.example/user',
-          type: 'fetch',
-          startTime: 300,
-          responseEnd: 400,
-          responseTime: 80,
-          duration: 100,
-        },
-      ],
-    })
+    expect(c.report).toHaveBeenCalledTimes(1)
   })
 
-  it('性能 API 或单条资源数据异常时只告警，不影响 FCP 上报和宿主', async () => {
+  it('忽略无效 FCP，但仍上报其他 web-vitals 指标', async () => {
+    const PerfPlugin = await loadPerf()
+    const c = ctx()
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    emitVital('FCP', 10 * 60 * 1000)
+    emitVital('TTFB', 100)
+    emitVital('LCP', 2000)
+    pageHide()
+
+    const data = c.report.mock.calls[0][1]
+    expect(data.fcp).toBeNull()
+    expect(data.inp).toBeNull()
+    expect(data.ttfb).toBe(100)
+    expect(data.lcp).toBe(2000)
+  })
+
+  it('性能 API 或单条资源数据异常时仍上报指标', async () => {
     ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => {
       throw new Error('resource timing unavailable')
     }
@@ -247,38 +386,16 @@ describe('PerfPlugin', () => {
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    expect(() => plugin.handleEntry(entries([fcp(2000)]))).not.toThrow()
+    emitVital('FCP', 2000)
+    expect(() => pageHide()).not.toThrow()
 
-    expect(c.report).toHaveBeenCalledWith(PERF_INFO, {
-      fcp: 2_000_000,
-      if: false,
-      stamp: '',
-    })
+    expect(c.report.mock.calls[0][1].fcp).toBe(2000)
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining('collect performance failed'),
     )
   })
 
-  it('请求时间轴有数量和 URL 长度上限，避免拖慢宿主', async () => {
-    const resources = Array.from({ length: 220 }, (_, index) => resource({
-      name: `https://cdn.example/${'x'.repeat(index === 0 ? 1500 : 10)}.js?v=${index}`,
-      responseEnd: 100 + index,
-    }))
-    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntriesByType = () => resources
-    const PerfPlugin = await loadPerf()
-    const c = ctx({ fcpThreshold: 1000 })
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    plugin.handleEntry(entries([fcp(2000)]))
-
-    const data = c.report.mock.calls[0][1]
-    expect(data.resourceCount).toBe(220)
-    expect(data.resources).toHaveLength(200)
-    expect(data.resources[0].url).toHaveLength(1000)
-  })
-
-  it('宿主上报函数或性能入口抛错时不向宿主抛出异常', async () => {
+  it('宿主上报函数抛错时不向宿主抛出异常', async () => {
     const PerfPlugin = await loadPerf()
     const c = ctx()
     c.report.mockImplementation(() => {
@@ -287,89 +404,8 @@ describe('PerfPlugin', () => {
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    expect(() => plugin.handleEntry(entries([fcp(1)]))).not.toThrow()
-    expect(() => plugin.handleEntry({
-      getEntries() {
-        throw new Error('entries failed')
-      },
-    } as any)).not.toThrow()
-  })
-
-  it('observer 回调也会触发上报', async () => {
-    const PerfPlugin = await loadPerf()
-    const c = ctx()
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    FakeObserver.cb!(entries([fcp(2)]))
-
-    expect(c.report).toHaveBeenCalledTimes(1)
-  })
-
-  it('FCP 只上报一次，pagehide 补采不会产生重复记录', async () => {
-    const PerfPlugin = await loadPerf()
-    const c = ctx()
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    plugin.handleEntry(entries([fcp(1)]))
-    dom.document.dispatchEvent({ type: 'pagehide', timeStamp: 2 } as any)
-
-    expect(c.report).toHaveBeenCalledTimes(1)
-  })
-
-  it('免登后立即刷新时，在 pagehide 补采尚未回调的 FCP', async () => {
-    const PerfPlugin = await loadPerf()
-    const c = ctx({ stamp: 'build-stamp' })
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-    expect(c.report).not.toHaveBeenCalled()
-
-    // FCP 已写入 paint 缓冲区，但 PerformanceObserver 回调尚未执行，
-    // 此时业务在免登成功后立即刷新页面。
-    ;(ORIGINAL_WINDOW_PERFORMANCE as any).getEntries = () => [fcp(1.234)]
-    dom.document.dispatchEvent({ type: 'pagehide', timeStamp: 2 } as any)
-
-    expect(c.report).toHaveBeenCalledWith(PERF_INFO, {
-      fcp: 1234,
-      if: false,
-      stamp: 'build-stamp',
-    })
-  })
-
-  it('首屏隐藏时间早于 FCP 时不上报', async () => {
-    const PerfPlugin = await loadPerf()
-    const c = ctx()
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    // 页面在 FCP 前就被隐藏
-    dom.document.dispatchEvent({ type: 'pagehide', timeStamp: 100 })
-    plugin.handleEntry(entries([fcp(200)]))
-
-    expect(c.report).not.toHaveBeenCalled()
-  })
-
-  it('FCP 超过 10 分钟上限时不上报', async () => {
-    const PerfPlugin = await loadPerf()
-    const c = ctx()
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    plugin.handleEntry(entries([fcp(10 * 60 * 1000 + 1)]))
-
-    expect(c.report).not.toHaveBeenCalled()
-  })
-
-  it('忽略非 FCP 的 paint 记录', async () => {
-    const PerfPlugin = await loadPerf()
-    const c = ctx()
-    const plugin = new PerfPlugin()
-    plugin.init(c as any)
-
-    plugin.handleEntry(entries([{ entryType: 'paint', name: 'first-paint', startTime: 1 }]))
-
-    expect(c.report).not.toHaveBeenCalled()
+    emitVital('FCP', 1000)
+    expect(() => pageHide()).not.toThrow()
   })
 
   it('不在 iframe 中时 if 为 false', async () => {
@@ -378,7 +414,8 @@ describe('PerfPlugin', () => {
     const plugin = new PerfPlugin()
     plugin.init(c as any)
 
-    plugin.handleEntry(entries([fcp(1)]))
+    emitVital('FCP', 1000)
+    pageHide()
 
     expect(c.report.mock.calls[0][1].if).toBe(false)
   })
@@ -391,7 +428,8 @@ describe('PerfPlugin', () => {
 
     defineTop({})
     dom.document.referrer = 'http://parent.example/page'
-    plugin.handleEntry(entries([fcp(1)]))
+    emitVital('FCP', 1000)
+    pageHide()
 
     expect(c.report.mock.calls[0][1].if).toBe('http://parent.example/page')
   })
@@ -408,17 +446,35 @@ describe('PerfPlugin', () => {
       },
       configurable: true,
     })
-    plugin.handleEntry(entries([fcp(1)]))
+    emitVital('FCP', 1000)
+    pageHide()
 
     expect(c.report.mock.calls[0][1].if).toBe(true)
   })
 
-  it('不支持 performance.getEntries 时跳过初始化采集', async () => {
-    ;(dom.window as any).performance = undefined
+  it('不支持 PerformanceObserver 时仍上报 web-vitals 指标', async () => {
+    ;(dom.window as any).PerformanceObserver = undefined
     const PerfPlugin = await loadPerf()
     const c = ctx()
     const plugin = new PerfPlugin()
     expect(() => plugin.init(c as any)).not.toThrow()
+
+    emitVital('TTFB', 80)
+    pageHide()
+    expect(c.report.mock.calls[0][1].ttfb).toBe(80)
+  })
+
+  it('destroy 后不再上报', async () => {
+    const PerfPlugin = await loadPerf()
+    const c = ctx()
+    const plugin = new PerfPlugin()
+    plugin.init(c as any)
+
+    plugin.destroy()
+    emitVital('FCP', 1000)
+    pageHide()
+
     expect(c.report).not.toHaveBeenCalled()
+    expect(FakeObserver.instances[0].disconnect).toHaveBeenCalledTimes(1)
   })
 })
