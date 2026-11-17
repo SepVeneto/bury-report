@@ -8,6 +8,32 @@
       <template #union>
         <UnionSearch v-model="params" />
       </template>
+      <div class="sourcemap-actions">
+        <BcButton @click="sourceMapInput?.click()">
+          上传 sourcemap
+        </BcButton>
+        <span
+          v-if="sourceMaps.length"
+          class="sourcemap-actions__status"
+        >
+          已加载 {{ sourceMaps.length }} 个（仅当前页面）
+        </span>
+        <BcButton
+          v-if="sourceMaps.length"
+          text
+          @click="sourceMaps = []"
+        >
+          清除
+        </BcButton>
+        <input
+          ref="sourceMapInput"
+          class="sourcemap-actions__input"
+          type="file"
+          accept=".map,application/json"
+          multiple
+          @change="handleSourceMapUpload"
+        >
+      </div>
     </bc-search>
     <bc-table
       ref="tableRef"
@@ -50,6 +76,11 @@
           style="padding-left: 100px; white-space: break-spaces; word-break: break-word;"
         >{{ row.data.extra }}</pre>
         <pre style="padding-left: 100px; color: var(--el-color-danger);">{{ row.data.stack }}</pre>
+        <ErrorStackSourcemap
+          v-if="sourceMaps.length"
+          :stack="row.data.stack"
+          :source-maps="sourceMaps"
+        />
       </template>
       <template #error="{ row }">
         {{ `${row.data.name}: ${row.data.message}` }}
@@ -72,6 +103,10 @@ import { useRouter } from 'vue-router'
 import DeviceLink from './components/DeviceLink.vue'
 import { formatDatetime } from '@/util/tools'
 import UnionSearch from './components/UnionSearch.vue'
+import ErrorStackSourcemap from './components/ErrorStackSourcemap.vue'
+import type { LoadedSourceMap } from '@/util/sourcemap'
+import { loadSourceMap } from '@/util/sourcemap'
+import { ElMessage } from 'element-plus'
 
 defineOptions({
   name: 'ErrorView',
@@ -82,6 +117,8 @@ const params = ref({
   size: 20,
 })
 const tableRef = ref()
+const sourceMapInput = ref<HTMLInputElement>()
+const sourceMaps = shallowRef<LoadedSourceMap[]>([])
 const tableConfig = shallowRef([
   { type: 'expand' },
   { label: '发生时间', prop: 'device_time', width: 200, filter: formatDatetime },
@@ -106,4 +143,46 @@ function getList() {
 function handleSearch() {
   tableRef.value.getList()
 }
+
+async function handleSourceMapUpload(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+
+  const next = new Map(sourceMaps.value.map(item => [item.key, item]))
+  const errors: string[] = []
+  for (const file of files) {
+    try {
+      const sourceMap = await loadSourceMap(file)
+      next.set(sourceMap.key, sourceMap)
+    } catch (error) {
+      errors.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  sourceMaps.value = Array.from(next.values())
+  input.value = ''
+
+  if (errors.length) {
+    ElMessage.warning(errors.join('；'))
+  } else {
+    ElMessage.success(`已加载 ${files.length} 个 sourcemap`)
+  }
+}
 </script>
+
+<style lang="scss" scoped>
+.sourcemap-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sourcemap-actions__status {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.sourcemap-actions__input {
+  display: none;
+}
+</style>
