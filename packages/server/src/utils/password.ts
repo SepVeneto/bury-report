@@ -19,9 +19,9 @@ export function verifyPassword(password: string, stored: {
     const [prefix, salt, hash] = stored.password_hash.split('$')
     if (prefix !== PREFIX || !salt || !hash) return false
 
-    const current = Buffer.from(hash, 'hex')
+    const current = Uint8Array.from(Buffer.from(hash, 'hex'))
     if (current.length !== KEY_LENGTH) return false
-    const target = scryptSync(password, salt, current.length)
+    const target = Uint8Array.from(scryptSync(password, salt, current.length))
     return current.length === target.length && timingSafeEqual(current, target)
   }
 

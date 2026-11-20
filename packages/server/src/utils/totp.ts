@@ -1,4 +1,3 @@
-import { Buffer } from 'node:buffer'
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
@@ -6,7 +5,7 @@ const DEFAULT_PERIOD = 30
 const DEFAULT_DIGITS = 6
 
 export function generateTotpSecret(length = 20) {
-  return encodeBase32(randomBytes(length))
+  return encodeBase32(new Uint8Array(randomBytes(length)))
 }
 
 export function generateTotp(
@@ -16,8 +15,8 @@ export function generateTotp(
   digits = DEFAULT_DIGITS,
 ) {
   const counter = Math.floor(timestamp / 1000 / period)
-  const counterBuffer = Buffer.alloc(8)
-  counterBuffer.writeBigUInt64BE(BigInt(counter))
+  const counterBuffer = new Uint8Array(8)
+  new DataView(counterBuffer.buffer).setBigUint64(0, BigInt(counter))
 
   const digest = createHmac('sha1', decodeBase32(secret))
     .update(counterBuffer)
@@ -51,7 +50,7 @@ export function verifyTotp(
     digits = DEFAULT_DIGITS,
     window = 1,
   } = options
-  const expectedCode = Buffer.from(code)
+  const expectedCode = new TextEncoder().encode(code)
 
   for (let offset = -window; offset <= window; offset++) {
     const current = generateTotp(
@@ -60,7 +59,7 @@ export function verifyTotp(
       period,
       digits,
     )
-    const currentBuffer = Buffer.from(current)
+    const currentBuffer = new TextEncoder().encode(current)
     if (
       currentBuffer.length === expectedCode.length &&
       timingSafeEqual(currentBuffer, expectedCode)
@@ -124,5 +123,5 @@ function decodeBase32(input: string) {
       bits -= 8
     }
   }
-  return Buffer.from(output)
+  return Uint8Array.from(output)
 }

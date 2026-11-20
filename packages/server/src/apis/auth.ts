@@ -14,11 +14,17 @@ import { issueSessionToken } from '../utils/session.ts'
 
 const router = new Router()
 
+const isDevelopment = Deno.env.get('APP_ENV') === 'development'
+const allowTotpBypass = isDevelopment && Deno.env.get('TOTP_DEV_BYPASS') === 'true'
 const twoFactorAttempts = new Map<string, { count: number; expiresAt: number }>()
 const TWO_FACTOR_MAX_ATTEMPTS = 5
 const TWO_FACTOR_CHALLENGE_TTL = 5 * 60
 const ACCOUNT_SETUP_CHALLENGE_TTL = 10 * 60
 const TWO_FACTOR_SETUP_TTL = 10 * 60 * 1000
+
+if (allowTotpBypass) {
+  console.warn('[auth] 开发环境已跳过 TOTP 验证')
+}
 
 router.post('/login', async (ctx) => {
   const body = await ctx.request.body.json()
@@ -54,14 +60,18 @@ router.post('/login', async (ctx) => {
       }
       return
     }
-    if (account.must_bind_two_factor && !account.two_factor_enabled) {
+    if (
+      account.must_bind_two_factor &&
+      !account.two_factor_enabled &&
+      !allowTotpBypass
+    ) {
       ctx.resBody = {
         requires2FASetup: true,
         setupToken: issueFlowToken(account._id, '2fa-setup'),
       }
       return
     }
-    if (account.two_factor_enabled) {
+    if (account.two_factor_enabled && !allowTotpBypass) {
       if (!account.two_factor_secret) {
         ctx.resCode = 1
         ctx.resMsg = '双因素验证配置异常，请联系管理员'
@@ -133,7 +143,11 @@ router.post('/login/password/reset', async (ctx) => {
     return
   }
 
-  if (updated.must_bind_two_factor && !updated.two_factor_enabled) {
+  if (
+    updated.must_bind_two_factor &&
+    !updated.two_factor_enabled &&
+    !allowTotpBypass
+  ) {
     ctx.resBody = {
       requires2FASetup: true,
       setupToken: issueFlowToken(updated._id, '2fa-setup'),

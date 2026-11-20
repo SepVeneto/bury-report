@@ -17,6 +17,8 @@
 | SECRECT_ID | COS密钥ID | -- |
 | SECRECT_KEY | COS密钥KEY | -- |
 | DEBUG | 调试模式 | -- |
+| APP_ENV | 运行环境标识，开发环境设为 `development` | development |
+| TOTP_DEV_BYPASS | 仅当 `APP_ENV=development` 时允许跳过 TOTP | false |
 | NETDATA_URL | netdata服务地址 | http://netdata:123456 |
 | NETDATA_PUSH | netdata数据的推送地址 | -- |
 | SALT | 密码盐 | -- |
