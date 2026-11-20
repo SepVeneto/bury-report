@@ -10,10 +10,15 @@ import {
 import dayjs from 'dayjs'
 import { escapeRegExp } from "../utils/tools.ts";
 import { DuckDBValue } from "@duckdb/node-api";
-import fs from 'node:fs'
 
 export type BaseType = {
   is_delete: boolean
+}
+
+export type Processed<M> = Omit<M, '_id' | 'is_delete' | 'create_time' | 'update_time'> & {
+  id: string
+  create_time?: string
+  update_time?: string
 }
 
 export class Filter<M extends BaseType> {
@@ -71,15 +76,16 @@ export class Filter<M extends BaseType> {
 
     Object.assign(this.model, { [key]: { $regex: escapeRegExp(value) }})
   }
-  custom(key: string, value: Record<string, any>) {
-    if (!value || value.length === 0) return
+  custom(key: string, value: Record<string, unknown>) {
+    if (Object.keys(value).length === 0) return
 
-    // deno-lint-ignore no-explicit-any
-    const model = this.model as Record<string, any>
-    if (!model[key]) {
+    const model = this.model as Record<string, unknown>
+    const current = model[key]
+    if (!current || typeof current !== 'object' || Array.isArray(current)) {
       model[key] = value
+    } else {
+      Object.assign(current, value)
     }
-    Object.assign(this.model[key], value)
   }
   build() {
     return this.model as Filter<M>
@@ -88,7 +94,7 @@ export class Filter<M extends BaseType> {
     const clauses: string[] = []
     const params: Record<string, DuckDBValue> = {}
 
-    const model = this.model as Record<string, any>
+    const model = this.model as Record<string, unknown>
 
     for (const [key, value] of Object.entries(model)) {
       if (value === undefined) continue
@@ -99,27 +105,27 @@ export class Filter<M extends BaseType> {
         value instanceof Date
       ) {
         clauses.push(`${key} = $${key}`)
-        params[`${key}`] = value
+        params[`${key}`] = value as DuckDBValue
         continue
       }
 
-      const operators = value as Record<string, any>
+      const operators = value as Record<string, unknown>
 
       for (const [op, v] of Object.entries(operators)) {
         switch (op) {
           case '$ne':
             clauses.push(`${key} <> $${key}`)
-            params[`${key}`] = v
+            params[`${key}`] = v as DuckDBValue
             break
 
           case '$gte':
             clauses.push(`${key} >= $${key}`)
-            params[`${key}`] = v
+            params[`${key}`] = v as DuckDBValue
             break
 
           case '$lte':
             clauses.push(`${key} <= $${key}`)
-            params[`${key}`] = v
+            params[`${key}`] = v as DuckDBValue
             break
 
           case '$regex':
@@ -266,7 +272,7 @@ function processData<T extends {
   create_time?: string 
   update_time?: string
   is_delete?: boolean
-}>(data: T) {
+}>(data: T): Processed<T> {
   // deno-lint-ignore no-unused-vars
   const { _id, is_delete, create_time, update_time, ...rest } = data
   const res: Record<string, unknown> = rest
@@ -282,5 +288,5 @@ function processData<T extends {
   if (update_time) {
     res.update_time = dayjs(update_time).format('YYYY-MM-DD HH:mm:ss')
   }
-  return rest
+  return res as Processed<T>
 }

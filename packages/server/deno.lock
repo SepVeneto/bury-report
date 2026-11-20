@@ -884,6 +884,8 @@
       "dependencies": [
         "npm:@duckdb/node-api@^1.4.4-r.1",
         "npm:@rrweb/types@2.0.0-alpha.18",
+        "npm:@types/jsonwebtoken@9.0.10",
+        "npm:@types/md5@2.3.6",
         "npm:cos-nodejs-sdk-v5@^2.15.4",
         "npm:cross-env@^7.0.3",
         "npm:dayjs@^1.11.19",

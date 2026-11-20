@@ -5,6 +5,7 @@
 | REPORT_DB_URL | 连接的数据库地址 | db:port |
 | REDIS_HOST | 连接的redis地址 | redis:port |
 | INTERNAL_TOKEN | 内网请求使用的token | 123456 |
+| TOTP_ISSUER | 身份验证器中显示的服务名称 | Bury Report |
 | DB_NAME | 数据库用户名 | test |
 | DB_PWD | 数据库密码 | 123456 |
 | NOTIFY_TOKEN | log请求使用的token（将会和INTERNAL_TOKEN统一） | 123456 |
@@ -28,3 +29,7 @@ pnpm bootstrap:admin
 ```
 
 该命令会读取 `packages/server/.env.local`，生产环境执行前请先在登录页确认现有管理员不受影响。
+
+## 账号安全
+
+账号管理支持直接切换账号启用状态。当前账号可以通过二维码绑定基于 TOTP 的双因素验证；开启后登录时需要输入身份验证器生成的 6 位动态码。管理员可以重置任意账号的双因素验证，用于身份验证器丢失后的恢复。

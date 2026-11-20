@@ -1,8 +1,4 @@
-import { Cron } from "croner";
-import { TaskManager } from "./TaskManager.ts";
-
 const NETDATA_URL = Deno.env.get('NETDATA_URL')
-const NETDATA_PUSH = Deno.env.get('NETDATA_PUSH')
 
 export async function debug() {
   const res = await request('/api/v1/data', {
@@ -50,7 +46,7 @@ export async function debug() {
 //   TaskManager.add('netdata-push', task)
 // }
 
-async function request(url: string, options: { method?: string, body?: Record<string, any>, params?: Record<string, any> }) {
+async function request(url: string, options: { method?: string, params?: Record<string, unknown> }) {
   const BASE_URL = NETDATA_URL
   const qs = genQs(options.params)
   const _url = qs ? `${BASE_URL}${url}?${qs}` : `${BASE_URL}${url}`
@@ -60,7 +56,7 @@ async function request(url: string, options: { method?: string, body?: Record<st
   return (await res.json()).data
 }
 
-function genQs(params?: Record<string, any>) {
+function genQs(params?: Record<string, unknown>) {
   if (!params) return ''
 
   return Object.entries(params).reduce<string[]>((acc, [key, value]) => {

@@ -20,7 +20,7 @@ import { normalizeAccountRole } from '../utils/account.ts'
 
 const router = new Router()
 
-const whiteList = ['/login', '/record', '/captcha']
+const whiteList = ['/login', '/login/2fa', '/record']
 
 router.use(async (ctx, next) => {
   ctx.db = client.db('reporter')
@@ -46,6 +46,10 @@ router.use(async (ctx, next) => {
      */
     try {
       const res = jwt.verify(token, SECRET) as jwt.JwtPayload
+      if (res.purpose) {
+        ctx.response.status = 403
+        return
+      }
       const users = ctx.db.collection<AccountDocument>('users')
       const isLogin = res.sub && ObjectId.isValid(res.sub)
         ? await users.findOne({

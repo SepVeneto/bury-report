@@ -28,6 +28,9 @@ export function verifyPassword(password: string, stored: {
   return !!stored.password && stored.password === md5(password)
 }
 
-export function isLegacyPassword(stored: { password_hash?: string }) {
+export function isLegacyPassword(stored: {
+  password?: string
+  password_hash?: string
+}) {
   return !stored.password_hash
 }

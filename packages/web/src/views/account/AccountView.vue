@@ -3,12 +3,37 @@
     <header class="account-header">
       <div>
         <h1>账号管理</h1>
-        <p>管理后台登录账号、角色和启用状态。</p>
+        <p>管理后台登录账号、角色、启用状态和双因素验证。</p>
       </div>
       <ElButton @click="router.push({ name: 'Portal' })">
         返回项目
       </ElButton>
     </header>
+
+    <section class="security-panel">
+      <div>
+        <strong>当前账号双因素验证</strong>
+        <p>
+          {{
+            twoFactorEnabled
+              ? '已启用，登录时需要输入身份验证器动态码。'
+              : '未启用，建议绑定身份验证器提升账号安全。'
+          }}
+        </p>
+      </div>
+      <div class="security-action">
+        <ElTag :type="twoFactorEnabled ? 'success' : 'info'">
+          {{ twoFactorEnabled ? '已启用' : '未启用' }}
+        </ElTag>
+        <ElButton
+          :type="twoFactorEnabled ? 'danger' : 'primary'"
+          plain
+          @click="twoFactorDialogRef?.open()"
+        >
+          {{ twoFactorEnabled ? '关闭双因素' : '开启双因素' }}
+        </ElButton>
+      </div>
+    </section>
 
     <div class="account-content">
       <bc-search
@@ -34,8 +59,16 @@
           </ElTag>
         </template>
         <template #status="{ row }">
-          <ElTag :type="row.status === 'active' ? 'success' : 'info'">
-            {{ row.status === 'active' ? '启用' : '停用' }}
+          <ElSwitch
+            :model-value="row.status === 'active'"
+            :disabled="row.id === store.accountId"
+            :loading="statusUpdatingId === row.id"
+            @change="handleStatusChange(row, $event)"
+          />
+        </template>
+        <template #twoFactor="{ row }">
+          <ElTag :type="row.two_factor_enabled ? 'success' : 'info'">
+            {{ row.two_factor_enabled ? '已开启' : '未开启' }}
           </ElTag>
         </template>
         <template #operate="{ row }">
@@ -45,6 +78,13 @@
             @click="handleEdit(row)"
           >
             编辑
+          </bc-button>
+          <bc-button
+            v-if="row.two_factor_enabled"
+            text
+            @click="handleResetTwoFactor(row)"
+          >
+            重置2FA
           </bc-button>
           <bc-button
             text
@@ -141,6 +181,11 @@
         </ElButton>
       </template>
     </ElDialog>
+
+    <TwoFactorDialog
+      ref="twoFactorDialogRef"
+      @updated="handleSearch"
+    />
   </section>
 </template>
 
@@ -156,6 +201,7 @@ import {
   ElRadio,
   ElRadioGroup,
   ElSelect,
+  ElSwitch,
   ElTag,
 } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -170,9 +216,11 @@ import {
   deleteAccount,
   getAccountList,
   getAccountProfile,
+  resetAccountTwoFactor,
   updateAccount,
 } from '@/apis'
 import { checkPass, required } from '@/util/rules'
+import TwoFactorDialog from '@/components/TwoFactorDialog.vue'
 
 defineOptions({
   name: 'AccountView',
@@ -201,9 +249,10 @@ const tableConfig = shallowRef([
   { label: '用户名', prop: 'name', minWidth: 160 },
   { label: '角色', prop: 'role', width: 110 },
   { label: '状态', prop: 'status', width: 100 },
+  { label: '双因素', prop: 'twoFactor', width: 100 },
   { label: '最近登录', prop: 'last_login_time', width: 180 },
   { label: '创建时间', prop: 'create_time', width: 180 },
-  { label: '操作', prop: 'operate', width: 160, fixed: 'right' },
+  { label: '操作', prop: 'operate', width: 260, fixed: 'right' },
 ])
 const searchConfig = shallowRef([
   { catalog: 'input', prop: 'name', name: '用户名' },
@@ -214,6 +263,8 @@ const searchConfig = shallowRef([
 const dialogVisible = ref(false)
 const editingId = ref('')
 const submitting = ref(false)
+const statusUpdatingId = ref('')
+const twoFactorDialogRef = ref<InstanceType<typeof TwoFactorDialog>>()
 const formRef = ref<FormInstance>()
 const form = reactive({
   name: '',
@@ -232,6 +283,7 @@ const formRules = computed<FormRules>(() => ({
         { validator: checkPass, trigger: 'blur' },
       ],
 }))
+const twoFactorEnabled = computed(() => !!store.account?.two_factor_enabled)
 
 function getList() {
   return getAccountList(params.value)
@@ -268,6 +320,40 @@ async function handleDelete(account: Account) {
     },
   )
   await deleteAccount(account.id)
+  handleSearch()
+}
+
+async function handleStatusChange(account: Account, enabled: boolean | string | number) {
+  if (account.id === store.accountId || statusUpdatingId.value) return
+
+  const status: AccountStatus = enabled ? 'active' : 'disabled'
+  statusUpdatingId.value = account.id
+  try {
+    await updateAccount(account.id, {
+      name: account.name,
+      role: account.role,
+      status,
+    })
+    account.status = status
+  } finally {
+    statusUpdatingId.value = ''
+  }
+}
+
+async function handleResetTwoFactor(account: Account) {
+  await ElMessageBox.confirm(
+    `确定重置账号“${account.name}”的双因素验证吗？重置后该账号下次登录只需要密码。`,
+    '重置双因素验证',
+    {
+      type: 'warning',
+      confirmButtonText: '重置',
+      cancelButtonText: '取消',
+    },
+  )
+  await resetAccountTwoFactor(account.id)
+  if (account.id === store.accountId) {
+    store.setAccount(await getAccountProfile())
+  }
   handleSearch()
 }
 
@@ -333,5 +419,31 @@ function resetForm() {
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 6px 24px rgba(31, 60, 92, 0.08);
+}
+.security-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 24px 24px 0;
+  padding: 20px 24px;
+  border: 1px solid #dbe9f7;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 24px rgba(31, 60, 92, 0.06);
+}
+.security-panel strong {
+  color: #1f2d3d;
+  font-size: 16px;
+}
+.security-panel p {
+  margin: 6px 0 0;
+  color: #697b8c;
+}
+.security-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 </style>

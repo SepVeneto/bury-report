@@ -22,38 +22,39 @@
           <ElInput
             v-model="formData.password"
             type="password"
-            @keydown.enter="loginRef.$el.click()"
+            @keydown.enter="submitLogin()"
+          />
+        </ElFormItem>
+        <ElFormItem
+          v-if="twoFactor.challenge"
+          label="动态码"
+        >
+          <ElInput
+            v-model="twoFactor.code"
+            maxlength="6"
+            placeholder="请输入身份验证器中的6位验证码"
+            @keydown.enter="handleTwoFactorLogin()"
           />
         </ElFormItem>
         <ElFormItem>
           <ElButton
-            ref="loginRef"
             type="primary"
             style="width: 100%;"
-            :disabled="loginState === 'captcha'"
             :loading="loginState === 'loading'"
-            @click="handleLogin()"
+            @click="submitLogin()"
           >
-            登录
+            {{ twoFactor.challenge ? '验证并登录' : '登录' }}
           </ElButton>
         </ElFormItem>
+        <ElButton
+          v-if="twoFactor.challenge"
+          text
+          style="width: 100%;"
+          @click="cancelTwoFactor"
+        >
+          返回账号密码登录
+        </ElButton>
       </ElForm>
-      <ElPopover
-        ref="popoverRef"
-        :virtual-ref="loginRef"
-        trigger="click"
-        virtual-triggering
-        width="334"
-        @show="loginState = 'captcha'"
-        @hide="loginState !== 'loading' && (loginState = 'wait') "
-      >
-        <JigsawCaptcha
-          ref="captchaRef"
-          :background="captcha.background"
-          :block="captcha.block"
-          @finish="onFinish"
-        />
-      </ElPopover>
     </div>
   </div>
 </template>
@@ -65,24 +66,19 @@ import { useRouter } from 'vue-router'
 import { useLogoParticle } from '@/util/hooks'
 import { useApp } from '@/store'
 import RedirectView from '@/layout/RedirectView.vue'
-import { getCaptcha, login } from '@/apis'
-// import { Jigsaw } from '@jigsaw/captcha'
-import JigsawCaptcha from '@/components/captcha.vue'
+import { login, loginTwoFactor } from '@/apis'
+import type { LoginResult } from '@/apis'
 
 const formData = ref({
   name: '',
   password: '',
 })
 const canvasRef = ref<HTMLCanvasElement>()
-const captcha = ref({
-  background: '',
-  block: '',
-  key: '',
+const loginState = ref<'wait' | 'loading'>('wait')
+const twoFactor = ref({
+  challenge: '',
+  code: '',
 })
-const loginRef = ref()
-const popoverRef = ref()
-const captchaRef = ref()
-const loginState = ref<'wait' | 'loading' | 'captcha'>('wait')
 
 const router = useRouter()
 const store = useApp()
@@ -95,41 +91,60 @@ if (!router.hasRoute('RedirectView')) {
 }
 useLogoParticle(canvasRef)
 
-async function onFinish(res: number) {
-  loginState.value = 'loading'
-  try {
-    const result = await login({
-      ...formData.value,
-      key: captcha.value.key,
-      offset: res,
-    })
-
-    localStorage.setItem('token', result.token)
-    store.setAccount(result.account)
-    await router.isReady()
-    router.replace({ name: 'Portal' })
-  } catch {
-    popoverRef.value.hide()
-    loginState.value = 'wait'
-    captchaRef.value.reset()
-  }
-}
-async function handleLogin(e?: KeyboardEvent | Event) {
-  if (e instanceof KeyboardEvent && e.code !== 'Enter') {
+async function submitLogin() {
+  if (twoFactor.value.challenge) {
+    await handleTwoFactorLogin()
     return
   }
-  const _captcha = await getCaptcha()
-  captcha.value = _captcha
-  // const jigsaw = new Jigsaw({
-  //   width: 310,
-  //   height: 155,
-  //   background: captcha.background,
-  //   block: captcha.block,
-  //   onFinish(offset) {
-  //     console.log(offset)
-  //   },
-  // })
-  // jigsaw.render('#captcha')
+  await handlePasswordLogin()
+}
+async function handlePasswordLogin() {
+  if (!formData.value.name || !formData.value.password) return
+
+  loginState.value = 'loading'
+  try {
+    const result = await login(formData.value)
+    if (result.requires2FA) {
+      twoFactor.value = {
+        challenge: result.challenge,
+        code: '',
+      }
+      loginState.value = 'wait'
+      return
+    }
+    await completeLogin(result)
+  } catch {
+    loginState.value = 'wait'
+  }
+}
+async function handleTwoFactorLogin() {
+  if (!/^\d{6}$/.test(twoFactor.value.code)) {
+    return
+  }
+  loginState.value = 'loading'
+  try {
+    const result = await loginTwoFactor({
+      challenge: twoFactor.value.challenge,
+      code: twoFactor.value.code,
+    })
+    await completeLogin(result)
+  } catch {
+    twoFactor.value.code = ''
+    loginState.value = 'wait'
+  }
+}
+async function completeLogin(result: Extract<LoginResult, { token: string }>) {
+  localStorage.setItem('token', result.token)
+  store.setAccount(result.account)
+  await router.isReady()
+  router.replace({ name: 'Portal' })
+}
+function cancelTwoFactor() {
+  twoFactor.value = {
+    challenge: '',
+    code: '',
+  }
+  loginState.value = 'wait'
 }
 </script>
 

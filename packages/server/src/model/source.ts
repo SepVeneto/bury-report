@@ -8,6 +8,11 @@ interface ISource extends BaseType {
   pid?: string,
 }
 
+type SourceNode = Omit<ISource, 'id' | 'is_delete'> & {
+  id: string
+  children?: SourceNode[]
+}
+
 export class Source extends Model<ISource> {
   constructor(db: Db) {
     super(db, 'source')
@@ -19,9 +24,9 @@ export class Source extends Model<ISource> {
   }
 }
 
-function array2tree(arr: ISource[]) {
-  const map = new Map<string, ISource & { children?: ISource[] }>()
-  const root: (ISource & { children?: ISource[] })[] = []
+function array2tree(arr: SourceNode[]) {
+  const map = new Map<string, SourceNode>()
+  const root: SourceNode[] = []
 
   arr.forEach(item => {
     if (item.pid) return

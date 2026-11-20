@@ -57,14 +57,22 @@ export async function initApp(db: Db) {
 
   {
     const col = db.collection('alert_fact')
-    await col.createIndexes([
-      { key: { fingerpring: 1 }},
+    const indexes = await col.indexes().catch(() => [])
+    if (!indexes.some(index => index.name === 'fingerprint_1')) {
+      await col.createIndex({ fingerprint: 1 })
+    }
+
+    const lastSeenIndex = indexes.find(index => index.name === 'last_seen_1')
+    if (!lastSeenIndex) {
       // 超过7天仍不活跃的事实可以被删除
       // 因此告警阈值的时间窗口最大不能超过24小时
-      { key: { last_seen: 1 }, expireAfterSeconds: 60 * 60 * 24 * 7 },
-    ]).catch(err => {
-      console.error(err)
-    })
+      await col.createIndex(
+        { last_seen: 1 },
+        { expireAfterSeconds: 60 * 60 * 24 * 7 },
+      )
+    } else if (lastSeenIndex.expireAfterSeconds !== 60 * 60 * 24 * 7) {
+      console.warn('[alert] 已存在配置不同的 last_seen 索引，跳过 TTL 索引创建')
+    }
   }
 }
 async function initClient() {
@@ -84,7 +92,6 @@ async function initDb() {
   await client.connect()
   const collections = await db.listCollections().toArray()
   await Promise.all([
-    createCollection('captcha', collections),
     createCollection('apps', collections),
     createCollection('projects', collections),
     createCollection('users', collections),
@@ -123,14 +130,6 @@ async function initDb() {
     console.warn(`[account] 已创建初始管理员 ${name}，请登录后立即修改密码`)
   }
   // createCollection('logs', collections)
-  {
-    const captcha = db.collection('captcha')
-    const indexs = await captcha.indexes()
-    const exist = indexs.find(index => index.name === 'create_time')
-    if (!exist) {
-      captcha.createIndex({ 'create_time': 1 }, { name: 'create_time', expireAfterSeconds: 10 * 60 })
-    }
-  }
 }
 
 async function createCollection(name: string, collections: (CollectionInfo| Pick<CollectionInfo, "name" | "type">)[]) {

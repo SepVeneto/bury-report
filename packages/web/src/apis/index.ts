@@ -177,16 +177,28 @@ export function getModList(): Promise<Route[]> {
   ])
 }
 
-export function getCaptcha() {
-  return request<{ background: string, block: string, key: string }>({
-    url: '/captcha',
-    method: 'get',
+export type LoginResult =
+  | {
+    requires2FA: true
+    challenge: string
+  }
+  | {
+    requires2FA?: false
+    token: string
+    account: import('./account').Account
+  }
+
+export function login(data: { name: string, password: string }) {
+  return request<LoginResult>({
+    url: '/login',
+    method: 'POST',
+    data,
   })
 }
 
-export function login(data: { name: string, password: string, key: string, offset: number }) {
-  return request<{ token: string, account: import('./account').Account }>({
-    url: '/login',
+export function loginTwoFactor(data: { challenge: string, code: string }) {
+  return request<Extract<LoginResult, { token: string }>>({
+    url: '/login/2fa',
     method: 'POST',
     data,
   })

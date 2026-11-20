@@ -29,6 +29,7 @@
     "nprogress": "^0.2.0",
     "pinia": "^2.1.7",
     "pixi.js": "6.2.1",
+    "qrcode.vue": "3.11.0",
     "rrweb": "2.0.0-alpha.4",
     "rrweb-player": "1.0.0-alpha.4",
     "sass": "^1.69.5",

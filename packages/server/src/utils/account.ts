@@ -14,6 +14,10 @@ export interface AccountDocument {
   create_time?: Date
   update_time?: Date
   last_login_time?: Date
+  two_factor_enabled?: boolean
+  two_factor_secret?: string
+  two_factor_pending_secret?: string
+  two_factor_pending_expires?: Date
 }
 
 export interface PublicAccount {
@@ -24,6 +28,7 @@ export interface PublicAccount {
   create_time: string | null
   update_time: string | null
   last_login_time: string | null
+  two_factor_enabled: boolean
 }
 
 export function normalizeAccountName(name: unknown) {
@@ -47,6 +52,7 @@ export function toPublicAccount(account: WithId<AccountDocument>): PublicAccount
     create_time: formatTime(account.create_time),
     update_time: formatTime(account.update_time),
     last_login_time: formatTime(account.last_login_time),
+    two_factor_enabled: !!account.two_factor_enabled,
   }
 }
 

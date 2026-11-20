@@ -32,6 +32,8 @@
   },
   "devDependencies": {
     "@rrweb/types": "2.0.0-alpha.18",
+    "@types/jsonwebtoken": "9.0.10",
+    "@types/md5": "2.3.6",
     "cross-env": "^7.0.3"
   }
 }

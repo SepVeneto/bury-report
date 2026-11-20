@@ -1,52 +1,26 @@
-import { Router } from '@oak/oak'
-import md5 from 'md5'
+import { Context, Router } from '@oak/oak'
 import jwt from 'jsonwebtoken'
+import { ObjectId, type WithId } from 'mongodb'
 import { SECRET } from '../utils/index.ts'
-import * as canvas from '@josefabio/deno-canvas'
-import timezone from 'dayjs/plugin/timezone.js'
-import utc from 'dayjs/plugin/utc.js'
-import dayjs from 'dayjs'
 import type { AccountDocument } from '../utils/account.ts'
 import { normalizeAccountName, toPublicAccount } from '../utils/account.ts'
 import { hashPassword, isLegacyPassword, verifyPassword } from '../utils/password.ts'
+import { verifyTotp } from '../utils/totp.ts'
 
 const router = new Router()
 
-const isDebug = !!Deno.env.get('DEBUG')
-console.log('DEBUG', isDebug)
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
+const twoFactorAttempts = new Map<string, { count: number; expiresAt: number }>()
+const TWO_FACTOR_MAX_ATTEMPTS = 5
+const TWO_FACTOR_CHALLENGE_TTL = 5 * 60
 
 router.post('/login', async (ctx) => {
   const body = await ctx.request.body.json()
   const name = normalizeAccountName(body.name)
   const password = body.password
-  const { key, offset } = body
-
   if (!name || typeof password !== 'string') {
     ctx.resCode = 1
     ctx.resMsg = '用户名或密码错误'
     return
-  }
-
-  if (!isDebug) {
-    const captcha = ctx.db.collection('captcha')
-    const res = await captcha.findOne({ key })
-    if (!res) {
-      ctx.resCode = 1
-      ctx.resBody = '验证码已过期'
-      return
-    }
-    await captcha.deleteOne({ key })
-    const target = res.offset
-    const isVerify = verifyCaptcha(target, offset)
-
-    if (!isVerify) {
-      ctx.resCode = 1
-      ctx.resMsg = '验证码错误'
-      return
-    }
   }
 
   const users = ctx.db.collection<AccountDocument>('users')
@@ -66,19 +40,27 @@ router.post('/login', async (ctx) => {
         },
       )
     }
-    await users.updateOne(
-      { _id: account._id },
-      { $set: { last_login_time: new Date() } },
-    )
-    const payload = {
-      sub: account._id.toHexString(),
-      account: name,
-      time: Date.now(),
+    if (account.two_factor_enabled) {
+      if (!account.two_factor_secret) {
+        ctx.resCode = 1
+        ctx.resMsg = '双因素验证配置异常，请联系管理员'
+        return
+      }
+      ctx.resBody = {
+        requires2FA: true,
+        challenge: jwt.sign(
+          {
+            sub: account._id.toHexString(),
+            purpose: '2fa',
+          },
+          SECRET,
+          { expiresIn: TWO_FACTOR_CHALLENGE_TTL },
+        ),
+      }
+      return
     }
-    ctx.resBody = {
-      token: jwt.sign(payload, SECRET),
-      account: toPublicAccount(account),
-    }
+
+    await completeLogin(ctx, account)
   } else {
     ctx.resCode = 1
     ctx.resMsg = '用户名或密码错误'
@@ -86,69 +68,85 @@ router.post('/login', async (ctx) => {
 
 })
 
-const L = 42
-const R = 9
-function getRandomPos(w: number) {
-  const x = Math.random() * (w - L * 2) + L
-  return [Number(x.toFixed(0)), 50]
-}
-router.get('/captcha', async (ctx, next) => {
-  const width = 310
-  const height = 155
-  const background = canvas.createCanvas(width, height)
-  let block = canvas.createCanvas(width, height)
-  const backgroundCtx = background.getContext('2d')
-  let blockCtx = block.getContext('2d')
-
-  const image = await canvas.loadImage('./976-310x155.jpg')
-  const [x, y] = getRandomPos(width)
-
-  drawSlot(backgroundCtx, x, y)
-  backgroundCtx.fill()
-  drawSlot(blockCtx, x, y)
-  blockCtx.clip()
-
-  backgroundCtx.drawImage(image, 0, 0, width, height)
-  blockCtx.drawImage(image, 0, 0, width, height)
-
-  const imageData = blockCtx.getImageData(x, 0, L + L / 2, height)
-  // block.width = L + L / 2
-  block = canvas.createCanvas(L + L / 2, block.height)
-  blockCtx = block.getContext('2d')
-  blockCtx.putImageData(imageData, 0, 0)
-
-  const captchaMd5 = md5(`${Date.now()}-captcha`)
-  ctx.resBody = {
-    background: background.toDataURL(),
-    block: block.toDataURL(),
-    key: captchaMd5,
+router.post('/login/2fa', async (ctx) => {
+  const { challenge, code } = await ctx.request.body.json()
+  if (typeof challenge !== 'string' || !/^\d{6}$/.test(code || '')) {
+    ctx.resCode = 1
+    ctx.resMsg = '动态验证码错误'
+    return
   }
-  const captcha = ctx.db.collection('captcha')
-  await captcha.insertOne({ key: captchaMd5, offset: x, create_time: new Date() })
-  await next()
+
+  let payload: jwt.JwtPayload
+  try {
+    payload = jwt.verify(challenge, SECRET) as jwt.JwtPayload
+  } catch {
+    ctx.resCode = 1
+    ctx.resMsg = '验证已过期，请重新登录'
+    return
+  }
+  if (
+    payload.purpose !== '2fa' ||
+    typeof payload.sub !== 'string' ||
+    !ObjectId.isValid(payload.sub)
+  ) {
+    ctx.resCode = 1
+    ctx.resMsg = '验证凭证无效'
+    return
+  }
+
+  const attempt = twoFactorAttempts.get(payload.sub)
+  if (
+    attempt &&
+    attempt.expiresAt > Date.now() &&
+    attempt.count >= TWO_FACTOR_MAX_ATTEMPTS
+  ) {
+    ctx.response.status = 429
+    ctx.resCode = 1
+    ctx.resMsg = '验证码错误次数过多，请稍后重新登录'
+    return
+  }
+
+  const users = ctx.db.collection<AccountDocument>('users')
+  const account = await users.findOne({
+    _id: new ObjectId(payload.sub),
+    is_delete: { $ne: true },
+    status: { $ne: 'disabled' },
+    two_factor_enabled: true,
+  })
+  if (!account?.two_factor_secret || !verifyTotp(account.two_factor_secret, code)) {
+    const current = attempt && attempt.expiresAt > Date.now()
+      ? attempt
+      : { count: 0, expiresAt: Date.now() + TWO_FACTOR_CHALLENGE_TTL * 1000 }
+    twoFactorAttempts.set(payload.sub, {
+      count: current.count + 1,
+      expiresAt: current.expiresAt,
+    })
+    ctx.resCode = 1
+    ctx.resMsg = '动态验证码错误'
+    return
+  }
+
+  twoFactorAttempts.delete(payload.sub)
+  await completeLogin(ctx, account)
 })
-function verifyCaptcha(target: number, answer: number) {
-  const offset = Math.abs(target - answer)
-  return offset < 5
-}
 
-function drawSlot(ctx: canvas.CanvasRenderingContext2D, x: number, y: number) {
-  ctx.beginPath()
-
-  ctx.moveTo(x, y)
-  ctx.arc(x + L / 2, y - R + 2, R, 0.72 * Math.PI, 2.26 * Math.PI)
-  ctx.lineTo(x + L, y)
-  ctx.arc(x + L + R - 2, y + L / 2, R, 1.21 * Math.PI, 2.78 * Math.PI)
-  ctx.lineTo(x + L, y + L)
-  ctx.lineTo(x, y + L)
-  ctx.arc(x + R - 2, y + L / 2, R + 0.4, 2.76 * Math.PI, 1.24 * Math.PI, true)
-  ctx.lineTo(x, y)
-  ctx.lineWidth = 2
-  const color = 'rgba(255,255,255,0.7)'
-  ctx.fillStyle = color
-  ctx.strokeStyle = color
-  ctx.stroke()
-  ctx.globalCompositeOperation = 'destination-over'
+async function completeLogin(
+  ctx: Context,
+  account: WithId<AccountDocument>,
+) {
+  await ctx.db.collection<AccountDocument>('users').updateOne(
+    { _id: account._id },
+    { $set: { last_login_time: new Date() } },
+  )
+  const payload = {
+    sub: account._id.toHexString(),
+    account: account.name,
+    time: Date.now(),
+  }
+  ctx.resBody = {
+    token: jwt.sign(payload, SECRET),
+    account: toPublicAccount(account),
+  }
 }
 
 export default router

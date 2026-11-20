@@ -31,15 +31,16 @@ router.get('/record/logs', async (ctx) => {
   )
   res.list.forEach(item => {
     if (item.type === '__BR_PERF_INFO__' && item.data) {
+      const data = item.data as Record<string, unknown>
       item.data = {
-        fcp: item.data.fcp,
-        fcpMs: item.data.fcpMs,
-        lcp: item.data.lcp,
-        inp: item.data.inp,
-        ttfb: item.data.ttfb,
-        perfVersion: item.data.perfVersion,
-        ratings: item.data.ratings,
-        navigationType: item.data.navigationType,
+        fcp: data.fcp,
+        fcpMs: data.fcpMs,
+        lcp: data.lcp,
+        inp: data.inp,
+        ttfb: data.ttfb,
+        perfVersion: data.perfVersion,
+        ratings: data.ratings,
+        navigationType: data.navigationType,
       }
     }
   })

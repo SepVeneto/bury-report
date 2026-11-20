@@ -1,3 +1,5 @@
+/// <reference path="./env.d.ts" />
+
 import apis from './apis/index.ts'
 import { Application } from '@oak/oak'
 import process from 'node:process'

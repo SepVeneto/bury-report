@@ -1,8 +1,7 @@
 import { Router } from '@oak/oak'
-import { ObjectId, WithId } from 'mongodb'
+import { type Document, ObjectId, WithId } from 'mongodb'
 import { Project } from '../model/project.ts'
 import { App } from '../model/app.ts'
-import type { Document } from 'bson'
 import { normalize } from "../utils/tools.ts";
 import { initApp } from "../db.ts";
 

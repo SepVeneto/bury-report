@@ -11,10 +11,16 @@ import {
   toPublicAccount,
 } from '../utils/account.ts'
 import { escapeRegExp } from '../utils/tools.ts'
+import {
+  buildTotpUri,
+  generateTotpSecret,
+  verifyTotp,
+} from '../utils/totp.ts'
 
 const router = new Router()
 const ACCOUNT_ROLES = new Set<AccountRole>(['admin', 'member'])
 const ACCOUNT_STATUSES = new Set<AccountStatus>(['active', 'disabled'])
+const TWO_FACTOR_SETUP_TTL = 10 * 60 * 1000
 
 router.get('/account/profile', async (ctx) => {
   const account = await findCurrentAccount(ctx)
@@ -53,6 +59,121 @@ router.patch('/account/password', async (ctx) => {
     },
   )
   ctx.resMsg = '密码修改成功'
+})
+
+router.post('/account/2fa/setup', async (ctx) => {
+  const account = await findCurrentAccount(ctx)
+  if (!account) {
+    ctx.resCode = 1
+    ctx.resMsg = '当前账号不存在'
+    return
+  }
+  if (account.two_factor_enabled) {
+    ctx.resCode = 1
+    ctx.resMsg = '双因素验证已启用'
+    return
+  }
+
+  const secret = generateTotpSecret()
+  const expiresAt = new Date(Date.now() + TWO_FACTOR_SETUP_TTL)
+  await ctx.db.collection<AccountDocument>('users').updateOne(
+    { _id: account._id },
+    {
+      $set: {
+        two_factor_pending_secret: secret,
+        two_factor_pending_expires: expiresAt,
+        update_time: new Date(),
+      },
+    },
+  )
+
+  ctx.resBody = {
+    secret,
+    otpauth_url: buildTotpUri({
+      issuer: Deno.env.get('TOTP_ISSUER') || 'Bury Report',
+      account: account.name,
+      secret,
+    }),
+    expires_at: expiresAt.toISOString(),
+  }
+})
+
+router.post('/account/2fa/enable', async (ctx) => {
+  const { code } = await ctx.request.body.json()
+  const account = await findCurrentAccount(ctx)
+  if (!account) {
+    ctx.resCode = 1
+    ctx.resMsg = '当前账号不存在'
+    return
+  }
+  if (account.two_factor_enabled) {
+    ctx.resCode = 1
+    ctx.resMsg = '双因素验证已启用'
+    return
+  }
+  if (
+    !account.two_factor_pending_secret ||
+    !account.two_factor_pending_expires ||
+    account.two_factor_pending_expires.getTime() < Date.now()
+  ) {
+    ctx.resCode = 1
+    ctx.resMsg = '绑定已过期，请重新开始'
+    return
+  }
+  if (!isTotpCode(code) || !verifyTotp(account.two_factor_pending_secret, code)) {
+    ctx.resCode = 1
+    ctx.resMsg = '动态验证码错误'
+    return
+  }
+
+  await ctx.db.collection<AccountDocument>('users').updateOne(
+    { _id: account._id },
+    {
+      $set: {
+        two_factor_enabled: true,
+        two_factor_secret: account.two_factor_pending_secret,
+        update_time: new Date(),
+      },
+      $unset: {
+        two_factor_pending_secret: '',
+        two_factor_pending_expires: '',
+      },
+    },
+  )
+  ctx.resBody = { two_factor_enabled: true }
+  ctx.resMsg = '双因素验证已启用'
+})
+
+router.post('/account/2fa/disable', async (ctx) => {
+  const { code } = await ctx.request.body.json()
+  const account = await findCurrentAccount(ctx)
+  if (!account?.two_factor_enabled || !account.two_factor_secret) {
+    ctx.resCode = 1
+    ctx.resMsg = '双因素验证未启用'
+    return
+  }
+  if (!isTotpCode(code) || !verifyTotp(account.two_factor_secret, code)) {
+    ctx.resCode = 1
+    ctx.resMsg = '动态验证码错误'
+    return
+  }
+
+  await ctx.db.collection<AccountDocument>('users').updateOne(
+    { _id: account._id },
+    {
+      $set: {
+        two_factor_enabled: false,
+        update_time: new Date(),
+      },
+      $unset: {
+        two_factor_secret: '',
+        two_factor_pending_secret: '',
+        two_factor_pending_expires: '',
+      },
+    },
+  )
+  ctx.resBody = { two_factor_enabled: false }
+  ctx.resMsg = '双因素验证已关闭'
 })
 
 router.get('/accounts', async (ctx) => {
@@ -259,6 +380,34 @@ router.delete('/accounts', async (ctx) => {
   ctx.resMsg = '账号删除成功'
 })
 
+router.post('/accounts/2fa/reset', async (ctx) => {
+  if (!ensureAdmin(ctx)) return
+
+  const { id } = await ctx.request.body.json()
+  const target = await findAccountById(ctx, id)
+  if (!target) {
+    ctx.resCode = 1
+    ctx.resMsg = '账号不存在'
+    return
+  }
+
+  await ctx.db.collection<AccountDocument>('users').updateOne(
+    { _id: target._id },
+    {
+      $set: {
+        two_factor_enabled: false,
+        update_time: new Date(),
+      },
+      $unset: {
+        two_factor_secret: '',
+        two_factor_pending_secret: '',
+        two_factor_pending_expires: '',
+      },
+    },
+  )
+  ctx.resMsg = '双因素验证已重置'
+})
+
 function ensureAdmin(ctx: Context) {
   if (ctx.account?.role === 'admin') return true
 
@@ -307,6 +456,10 @@ function passwordError(password: unknown) {
   if (typeof password !== 'string' || !password) return '请输入密码'
   if (password.length < 6 || password.length > 16) return '密码长度应为6-16位'
   return ''
+}
+
+function isTotpCode(code: unknown): code is string {
+  return typeof code === 'string' && /^\d{6}$/.test(code)
 }
 
 export default router

@@ -7,6 +7,9 @@
       <div>{{ name }}</div>
     </div>
     <template #dropdown>
+      <el-dropdown-item command="twoFactor">
+        双因素验证
+      </el-dropdown-item>
       <el-dropdown-item command="resetPassword">
         修改密码
       </el-dropdown-item>
@@ -55,6 +58,8 @@
       </el-form-item>
     </el-form>
   </bc-dialog>
+
+  <TwoFactorDialog ref="twoFactorDialogRef" />
 </template>
 
 <script lang="ts" setup>
@@ -62,6 +67,7 @@ import { checkPass, required } from '@/util/rules'
 import { ref } from 'vue'
 import type { FormInstance } from 'element-plus'
 import { updatePassword } from '@/apis'
+import TwoFactorDialog from '@/components/TwoFactorDialog.vue'
 
 defineProps({
   name: {
@@ -72,6 +78,7 @@ defineProps({
 
 const formRef = ref<FormInstance>()
 const visible = ref(false)
+const twoFactorDialogRef = ref<InstanceType<typeof TwoFactorDialog>>()
 const formData = ref({
   password_old: '',
   password: '',
@@ -107,7 +114,9 @@ async function handleSubmit() {
   visible.value = false
 }
 async function handleCommand(command: string) {
-  if (command === 'resetPassword') {
+  if (command === 'twoFactor') {
+    twoFactorDialogRef.value?.open()
+  } else if (command === 'resetPassword') {
     visible.value = true
   }
 }
