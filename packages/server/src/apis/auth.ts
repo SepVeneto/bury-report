@@ -10,6 +10,7 @@ import {
   generateTotpSecret,
   verifyTotp,
 } from '../utils/totp.ts'
+import { issueSessionToken } from '../utils/session.ts'
 
 const router = new Router()
 
@@ -312,13 +313,8 @@ async function completeLogin(
     { _id: account._id },
     { $set: { last_login_time: new Date() } },
   )
-  const payload = {
-    sub: account._id.toHexString(),
-    account: account.name,
-    time: Date.now(),
-  }
   ctx.resBody = {
-    token: jwt.sign(payload, SECRET),
+    token: issueSessionToken(account),
     account: toPublicAccount(account),
   }
 }

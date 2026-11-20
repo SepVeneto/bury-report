@@ -38,6 +38,10 @@ export const requestInspector = (config: AxiosRequestConfig<any>) => {
 
 export const responseInspector = async (response: AxiosResponse<Response>) => {
   NProgress.done()
+  const refreshedToken = response.headers['x-access-token']
+  if (typeof refreshedToken === 'string' && refreshedToken) {
+    localStorage.setItem('token', refreshedToken)
+  }
   if (response.data instanceof Blob) {
     const res = response.data
     if (res.type === 'application/json') {

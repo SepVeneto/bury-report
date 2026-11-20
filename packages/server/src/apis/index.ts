@@ -17,6 +17,7 @@ import { normalizeQuery } from "../utils/tools.ts";
 import { ObjectId } from 'mongodb'
 import type { AccountDocument } from '../utils/account.ts'
 import { normalizeAccountRole } from '../utils/account.ts'
+import { issueSessionToken } from '../utils/session.ts'
 
 const router = new Router()
 
@@ -78,6 +79,7 @@ router.use(async (ctx, next) => {
           role: normalizeAccountRole(isLogin.role),
           projectIds: isLogin.project_ids || [],
         }
+        ctx.response.headers.set('x-access-token', issueSessionToken(isLogin))
         await next()
       }
     } catch (err) {
