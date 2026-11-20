@@ -1,7 +1,7 @@
 services:
   manage:
     container_name: report-manage
-    image: sepveneto/br-manage
+    image: ${BR_MANAGE_IMAGE:-sepveneto/br-manage}
     ports:
       - 8080:8080
     links:
@@ -26,7 +26,7 @@ services:
       - REPORT_DB_URL=db:27017
   server:
     container_name: report-server
-    image: sepveneto/br-server
+    image: ${BR_SERVER_IMAGE:-sepveneto/br-server}
     ports:
       - 8878:8878
     depends_on:
@@ -36,12 +36,14 @@ services:
     env_file:
       - .env.db.local
     environment:
-      - REPORT_DB_URL=db:27017
+      REPORT_DB_URL: db:27017
+      JWT_SECRET: ${JWT_SECRET:-}
+      TOTP_ISSUER: ${TOTP_ISSUER:-Bury Report}
   db:
     container_name: report-db
     image: mongo:4.4.26
     ports:
-      - '27017:27017'
+      - '127.0.0.1:27017:27017'
     command:
       - '--auth'
     env_file:
@@ -74,10 +76,10 @@ services:
     networks:
       - redpanda_network
     ports:
-      - 19092:19092   # Kafka 外部端口
-      - 18081:18081   # Schema Registry 外部端口
-      - 18082:18082   # Pandaproxy 外部端口
-      - 19644:9644    # Admin UI
+      - 127.0.0.1:19092:19092   # Kafka 外部端口
+      - 127.0.0.1:18081:18081   # Schema Registry 外部端口
+      - 127.0.0.1:18082:18082   # Pandaproxy 外部端口
+      - 127.0.0.1:19644:9644    # Admin UI
     deploy:
       resources:
         limits:
@@ -108,7 +110,7 @@ services:
             enabled: true
             urls: ["http://redpanda-0:9644"]
     ports:
-      - 8080:8080
+      - 18080:8080
     depends_on:
       - redpanda-0
 
@@ -116,7 +118,7 @@ services:
     image: redis:7
     container_name: redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - redpanda_network
     command: ["redis-server", "--notify-keyspace-events", "Ex"]

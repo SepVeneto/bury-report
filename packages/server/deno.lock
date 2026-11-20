@@ -17,6 +17,8 @@
     "jsr:@std/path@1": "1.1.2",
     "npm:@duckdb/node-api@^1.4.4-r.1": "1.4.4-r.1",
     "npm:@rrweb/types@2.0.0-alpha.18": "2.0.0-alpha.18",
+    "npm:@types/jsonwebtoken@9.0.10": "9.0.10",
+    "npm:@types/md5@2.3.6": "2.3.6",
     "npm:@types/node@*": "24.2.0",
     "npm:cos-nodejs-sdk-v5@^2.15.4": "2.15.4",
     "npm:croner@*": "10.0.1",
@@ -162,6 +164,19 @@
     },
     "@types/css-font-loading-module@0.0.7": {
       "integrity": "sha512-nl09VhutdjINdWyXxHWN/w9zlNCfr60JUqJbd24YXUuCwgeL0TpFSdElCwb6cxfB6ybE19Gjj4g0jsgkXxKv1Q=="
+    },
+    "@types/jsonwebtoken@9.0.10": {
+      "integrity": "sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==",
+      "dependencies": [
+        "@types/ms",
+        "@types/node"
+      ]
+    },
+    "@types/md5@2.3.6": {
+      "integrity": "sha512-WD69gNXtRBnpknfZcb4TRQ0XJQbUPZcai/Qdhmka3sxUR3Et8NrXoeAoknG/LghYHTf4ve795rInVYHBTQdNVA=="
+    },
+    "@types/ms@2.1.0": {
+      "integrity": "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA=="
     },
     "@types/node@24.2.0": {
       "integrity": "sha512-3xyG3pMCq3oYCNg7/ZP+E1ooTaGB4cG8JWRsqqOYQdbWNY4zbaV0Ennrd7stjiJEFZCaybcIgpTjJWHRfBSIDw==",

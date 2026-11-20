@@ -1,1 +1,16 @@
+.git
+**/.git
+**/node_modules
+**/dist
+**/target
 packages/logs/target
+packages/server/data
+**/.env
+**/.env.local
+**/.env.*.local
+.env.db.local
+**/.aws
+**/.agents
+**/.codex
+**/*.log
+**/.tmp*

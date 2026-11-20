@@ -3,6 +3,7 @@
 | 名称 | 描述 | 示例 |
 | --- | --- | ----- |
 | REPORT_DB_URL | 连接的数据库地址 | db:port |
+| JWT_SECRET | JWT 签名密钥，生产环境必须设置 | 随机长字符串 |
 | REDIS_HOST | 连接的redis地址 | redis:port |
 | INTERNAL_TOKEN | 内网请求使用的token | 123456 |
 | TOTP_ISSUER | 身份验证器中显示的服务名称 | Bury Report |

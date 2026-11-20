@@ -26,6 +26,8 @@ jobs:
         with:
           node-version:  20.17.0
           registry-url: https://registry.npmjs.org
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       
       - name: Update npm
         run: npm install npm@11.6.1 -g

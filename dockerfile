@@ -48,7 +48,7 @@ COPY ./packages/server ./packages/server
 
 WORKDIR /app/packages/server
 
-RUN deno install --frozen=false --node-modules-dir=true && deno cache --node-modules-dir ./src/main.ts
+RUN deno install --frozen --node-modules-dir=true && deno cache --node-modules-dir ./src/main.ts
 
 # 2. 下载 Playwright 的 Chromium 浏览器。
 # Deno 的 node:http 尚未实现下载器用到的 ClientRequest.options.lookup，
@@ -62,7 +62,7 @@ WORKDIR /app
 
 COPY ./.npmrc ./
 
-RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm i -g playwright@1.63.0 && \
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm i -g playwright@1.58.2 && \
     playwright install chromium
 
 FROM debian:bookworm-slim AS server-runner
@@ -120,7 +120,7 @@ COPY ./packages/web/lib ./packages/web/lib
 COPY ./.npmrc ./pnpm-* ./package.json ./
 COPY ./packages/web/package.json ./packages/web/package.json
 
-RUN npm i -g pnpm@10 && pnpm i
+RUN npm i -g pnpm@10 && pnpm install --frozen-lockfile
 
 COPY ./packages/web/.env.production\
      ./packages/web/index.html\

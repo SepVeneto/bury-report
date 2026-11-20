@@ -11,6 +11,8 @@ pnpm -C packages/web dev
 
 管理端访问 `http://localhost:8800`，API 监听 `http://localhost:8878`。本地默认管理员由 `packages/server/.env.local` 中的 `ADMIN_NAME` 和 `ADMIN_PASSWORD` 配置。
 
+服务端启动必须配置 `JWT_SECRET`。Docker 部署时可通过 `BR_SERVER_IMAGE`、`BR_MANAGE_IMAGE` 指定固定镜像版本，并用 `TOTP_ISSUER` 设置身份验证器中显示的服务名称。
+
 管理员登录后可从项目桌面新增按钮后面的“账”图标进入账号管理，进行账号新增、角色调整、启停、密码重置和删除。
 
 账号管理页支持开启基于 TOTP 的双因素验证，使用身份验证器扫描二维码即可绑定。开启后登录时需要追加输入身份验证器生成的 6 位动态码，管理员可重置账号的双因素绑定。
