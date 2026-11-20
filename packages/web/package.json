@@ -38,6 +38,7 @@
   },
   "devDependencies": {
     "@micro-zoe/micro-app": "1.0.0-rc.2",
+    "@rrweb/types": "2.0.0-alpha.18",
     "@rsbuild/core": "^1.6.15",
     "@rsbuild/plugin-sass": "^1.4.0",
     "@rsbuild/plugin-vue": "^1.2.2",

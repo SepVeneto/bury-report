@@ -12,11 +12,15 @@ import device from './device.ts'
 import task from './task.ts'
 import alert from './alert.ts'
 import statistics from './statistics.ts'
+import account from './account.ts'
 import { normalizeQuery } from "../utils/tools.ts";
+import { ObjectId } from 'mongodb'
+import type { AccountDocument } from '../utils/account.ts'
+import { normalizeAccountRole } from '../utils/account.ts'
 
 const router = new Router()
 
-const whiteList = ['/login', '/register', '/record', '/captcha']
+const whiteList = ['/login', '/record', '/captcha']
 
 router.use(async (ctx, next) => {
   ctx.db = client.db('reporter')
@@ -41,11 +45,27 @@ router.use(async (ctx, next) => {
      * TODO: 通过redis检查token
      */
     try {
-      const res = jwt.verify(token, SECRET)
-      const isLogin = await ctx.db.collection('users').findOne({ name: res.account })
+      const res = jwt.verify(token, SECRET) as jwt.JwtPayload
+      const users = ctx.db.collection<AccountDocument>('users')
+      const isLogin = res.sub && ObjectId.isValid(res.sub)
+        ? await users.findOne({
+          _id: new ObjectId(res.sub),
+          is_delete: { $ne: true },
+          status: { $ne: 'disabled' },
+        })
+        : await users.findOne({
+          name: res.account,
+          is_delete: { $ne: true },
+          status: { $ne: 'disabled' },
+        })
       if (!isLogin) {
         ctx.response.status = 403
       } else {
+        ctx.account = {
+          id: isLogin._id.toHexString(),
+          name: isLogin.name,
+          role: normalizeAccountRole(isLogin.role),
+        }
         await next()
       }
     } catch (err) {
@@ -56,7 +76,7 @@ router.use(async (ctx, next) => {
   }
 })
 
-const portalEntry = ['/project', '/app']
+const portalEntry = ['/project', '/app', '/account', '/accounts']
 router.use(async (ctx, next) => {
   if (whiteList.includes(ctx.request.url.pathname) || portalEntry.some(item => ctx.request.url.pathname.startsWith(item))) {
     await next()
@@ -103,5 +123,6 @@ router.use(device.routes())
 router.use(task.routes())
 router.use(statistics.routes())
 router.use(alert.routes())
+router.use(account.routes())
 
 export default router

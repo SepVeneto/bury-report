@@ -16,6 +16,11 @@ declare module '@oak/oak' {
     resCode?: number
     db: Db
     duck: DuckDBConnection
+    account?: {
+      id: string
+      name: string
+      role: 'admin' | 'member'
+    }
   }
 
   interface Request {

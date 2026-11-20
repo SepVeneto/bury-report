@@ -6,6 +6,9 @@ import * as canvas from '@josefabio/deno-canvas'
 import timezone from 'dayjs/plugin/timezone.js'
 import utc from 'dayjs/plugin/utc.js'
 import dayjs from 'dayjs'
+import type { AccountDocument } from '../utils/account.ts'
+import { normalizeAccountName, toPublicAccount } from '../utils/account.ts'
+import { hashPassword, isLegacyPassword, verifyPassword } from '../utils/password.ts'
 
 const router = new Router()
 
@@ -16,7 +19,16 @@ dayjs.extend(utc)
 dayjs.extend(timezone)
 
 router.post('/login', async (ctx) => {
-  const { name, password, key, offset } = await ctx.request.body.json()
+  const body = await ctx.request.body.json()
+  const name = normalizeAccountName(body.name)
+  const password = body.password
+  const { key, offset } = body
+
+  if (!name || typeof password !== 'string') {
+    ctx.resCode = 1
+    ctx.resMsg = '用户名或密码错误'
+    return
+  }
 
   if (!isDebug) {
     const captcha = ctx.db.collection('captcha')
@@ -37,35 +49,41 @@ router.post('/login', async (ctx) => {
     }
   }
 
-  const users = ctx.db.collection('users')
+  const users = ctx.db.collection<AccountDocument>('users')
 
-  const isAccess = await users.findOne({ name, password: md5(password)} )
-  if (isAccess) {
+  const account = await users.findOne({
+    name,
+    is_delete: { $ne: true },
+    status: { $ne: 'disabled' },
+  })
+  if (account && verifyPassword(password, account)) {
+    if (isLegacyPassword(account)) {
+      await users.updateOne(
+        { _id: account._id },
+        {
+          $set: { password_hash: hashPassword(password) },
+          $unset: { password: '' },
+        },
+      )
+    }
+    await users.updateOne(
+      { _id: account._id },
+      { $set: { last_login_time: new Date() } },
+    )
     const payload = {
+      sub: account._id.toHexString(),
       account: name,
       time: Date.now(),
     }
-    ctx.resBody = { token: jwt.sign(payload, SECRET) }
+    ctx.resBody = {
+      token: jwt.sign(payload, SECRET),
+      account: toPublicAccount(account),
+    }
   } else {
     ctx.resCode = 1
     ctx.resMsg = '用户名或密码错误'
   }
 
-})
-router.post('/register', async (ctx) => {
-  const { name, password } = await ctx.request.body.json()
-
-  const users = ctx.db.collection('users')
-  const res = await users.findOne({ name })
-  if (res) {
-    ctx.resCode = 1
-    ctx.resMsg = 'The name has been registered'
-    return
-  }
-  const md5pwd = md5(password)
-  users.insertOne({ name, password: md5pwd })
-
-  ctx.resMsg = '注册成功'
 })
 
 const L = 42

@@ -3,9 +3,6 @@ import type { RouteRecordRaw } from 'vue-router'
 // import subView from '@/layout/subView.vue'
 import { useApp } from '@/store'
 import RedirectView from '@/layout/RedirectView.vue'
-import NotFound from '@/layout/NotFound.vue'
-import AppView from '@/layout/AppView.vue'
-import Topbar from '@/layout/topbar'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -43,6 +40,11 @@ const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
+  },
+  {
+    path: '/accounts',
+    name: 'AccountView',
+    component: () => import('@/views/account/AccountView.vue'),
   },
 ]
 

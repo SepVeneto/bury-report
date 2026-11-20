@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import type { RouteLocationNormalized } from 'vue-router'
+import type { Account } from '@/apis/account'
 
 export type Route = {
   id: number
@@ -12,8 +13,11 @@ export type Route = {
 }
 
 export const useApp = defineStore('app', () => {
-  const username = 'anonymous'
   const title = import.meta.env.PUBLIC_TITLE
+  const account = ref<Account | null>(readAccount())
+  const username = computed(() => account.value?.name || 'anonymous')
+  const role = computed(() => account.value?.role || '')
+  const accountId = computed(() => account.value?.id || '')
 
   const menuList = shallowRef<Route[]>([])
   const modList = shallowRef<Route[]>([])
@@ -31,9 +35,17 @@ export const useApp = defineStore('app', () => {
     return !isMicroApp() && !isBaseApp()
   }
 
+  function setAccount(value: Account) {
+    account.value = value
+    localStorage.setItem('account', JSON.stringify(value))
+  }
+
   return {
     appid,
+    account,
     username,
+    role,
+    accountId,
     title,
     breadcrumb: [] as RouteLocationNormalized[],
     menuList,
@@ -42,5 +54,16 @@ export const useApp = defineStore('app', () => {
     isSpaApp,
     isMicroApp,
     isBaseApp,
+    setAccount,
   }
 })
+
+function readAccount(): Account | null {
+  try {
+    const value = localStorage.getItem('account')
+    return value ? JSON.parse(value) as Account : null
+  } catch {
+    localStorage.removeItem('account')
+    return null
+  }
+}

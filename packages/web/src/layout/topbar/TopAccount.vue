@@ -10,9 +10,6 @@
       <el-dropdown-item command="resetPassword">
         修改密码
       </el-dropdown-item>
-      <el-dropdown-item command="logout">
-        退出登录
-      </el-dropdown-item>
     </template>
   </el-dropdown>
 
@@ -64,7 +61,7 @@
 import { checkPass, required } from '@/util/rules'
 import { ref } from 'vue'
 import type { FormInstance } from 'element-plus'
-import { useRouter } from 'vue-router'
+import { updatePassword } from '@/apis'
 
 defineProps({
   name: {
@@ -73,7 +70,6 @@ defineProps({
   },
 })
 
-const router = useRouter()
 const formRef = ref<FormInstance>()
 const visible = ref(false)
 const formData = ref({
@@ -104,18 +100,15 @@ async function handleSubmit() {
     throw new Error('cannot find form')
   }
   await formRef.value.validate()
+  await updatePassword({
+    password_old: formData.value.password_old,
+    password: formData.value.password,
+  })
   visible.value = false
-  localStorage.removeItem('token')
-  await router.replace({ name: 'Login' })
-  location.reload()
 }
 async function handleCommand(command: string) {
   if (command === 'resetPassword') {
     visible.value = true
-  } else if (command === 'logout') {
-    localStorage.removeItem('token')
-    router.replace({ name: 'Login' })
-    location.reload()
   }
 }
 </script>

@@ -18,3 +18,13 @@
 | NETDATA_URL | netdata服务地址 | http://netdata:123456 |
 | NETDATA_PUSH | netdata数据的推送地址 | -- |
 | SALT | 密码盐 | -- |
+
+## 初始管理员
+
+首次连接到空数据库时，服务会根据 `ADMIN_NAME` 和 `ADMIN_PASSWORD` 创建管理员，默认值为 `admin` / `Admin123456`。已有数据库可以使用以下命令显式创建或重置管理员密码：
+
+```shell
+pnpm bootstrap:admin
+```
+
+该命令会读取 `packages/server/.env.local`，生产环境执行前请先在登录页确认现有管理员不受影响。

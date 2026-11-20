@@ -366,6 +366,9 @@ importers:
       '@micro-zoe/micro-app':
         specifier: 1.0.0-rc.2
         version: 1.0.0-rc.2
+      '@rrweb/types':
+        specifier: 2.0.0-alpha.18
+        version: 2.0.0-alpha.18
       '@rsbuild/core':
         specifier: ^1.6.15
         version: 1.6.15

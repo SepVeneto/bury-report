@@ -105,6 +105,7 @@ async function onFinish(res: number) {
     })
 
     localStorage.setItem('token', result.token)
+    store.setAccount(result.account)
     await router.isReady()
     router.replace({ name: 'Portal' })
   } catch {

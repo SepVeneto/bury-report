@@ -1,5 +1,18 @@
 # 埋点上报
 
+## 本地测试环境
+
+```shell
+docker compose up -d db
+pnpm -C packages/server bootstrap:admin
+pnpm -C packages/server dev:local
+pnpm -C packages/web dev
+```
+
+管理端访问 `http://localhost:8800`，API 监听 `http://localhost:8878`。本地默认管理员由 `packages/server/.env.local` 中的 `ADMIN_NAME` 和 `ADMIN_PASSWORD` 配置。
+
+管理员登录后可从项目桌面新增按钮后面的“账”图标进入账号管理，进行账号新增、角色调整、启停、密码重置和删除。
+
 ## redpanda
 ```shell
 docker exec -it redpanda-0 bash

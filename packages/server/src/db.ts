@@ -1,12 +1,14 @@
 import { CollectionInfo, Db, MongoClient } from 'mongodb'
 import process from "node:process"
+import type { AccountDocument } from './utils/account.ts'
+import { hashPassword } from './utils/password.ts'
 
 // const client = new MongoClient('mongodb://db:27017')
 export const client = new MongoClient(`mongodb://${process.env.DB_NAME || 'root'}:${process.env.DB_PWD || 'root_123'}@${process.env.REPORT_DB_URL}`)
 
 
 const db = client.db('reporter')
-init()
+await init()
 
 async function init() {
   await initClient()
@@ -81,10 +83,45 @@ async function initClient() {
 async function initDb() {
   await client.connect()
   const collections = await db.listCollections().toArray()
-  createCollection('captcha', collections)
-  createCollection('apps', collections)
-  createCollection('projects', collections)
-  createCollection('users', collections)
+  await Promise.all([
+    createCollection('captcha', collections),
+    createCollection('apps', collections),
+    createCollection('projects', collections),
+    createCollection('users', collections),
+  ])
+
+  const users = db.collection<AccountDocument>('users')
+  await Promise.all([
+    users.updateMany({ role: { $exists: false } }, { $set: { role: 'admin' } }),
+    users.updateMany({ status: { $exists: false } }, { $set: { status: 'active' } }),
+    users.updateMany({ is_delete: { $exists: false } }, { $set: { is_delete: false } }),
+  ])
+  await users.createIndex(
+    { name: 1 },
+    {
+      name: 'unique_active_user_name',
+      unique: true,
+      partialFilterExpression: { is_delete: false },
+    },
+  ).catch((err) => {
+    console.error('[account] 用户名唯一索引创建失败:', err)
+  })
+
+  if (await users.countDocuments({ is_delete: { $ne: true } }) === 0) {
+    const name = process.env.ADMIN_NAME || 'admin'
+    const password = process.env.ADMIN_PASSWORD || 'Admin123456'
+    const now = new Date()
+    await users.insertOne({
+      name,
+      password_hash: hashPassword(password),
+      role: 'admin',
+      status: 'active',
+      is_delete: false,
+      create_time: now,
+      update_time: now,
+    })
+    console.warn(`[account] 已创建初始管理员 ${name}，请登录后立即修改密码`)
+  }
   // createCollection('logs', collections)
   {
     const captcha = db.collection('captcha')
@@ -96,9 +133,9 @@ async function initDb() {
   }
 }
 
-function createCollection(name: string, collections: (CollectionInfo| Pick<CollectionInfo, "name" | "type">)[]) {
+async function createCollection(name: string, collections: (CollectionInfo| Pick<CollectionInfo, "name" | "type">)[]) {
   const exist = collections.find(collection => collection.name === name)
   if (!exist) {
-    db.createCollection(name)
+    await db.createCollection(name)
   }
 }

@@ -19,6 +19,13 @@
           </ElIcon>
         </div>
       </div>
+      <div
+        v-if="store.role === 'admin'"
+        class="icon-account"
+        @click="router.push({ name: 'AccountView' })"
+      >
+        账
+      </div>
     </div>
 
     <div class="input-wrap">
@@ -47,6 +54,11 @@ import type { MenuItem } from '@imengyu/vue3-context-menu'
 import ContextMenu from '@imengyu/vue3-context-menu'
 import { PortalKey } from './token'
 import { useThrottleFn } from '@vueuse/core'
+import { useRouter } from 'vue-router'
+import { useApp } from '@/store'
+
+const router = useRouter()
+const store = useApp()
 
 function handleContextmenu(evt: MouseEvent, items: MenuItem[]) {
   evt.preventDefault()
@@ -156,6 +168,19 @@ async function handleAdd() {
       box-shadow: 0 0 0 0 #ededed;
     }
   }
+}
+.icon-account {
+  display: flex;
+  width: 220px;
+  height: 220px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(145deg, #257ad6, #53a6ef);
+  box-shadow: 0 5px 14px rgba(24, 115, 199, 0.25);
+  cursor: pointer;
+  font-size: 120px;
 }
 .input-wrap {
   background: rgba(255,255,255,0.5);

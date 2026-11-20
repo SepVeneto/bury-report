@@ -9,6 +9,7 @@ export * as source from './source'
 export * as statistics from './statistics'
 export * from './task'
 export * from './alert'
+export * from './account'
 
 export class Query {
   private query: Record<string, any> = {}
@@ -184,7 +185,7 @@ export function getCaptcha() {
 }
 
 export function login(data: { name: string, password: string, key: string, offset: number }) {
-  return request<{ token: string }>({
+  return request<{ token: string, account: import('./account').Account }>({
     url: '/login',
     method: 'POST',
     data,
