@@ -6,7 +6,7 @@
         :key="item.id"
         :data="item"
       />
-      <div>
+      <div v-if="store.role === 'admin'">
         <div
           class="icon-add"
           @click="handleAdd"

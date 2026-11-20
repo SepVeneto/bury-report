@@ -183,6 +183,14 @@ export type LoginResult =
     challenge: string
   }
   | {
+    requiresPasswordReset: true
+    resetToken: string
+  }
+  | {
+    requires2FASetup: true
+    setupToken: string
+  }
+  | {
     requires2FA?: false
     token: string
     account: import('./account').Account
@@ -199,6 +207,36 @@ export function login(data: { name: string, password: string }) {
 export function loginTwoFactor(data: { challenge: string, code: string }) {
   return request<Extract<LoginResult, { token: string }>>({
     url: '/login/2fa',
+    method: 'POST',
+    data,
+  })
+}
+
+export function resetInitialPassword(data: {
+  resetToken: string
+  password: string
+}) {
+  return request<Extract<LoginResult, { token: string }> | Extract<LoginResult, { setupToken: string }>>({
+    url: '/login/password/reset',
+    method: 'POST',
+    data,
+  })
+}
+
+export function setupInitialTwoFactor(setupToken: string) {
+  return request<import('./account').TwoFactorSetup>({
+    url: '/login/2fa/setup',
+    method: 'POST',
+    data: { setupToken },
+  })
+}
+
+export function enableInitialTwoFactor(data: {
+  setupToken: string
+  code: string
+}) {
+  return request<Extract<LoginResult, { token: string }>>({
+    url: '/login/2fa/enable',
     method: 'POST',
     data,
   })

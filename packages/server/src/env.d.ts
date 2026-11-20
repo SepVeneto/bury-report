@@ -17,6 +17,7 @@ declare module '@oak/oak' {
       id: string
       name: string
       role: 'admin' | 'member'
+      projectIds: string[]
     }
   }
 

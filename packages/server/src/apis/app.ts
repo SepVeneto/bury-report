@@ -1,4 +1,4 @@
-import { Router } from '@oak/oak'
+import { Context, Router } from '@oak/oak'
 import { type Document, ObjectId, WithId } from 'mongodb'
 import { Project } from '../model/project.ts'
 import { App } from '../model/app.ts'
@@ -7,6 +7,14 @@ import { initApp } from "../db.ts";
 
 
 const router = new Router()
+
+router.use(async (ctx, next) => {
+  if (ctx.request.url.pathname.startsWith('/app/')) {
+    const appId = ctx.request.url.pathname.split('/')[2]
+    if (appId && !(await ensureAppAccess(ctx, appId))) return
+  }
+  await next()
+})
 
 function randomColor() {
   const r = Math.floor(Math.random() * 256)
@@ -88,6 +96,7 @@ router.get('/app', async (ctx) => {
     ctx.resMsg = '缺少应用ID'
     return
   }
+  if (!(await ensureAppAccess(ctx, id))) return
 
   const db = ctx.db
   const app = await db.collection('apps').findOne({ _id: new ObjectId(id), is_delete: { $ne: true } })
@@ -100,6 +109,8 @@ router.get('/app', async (ctx) => {
   }
 })
 router.post('/app', async (ctx) => {
+  if (!ensureAdmin(ctx)) return
+
   const { pid, name, icon } = await ctx.request.body.json()
 
   if (!name) {
@@ -124,6 +135,8 @@ router.post('/app', async (ctx) => {
 })
 
 router.patch('/app', async (ctx) => {
+  if (!ensureAdmin(ctx)) return
+
   const { id, name, icon } = await ctx.request.body.json()
   if (!name) {
     ctx.resCode = 1
@@ -156,6 +169,8 @@ router.patch('/app', async (ctx) => {
 })
 
 router.delete('/app', async (ctx) => {
+  if (!ensureAdmin(ctx)) return
+
   const id = ctx.request.url.searchParams.get('id')
   if (!id) {
     ctx.resCode = 1
@@ -422,6 +437,8 @@ router.get('/app/:appId/chart/:type', async (ctx) => {
 })
 
 router.patch('/app/:appId/move_to', async (ctx) => {
+  if (!ensureAdmin(ctx)) return
+
   const { appId } = ctx.params
   const { projectId } = await ctx.request.body.json()
 
@@ -442,5 +459,36 @@ router.patch('/app/:appId/move_to', async (ctx) => {
 
   ctx.resMsg = '移动成功'
 })
+
+async function ensureAppAccess(ctx: Context, appId: string) {
+  if (ctx.account?.role === 'admin') return true
+
+  const projectIds = (ctx.account?.projectIds || [])
+    .filter(id => ObjectId.isValid(id))
+    .map(id => new ObjectId(id))
+  const project = projectIds.length
+    ? await ctx.db.collection('projects').findOne({
+      _id: { $in: projectIds },
+      'apps.id': appId,
+      is_delete: { $ne: true },
+    }, {
+      projection: { _id: 1 },
+    })
+    : null
+  if (project) return true
+
+  ctx.response.status = 403
+  ctx.resCode = 403
+  ctx.resMsg = '无权访问该项目'
+  return false
+}
+
+function ensureAdmin(ctx: Context) {
+  if (ctx.account?.role === 'admin') return true
+  ctx.response.status = 403
+  ctx.resCode = 403
+  ctx.resMsg = '仅管理员可以管理应用'
+  return false
+}
 
 export default router

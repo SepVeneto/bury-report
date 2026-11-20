@@ -102,6 +102,29 @@ async function initDb() {
     users.updateMany({ role: { $exists: false } }, { $set: { role: 'admin' } }),
     users.updateMany({ status: { $exists: false } }, { $set: { status: 'active' } }),
     users.updateMany({ is_delete: { $exists: false } }, { $set: { is_delete: false } }),
+    users.updateMany(
+      { must_reset_password: { $exists: false } },
+      { $set: { must_reset_password: false } },
+    ),
+    users.updateMany(
+      { must_bind_two_factor: { $exists: false } },
+      { $set: { must_bind_two_factor: false } },
+    ),
+  ])
+  const projectIds = (await db.collection('projects').find({
+    is_delete: { $ne: true },
+  }, {
+    projection: { _id: 1 },
+  }).toArray()).map(project => project._id.toHexString())
+  await Promise.all([
+    users.updateMany(
+      { role: 'member', project_ids: { $exists: false } },
+      { $set: { project_ids: projectIds } },
+    ),
+    users.updateMany(
+      { role: 'admin', project_ids: { $exists: false } },
+      { $set: { project_ids: [] } },
+    ),
   ])
   await users.createIndex(
     { name: 1 },

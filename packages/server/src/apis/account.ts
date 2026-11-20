@@ -231,6 +231,12 @@ router.post('/accounts', async (ctx) => {
     ctx.resMsg = nameError || passwordValidationError || ''
     return
   }
+  const projectAccess = await resolveProjectIds(ctx, role, body.project_ids)
+  if (projectAccess.error) {
+    ctx.resCode = 1
+    ctx.resMsg = projectAccess.error
+    return
+  }
 
   const users = ctx.db.collection<AccountDocument>('users')
   const exists = await users.findOne({ name, is_delete: { $ne: true } })
@@ -246,6 +252,9 @@ router.post('/accounts', async (ctx) => {
     password_hash: hashPassword(body.password),
     role,
     status,
+    project_ids: projectAccess.ids,
+    must_reset_password: true,
+    must_bind_two_factor: true,
     is_delete: false,
     create_time: now,
     update_time: now,
@@ -292,6 +301,18 @@ router.patch('/accounts', async (ctx) => {
     ctx.resMsg = passwordError(body.password) || ''
     return
   }
+  let projectIds = target.project_ids || []
+  if (role === 'admin') {
+    projectIds = []
+  } else if (body.project_ids !== undefined || role !== currentRole) {
+    const projectAccess = await resolveProjectIds(ctx, role, body.project_ids)
+    if (projectAccess.error) {
+      ctx.resCode = 1
+      ctx.resMsg = projectAccess.error
+      return
+    }
+    projectIds = projectAccess.ids
+  }
 
   const isSelf = target._id.toHexString() === ctx.account?.id
   if (isSelf && (role !== 'admin' || status !== 'active')) {
@@ -325,6 +346,7 @@ router.patch('/accounts', async (ctx) => {
     name,
     role,
     status,
+    project_ids: projectIds,
     update_time: new Date(),
   }
   const unset: Record<string, ''> = {}
@@ -460,6 +482,34 @@ function passwordError(password: unknown) {
 
 function isTotpCode(code: unknown): code is string {
   return typeof code === 'string' && /^\d{6}$/.test(code)
+}
+
+async function resolveProjectIds(
+  ctx: Context,
+  role: AccountRole,
+  input: unknown,
+): Promise<{ ids: string[]; error?: string }> {
+  if (role === 'admin') return { ids: [] }
+  if (input === undefined) return { ids: [] }
+  if (!Array.isArray(input) || input.some(id => typeof id !== 'string')) {
+    return { ids: [], error: '项目权限格式不正确' }
+  }
+
+  const ids = [...new Set(input)]
+  if (ids.some(id => !ObjectId.isValid(id))) {
+    return { ids: [], error: '项目权限包含无效项目' }
+  }
+
+  const projects = await ctx.db.collection('projects').find({
+    _id: { $in: ids.map(id => new ObjectId(id)) },
+    is_delete: { $ne: true },
+  }, {
+    projection: { _id: 1 },
+  }).toArray()
+  if (projects.length !== ids.length) {
+    return { ids: [], error: '项目权限包含不存在或已删除的项目' }
+  }
+  return { ids }
 }
 
 export default router

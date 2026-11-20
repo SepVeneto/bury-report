@@ -71,6 +71,33 @@
             {{ row.two_factor_enabled ? '已开启' : '未开启' }}
           </ElTag>
         </template>
+        <template #projectAccess="{ row }">
+          <span v-if="row.role === 'admin'">全部项目</span>
+          <span v-else-if="!row.project_ids.length">未授权</span>
+          <span v-else>
+            {{ row.project_ids.map(projectName).join('、') }}
+          </span>
+        </template>
+        <template #initialization="{ row }">
+          <ElTag
+            v-if="row.must_reset_password"
+            type="warning"
+          >
+            待重置密码
+          </ElTag>
+          <ElTag
+            v-else-if="row.must_bind_two_factor"
+            type="warning"
+          >
+            待绑定2FA
+          </ElTag>
+          <ElTag
+            v-else
+            type="success"
+          >
+            已完成
+          </ElTag>
+        </template>
         <template #operate="{ row }">
           <bc-button
             type="primary"
@@ -101,7 +128,7 @@
     <ElDialog
       v-model="dialogVisible"
       :title="editingId ? '编辑账号' : '新增账号'"
-      width="520px"
+      width="580px"
       destroy-on-close
       @closed="resetForm"
     >
@@ -157,6 +184,33 @@
           </ElRadioGroup>
         </ElFormItem>
         <ElFormItem
+          v-if="form.role === 'member'"
+          label="可查看项目"
+        >
+          <ElSelect
+            v-model="form.project_ids"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            placeholder="请选择该账号可查看的项目"
+            style="width: 100%"
+          >
+            <ElOption
+              v-for="project in projects"
+              :key="project.id"
+              :label="project.name"
+              :value="project.id"
+            />
+          </ElSelect>
+        </ElFormItem>
+        <ElFormItem
+          v-else
+          label="项目权限"
+        >
+          <span class="all-project-tip">管理员可查看全部项目</span>
+        </ElFormItem>
+        <ElFormItem
           :label="editingId ? '重置密码' : '密码'"
           prop="password"
         >
@@ -166,6 +220,12 @@
             show-password
             :placeholder="editingId ? '留空则不修改密码' : '6-16位密码'"
           />
+          <div
+            v-if="!editingId"
+            class="initial-password-tip"
+          >
+            该密码仅用于首次登录，账号登录后必须重置密码并绑定身份验证器。
+          </div>
         </ElFormItem>
       </ElForm>
       <template #footer>
@@ -205,17 +265,19 @@ import {
   ElTag,
 } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, onMounted, reactive, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { useApp } from '@/store'
 import {
   type Account,
   type AccountRole,
   type AccountStatus,
+  type Project,
   createAccount,
   deleteAccount,
   getAccountList,
   getAccountProfile,
+  getProjectList,
   resetAccountTwoFactor,
   updateAccount,
 } from '@/apis'
@@ -250,6 +312,8 @@ const tableConfig = shallowRef([
   { label: '角色', prop: 'role', width: 110 },
   { label: '状态', prop: 'status', width: 100 },
   { label: '双因素', prop: 'twoFactor', width: 100 },
+  { label: '项目权限', prop: 'projectAccess', width: 220 },
+  { label: '初始化', prop: 'initialization', width: 120 },
   { label: '最近登录', prop: 'last_login_time', width: 180 },
   { label: '创建时间', prop: 'create_time', width: 180 },
   { label: '操作', prop: 'operate', width: 260, fixed: 'right' },
@@ -261,6 +325,7 @@ const searchConfig = shallowRef([
 ])
 
 const dialogVisible = ref(false)
+const projects = ref<Project[]>([])
 const editingId = ref('')
 const submitting = ref(false)
 const statusUpdatingId = ref('')
@@ -271,6 +336,7 @@ const form = reactive({
   password: '',
   role: 'member' as AccountRole,
   status: 'active' as AccountStatus,
+  project_ids: [] as string[],
 })
 const formRules = computed<FormRules>(() => ({
   name: [required('用户名')],
@@ -284,6 +350,13 @@ const formRules = computed<FormRules>(() => ({
       ],
 }))
 const twoFactorEnabled = computed(() => !!store.account?.two_factor_enabled)
+const projectNames = computed(() => new Map(
+  projects.value.map(project => [project.id, project.name]),
+))
+
+onMounted(async () => {
+  projects.value = await getProjectList()
+})
 
 function getList() {
   return getAccountList(params.value)
@@ -304,6 +377,7 @@ function handleEdit(account: Account) {
   form.name = account.name
   form.role = account.role
   form.status = account.status
+  form.project_ids = [...account.project_ids]
   form.password = ''
   dialogVisible.value = true
 }
@@ -358,13 +432,18 @@ async function handleResetTwoFactor(account: Account) {
 }
 
 async function handleSubmit() {
-  await formRef.value?.validate()
+  try {
+    await formRef.value?.validate()
+  } catch {
+    return
+  }
   submitting.value = true
   try {
     const payload = {
       name: form.name.trim(),
       role: form.role,
       status: form.status,
+      project_ids: form.role === 'member' ? form.project_ids : [],
       ...(form.password ? { password: form.password } : {}),
     }
     if (editingId.value) {
@@ -388,7 +467,12 @@ function resetForm() {
   form.password = ''
   form.role = 'member'
   form.status = 'active'
+  form.project_ids = []
   formRef.value?.clearValidate()
+}
+
+function projectName(id: string) {
+  return projectNames.value.get(id) || id
 }
 </script>
 
@@ -445,5 +529,14 @@ function resetForm() {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+}
+.all-project-tip {
+  color: #697b8c;
+}
+.initial-password-tip {
+  margin-top: 6px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

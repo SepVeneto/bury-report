@@ -12,6 +12,9 @@ export interface Account {
   update_time: string | null
   last_login_time: string | null
   two_factor_enabled: boolean
+  project_ids: string[]
+  must_reset_password: boolean
+  must_bind_two_factor: boolean
 }
 
 export interface AccountListParams {
@@ -27,6 +30,7 @@ export interface AccountInput {
   password?: string
   role: AccountRole
   status: AccountStatus
+  project_ids?: string[]
 }
 
 export interface TwoFactorSetup {

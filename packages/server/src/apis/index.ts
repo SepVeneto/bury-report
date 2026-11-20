@@ -20,7 +20,14 @@ import { normalizeAccountRole } from '../utils/account.ts'
 
 const router = new Router()
 
-const whiteList = ['/login', '/login/2fa', '/record']
+const whiteList = [
+  '/login',
+  '/login/2fa',
+  '/login/password/reset',
+  '/login/2fa/setup',
+  '/login/2fa/enable',
+  '/record',
+]
 
 router.use(async (ctx, next) => {
   ctx.db = client.db('reporter')
@@ -69,6 +76,7 @@ router.use(async (ctx, next) => {
           id: isLogin._id.toHexString(),
           name: isLogin.name,
           role: normalizeAccountRole(isLogin.role),
+          projectIds: isLogin.project_ids || [],
         }
         await next()
       }
@@ -91,6 +99,28 @@ router.use(async (ctx, next) => {
     ctx.response.status = 403
     ctx.response.body = '缺少appid'
     return
+  }
+
+  if (ctx.account?.role !== 'admin') {
+    const projectIds = (ctx.account?.projectIds || [])
+      .filter(id => ObjectId.isValid(id))
+      .map(id => new ObjectId(id))
+    const project = projectIds.length
+      ? await ctx.db.collection('projects').findOne({
+        _id: { $in: projectIds },
+        'apps.id': appid,
+        is_delete: { $ne: true },
+      })
+      : null
+    if (!project) {
+      ctx.response.status = 403
+      ctx.response.body = {
+        code: 403,
+        message: '无权访问该项目',
+        data: null,
+      }
+      return
+    }
   }
 
   const name = `app_${appid}`

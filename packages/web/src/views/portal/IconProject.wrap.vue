@@ -19,7 +19,7 @@
           @contextmenu.stop="$emit('contextmenu', $event, item)"
         />
         <div
-          v-if="zoomIn"
+          v-if="zoomIn && editable"
           class="icon-add"
           @click="$emit('add')"
         >
@@ -56,7 +56,7 @@
             @contextmenu.stop="$emit('contextmenu', $event, item)"
           />
           <div
-            v-if="zoomIn && index === displayGroups.length - 1"
+            v-if="zoomIn && editable && index === displayGroups.length - 1"
             class="icon-add"
             @click="$emit('add')"
           >
@@ -71,7 +71,7 @@
       </ElCarouselItem>
     </ElCarousel>
     <div
-      v-else-if="zoomIn"
+      v-else-if="zoomIn && editable"
       class="icon-add"
       @click="$emit('add')"
     >
@@ -98,6 +98,7 @@ const props = defineProps({
     default: () => ([]),
   },
   zoomIn: Boolean,
+  editable: Boolean,
 })
 const displayGroups = computed(() => {
   if (!props.zoomIn) {

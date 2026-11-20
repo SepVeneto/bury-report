@@ -8,6 +8,7 @@
     <ProjectWrap
       :all-group="group"
       :zoom-in="zoomIn"
+      :editable="isAdmin"
       @contextmenu="handleContextmenu"
       @add="handleAdd"
     />
@@ -15,7 +16,7 @@
       ref="titleRef"
       :class="titleClass"
       :style="titleStyle"
-      @click="showEdit = true"
+      @click="handleTitleClick"
     >
       <span
         v-if="!showEdit"
@@ -50,8 +51,11 @@ import { createDialog } from '@sepveneto/basic-comp'
 import { PortalKey } from './token'
 import ProjectWrap from './IconProject.wrap.vue'
 import { ElMessageBox } from 'element-plus'
+import { useApp } from '@/store'
 
 const context = inject(PortalKey)
+const store = useApp()
+const isAdmin = computed(() => store.role === 'admin')
 const props = defineProps({
   name: {
     type: String,
@@ -92,6 +96,8 @@ const titleStyle = computed(() => {
   }
 })
 function handleContextmenu(evt: MouseEvent, app: App) {
+  if (!isAdmin.value) return
+
   context?.handleContextmenu?.(evt, [
     {
       label: '编辑',
@@ -137,7 +143,9 @@ function handleContextmenu(evt: MouseEvent, app: App) {
 }
 function handleBlur() {
   showEdit.value = false
-  emit('update', title.value)
+  if (isAdmin.value) {
+    emit('update', title.value)
+  }
 }
 function handleUpdate(app: App) {
   const { open, close } = createDialog(DialogApp, { recordId: app.id })
@@ -165,6 +173,12 @@ function handleAdd() {
 }
 function handleZoom() {
   zoomIn.value = true
+}
+
+function handleTitleClick() {
+  if (isAdmin.value) {
+    showEdit.value = true
+  }
 }
 </script>
 

@@ -18,6 +18,9 @@ export interface AccountDocument {
   two_factor_secret?: string
   two_factor_pending_secret?: string
   two_factor_pending_expires?: Date
+  project_ids?: string[]
+  must_reset_password?: boolean
+  must_bind_two_factor?: boolean
 }
 
 export interface PublicAccount {
@@ -29,6 +32,9 @@ export interface PublicAccount {
   update_time: string | null
   last_login_time: string | null
   two_factor_enabled: boolean
+  project_ids: string[]
+  must_reset_password: boolean
+  must_bind_two_factor: boolean
 }
 
 export function normalizeAccountName(name: unknown) {
@@ -53,6 +59,9 @@ export function toPublicAccount(account: WithId<AccountDocument>): PublicAccount
     update_time: formatTime(account.update_time),
     last_login_time: formatTime(account.last_login_time),
     two_factor_enabled: !!account.two_factor_enabled,
+    project_ids: account.project_ids || [],
+    must_reset_password: !!account.must_reset_password,
+    must_bind_two_factor: !!account.must_bind_two_factor,
   }
 }
 

@@ -45,12 +45,8 @@ export const responseInspector = async (response: AxiosResponse<Response>) => {
     }
   }
   const { code, message } = response.data
-  if (code === 4) {
-    const redirect = window.location.hash.replace('#', '')
-    if (!isRedirect) {
-      isRedirect = true
-      window.location.href = `#/login?redirect=${encodeURIComponent(redirect)}`
-    }
+  if (code === 4 || code === 403) {
+    redirectToLogin()
   }
   if (code && code !== 0) {
     ElNotification.error(message)
@@ -60,12 +56,8 @@ export const responseInspector = async (response: AxiosResponse<Response>) => {
 }
 
 export const responseError = (err: any) => {
-  if ([403, 401].includes(err.response.status)) {
-    const redirect = window.location.hash.replace('#', '')
-    if (!isRedirect) {
-      isRedirect = true
-      window.location.href = `#/login?redirect=${encodeURIComponent(redirect)}`
-    }
+  if ([401, 403].includes(err.response?.status)) {
+    redirectToLogin()
   }
   NProgress.done()
   ElNotification({
@@ -73,6 +65,16 @@ export const responseError = (err: any) => {
     message: err.message,
     type: 'error',
   })
+}
+
+function redirectToLogin() {
+  if (isRedirect || window.location.hash.startsWith('#/login')) return
+
+  isRedirect = true
+  localStorage.removeItem('token')
+  localStorage.removeItem('account')
+  const redirect = window.location.hash.replace('#', '')
+  window.location.replace(`#/login?redirect=${encodeURIComponent(redirect)}`)
 }
 
 serverInst.interceptors.request.use(requestInspector)

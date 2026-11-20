@@ -1,5 +1,5 @@
-import { Db, Document, Filter, ObjectId, WithId } from "mongodb"
-import { Model } from "./index.ts"
+import { Db, Document, Filter as MongoFilter, ObjectId, WithId } from "mongodb"
+import { Filter, Model } from "./index.ts"
 import type { BaseType } from "./index.ts";
 import type { IApp } from "./app.ts";
 
@@ -15,9 +15,15 @@ export class Project extends Model<IProject> {
 
   async insertApp(pid: string, app: IApp & { id: string }) {
     const _id = ObjectId.createFromHexString(pid)
-    await this.col.updateOne({ _id } as Filter<IProject>, {
+    await this.col.updateOne({ _id } as MongoFilter<IProject>, {
       $addToSet: { apps: app }
     })
+  }
+  getVisible(projectIds: string[]) {
+    const ids = projectIds
+      .filter(id => ObjectId.isValid(id))
+      .map(id => new ObjectId(id))
+    return this.getAll(new Filter<IProject>({ _id: { $in: ids } }))
   }
   async updateApp(pid: string, data: WithId<IApp>) {
     const _id = ObjectId.createFromHexString(pid)
