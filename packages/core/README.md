@@ -31,6 +31,10 @@
 
 小程序端需预留出大小约`6KB`的空间
 
+H5 构建时会将轻量 loader 以内联脚本的形式放到文档 `<head>` 最前面。loader 会先缓存
+`error`、`unhandledrejection` 和 `console.error`，待核心 SDK 加载完成后统一回放，
+因此 SDK 初始化前的错误不会丢失，也不会额外阻塞首屏。
+
 ```cmd
 npm i -D @sepveneto/report-core
 yarn add -D @sepveneto/report-core

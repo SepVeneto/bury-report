@@ -140,7 +140,7 @@ describe('vite 适配', () => {
     expect(res.html).toBe('<html><body></body></html>')
     expect(res.tags).toHaveLength(1)
     expect(res.tags[0].tag).toBe('script')
-    expect(res.tags[0].injectTo).toBe('body-prepend')
+    expect(res.tags[0].injectTo).toBe('head-prepend')
     expect(typeof res.tags[0].children).toBe('string')
     expect(res.tags[0].children).toContain('"appid":"a"')
     expect(res.tags[0].children).toMatch(/"stamp":"\d{14}"/)
@@ -172,7 +172,7 @@ describe('webpack 适配', () => {
     }
   }
 
-  it('在 bodyTags 头部插入上报脚本', () => {
+  it('在 headTags 头部插入上报脚本', () => {
     const alterCallbacks: any[] = []
     stubHtmlWebpackPlugin({
       getHooks: (compilation: any) => compilation.__hwp,
@@ -199,18 +199,63 @@ describe('webpack 适配', () => {
     expect(alterCallbacks).toHaveLength(1)
 
     let result: any
-    alterCallbacks[0]({ bodyTags: [] }, (_err: any, data: any) => {
+    alterCallbacks[0]({ headTags: [] }, (_err: any, data: any) => {
       result = data
     })
 
-    expect(result.bodyTags).toHaveLength(1)
-    expect(result.bodyTags[0].tagName).toBe('script')
-    expect(result.bodyTags[0].innerHTML).toContain('"appid":"a"')
+    expect(result.headTags).toHaveLength(1)
+    expect(result.headTags[0].tagName).toBe('script')
+    expect(result.headTags[0].innerHTML).toContain('"appid":"a"')
   })
 })
 
 describe('rspack 适配', () => {
-  it('在 html 资源的 body 起始处插入上报脚本', () => {
+  it('在 html 资源的 head 起始处插入上报脚本', () => {
+    const plugin = factory() as any
+    const compileCallbacks: any[] = []
+    plugin.rspack({
+      webpack: {
+        sources: {
+          RawSource: class {
+            constructor(public value: string) {}
+          },
+        },
+        Compilation: {
+          PROCESS_ASSETS_STAGE_SUMMARIZE: 100,
+        },
+      },
+      hooks: {
+        thisCompilation: {
+          tap: (_opts: any, cb: any) => compileCallbacks.push(cb),
+        },
+      },
+    })
+
+    const processCallbacks: any[] = []
+    const updated: Record<string, string> = {}
+    const compilation = {
+      hooks: {
+        processAssets: {
+          tap: (_opts: any, cb: any) => processCallbacks.push(cb),
+        },
+      },
+      getAssets: () => [
+        { name: 'index.html', source: { source: () => '<html><head class="h"></head><body class="a"></body></html>' } },
+        { name: 'index.js', source: { source: () => 'console.log(1)' } },
+      ],
+      updateAsset: (name: string, source: any) => {
+        updated[name] = source.value
+      },
+    }
+    compileCallbacks[0](compilation)
+    processCallbacks[0]()
+
+    expect(updated['index.html']).toContain('<head class="h"><script>')
+    expect(updated['index.html']).toContain('"appid":"a"')
+    expect(updated['index.js']).toBeUndefined()
+  })
+
+  it('缺少 head 时回退到 body 起始处', () => {
     const plugin = factory() as any
     const compileCallbacks: any[] = []
     plugin.rspack({
@@ -241,7 +286,6 @@ describe('rspack 适配', () => {
       },
       getAssets: () => [
         { name: 'index.html', source: { source: () => '<html><body class="a"></body></html>' } },
-        { name: 'index.js', source: { source: () => 'console.log(1)' } },
       ],
       updateAsset: (name: string, source: any) => {
         updated[name] = source.value
@@ -251,7 +295,5 @@ describe('rspack 适配', () => {
     processCallbacks[0]()
 
     expect(updated['index.html']).toContain('<body class="a"><script>')
-    expect(updated['index.html']).toContain('"appid":"a"')
-    expect(updated['index.js']).toBeUndefined()
   })
 })

@@ -1,7 +1,7 @@
 import { createUnplugin } from 'unplugin'
 import type { UnpluginFactory } from 'unplugin'
 import type { Options } from './type'
-import sdkInjector from './browser/injector?raw'
+import sdkInjector from './browser/loader?raw'
 import path from 'node:path'
 import fs from 'node:fs'
 import { withDefault } from './utils'
@@ -99,7 +99,7 @@ try {
           return {
             html,
             tags: [
-              { tag: 'script', children: sdk, injectTo: 'body-prepend' },
+              { tag: 'script', children: sdk, injectTo: 'head-prepend' },
             ],
           }
         } else {
@@ -113,7 +113,7 @@ try {
       compiler.hooks.thisCompilation.tap('plugin-bury-report', (compilation) => {
         HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tapAsync(
           'plugin-bury-report', (data: any, callback: any) => {
-            data.bodyTags.unshift({
+            data.headTags.unshift({
               tagName: 'script',
               voidTag: false,
               meta: { plugin: 'plugin-bury-report' },
@@ -138,7 +138,18 @@ try {
             if (!filename.endsWith('.html')) continue
 
             const source = asset.source.source().toString()
-            const next = source.replace(/<body([^>]*)>/, `<body$1><script>${sdk}</script>`)
+            const tag = `<script>${sdk}</script>`
+            let next = source.replace(/<head([^>]*)>/i, (_match: string, attrs: string) => {
+              return `<head${attrs}>${tag}`
+            })
+            if (next === source) {
+              next = source.replace(/<body([^>]*)>/i, (_match: string, attrs: string) => {
+                return `<body${attrs}>${tag}`
+              })
+            }
+            if (next === source) {
+              next = tag + source
+            }
 
             compilation.updateAsset(
               filename,

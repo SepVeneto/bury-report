@@ -83,8 +83,8 @@ pnpm test:coverage
 | --- | --- |
 | `test/index.spec.ts` / `test/index-extra.spec.ts` | `report` / `setCustomId` / `reportNetwork` 的转发、`REPORT_REQUEST` 缺失或非函数时的降级、非字符串入参告警 |
 | `test/entries.spec.ts` | `vite` / `webpack` / `rspack` 入口导出、`type.ts` 抽象基类的运行时可继承性 |
-| `test/lib.spec.ts` | `getMainEntry` / `isEntry` 的平台分支、`transformInclude`、小程序端代码注入、vite（H5 脚本标签）/ webpack（bodyTags）/ rspack（assets 注入）适配 |
-| `test/injector.spec.ts` / `test/misc-extra.spec.ts` | 核心脚本按版本拼接与加载、`BuryReport` 初始化、rrweb 插件异步注册、加载失败兜底、`DEFINE_VERSION` / `LOG_DEBUG` 分支 |
+| `test/lib.spec.ts` | `getMainEntry` / `isEntry` 的平台分支、`transformInclude`、小程序端代码注入、vite（H5 `head-prepend` 内联脚本）/ webpack（headTags）/ rspack（assets 注入）适配 |
+| `test/injector.spec.ts` / `test/misc-extra.spec.ts` | 核心脚本按版本拼接与加载、SDK 加载前的错误缓存与回放、`BuryReport` 初始化、rrweb 插件异步注册、加载失败兜底、`DEFINE_VERSION` / `LOG_DEBUG` 分支 |
 
 ### 浏览器端
 
