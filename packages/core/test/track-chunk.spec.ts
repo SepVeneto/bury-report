@@ -28,7 +28,7 @@ function dispatch(store: any[], keepalive = false) {
 }
 
 async function flush() {
-  for (let i = 0; i < 8; i++) await Promise.resolve()
+  for (let i = 0; i < 25; i++) await Promise.resolve()
 }
 
 /** 解出二进制协议里的事件记录（0x00 + "session:appid|" + gzip(json)） */

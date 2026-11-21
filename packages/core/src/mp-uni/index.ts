@@ -14,10 +14,9 @@ export const TrackPlugin = _TrackPlugin
 export class BuryReport implements BuryReportBase {
   public report?: ReportFn
   public options: Options
-  // 重试耗尽后置为 true，之后不再产生任何上报
+  // 业务主动调用 abort 后置为 true；网络失败不会自动中止
   public aborted = false
-  // 由上报代理回填的停止句柄，用于在中止时切断发送循环
-  private proxyControl: { stop?: () => void; onExhausted?: () => void } = {}
+  private transportStop?: () => void
 
   private static pluginsOrder: BuryReportPlugin[] = []
 
@@ -26,19 +25,19 @@ export class BuryReport implements BuryReportBase {
 
     if (!config?.report) return
 
-    this.proxyControl.onExhausted = () => this.abort()
-    this.report = createProxy(config, this.proxyControl)
+    this.report = createProxy(config, stop => {
+      this.transportStop = stop
+    })
 
     this.init()
   }
 
-  // 中止上报相关的操作：切断发送循环并销毁插件采集行为。
-  // 上报连续失败次数超过 maxRetry 后自动触发，业务也可主动调用
+  // 业务主动停止 SDK。网络失败只会进入退避重试，不会自动触发 abort。
   abort() {
     if (this.aborted) return
     this.aborted = true
 
-    this.proxyControl.stop?.()
+    this.transportStop?.()
 
     BuryReport.pluginsOrder.forEach(plugin => {
       if (typeof plugin.destroy !== 'function') return
@@ -75,7 +74,7 @@ export function report(type: string, data: Record<string, any>, immediate = fals
   globalThis[REPORT_REQUEST]?.(type, data, { immediate })
 }
 
-function createProxy(options: Options, control: { stop?: () => void; onExhausted?: () => void } = {}) {
+function createProxy(options: Options, onStop: (stop: () => void) => void) {
   const { appid, interval = 10, url } = options
   const sendInterval = normalizeInterval(interval)
   const maxRetry = normalizeMaxRetry(options.maxRetry)
@@ -86,7 +85,7 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
   let pendingImmediate = false
   // 发送期间新增的任意上报：当前请求结束后继续排空，避免数据依赖业务再次上报触发
   let pendingSend = false
-  // 连续失败次数：成功一次即清零，超过 maxRetry 判定上报服务不可用
+  // 连续失败次数：成功一次即清零，用于控制退避间隔
   let failStreak = 0
   // 已中止：不再调度发送，report 也不再入队
   let stopped = false
@@ -98,12 +97,12 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
     sendTimer = undefined
   }
 
-  const scheduleSend = () => {
+  const scheduleSend = (delay = sendInterval) => {
     if (stopped || sendTimer !== undefined) return
     sendTimer = globalThis.setTimeout(() => {
       sendTimer = undefined
       sendRequest()
-    }, sendInterval) as unknown as number
+    }, delay) as unknown as number
   }
 
   const stopSending = () => {
@@ -111,19 +110,22 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
     pendingImmediate = false
     pendingSend = false
     clearSendTimer()
-  }
-  control.stop = stopSending
-
-  // 重试耗尽：停止发送并通知外部中止上报相关的操作
-  const exhaust = () => {
-    if (stopped) return
-    stopSending()
+    const uniScope = globalThis as any
     try {
-      control.onExhausted?.()
-    } catch (err) {
-      console.warn('[@sepveneto/report-core] abort report failed: ' + err)
-    }
+      uniScope.uni?.offNetworkStatusChange?.(onNetworkStatusChange)
+    } catch {}
   }
+  onStop(stopSending)
+
+  const onNetworkStatusChange = (status: { isConnected?: boolean }) => {
+    if (stopped || !status?.isConnected) return
+    failStreak = 0
+    clearSendTimer()
+    sendRequest()
+  }
+  try {
+    (globalThis as any).uni?.onNetworkStatusChange?.(onNetworkStatusChange)
+  } catch {}
 
   // 一次发送结束后的统一收尾：处理待补发的即时请求，或在失败时排期重试
   const finish = (retry = false) => {
@@ -136,13 +138,9 @@ function createProxy(options: Options, control: { stop?: () => void; onExhausted
 
     if (retry) {
       failStreak += 1
-      // 重试指定次数后仍然失败：中止上报相关操作
-      if (failStreak > maxRetry) {
-        console.warn(`[@sepveneto/report-core] report disabled after ${failStreak - 1} retries`)
-        exhaust()
-        return
-      }
-      scheduleSend()
+      const exponentCap = Number.isFinite(maxRetry) ? Math.max(0, Math.min(maxRetry, 6)) : 0
+      const exponent = Math.min(Math.max(0, failStreak - 1), exponentCap)
+      scheduleSend(Math.min(sendInterval * 2 ** exponent, 5 * 60 * 1000))
     } else {
       failStreak = 0
       if (needsFollowUp) sendRequest()

@@ -17,7 +17,7 @@ import {
   writeMemory,
   writeQueue,
 } from '../src/utils'
-import { REPORT_QUEUE } from '../src/constant'
+import { COLLECT_API, COLLECT_ERROR, COLLECT_INFO, REPORT_QUEUE } from '../src/constant'
 
 // 用一个内存 storage 模拟 uni / localStorage
 const storage = new Map<string, string>()
@@ -247,13 +247,13 @@ describe('内存缓存 flush', () => {
     expect(readQueue()).toHaveLength(2)
   })
 
-  it('队列最多保留最新50条', () => {
+  it('条数上限提高到500，短时突发不会只保留50条', () => {
     for (let i = 0; i < 60; i++) writeMemory({ type: 'a', stamp: i })
     flushMemoryToStorage()
     const list = readQueue()
-    expect(list).toHaveLength(50)
-    expect(list[0].stamp).toBe(10)
-    expect(list[49].stamp).toBe(59)
+    expect(list).toHaveLength(60)
+    expect(list[0].stamp).toBe(0)
+    expect(list[59].stamp).toBe(59)
   })
 
   it('设备信息不受条数上限影响，错误风暴下仍保留', () => {
@@ -264,20 +264,19 @@ describe('内存缓存 flush', () => {
 
     const list = readQueue()
     expect(list.some(item => item.type === '__BR_COLLECT_INFO__')).toBe(true)
-    // 设备信息 + 最新 49 条普通记录
-    expect(list).toHaveLength(50)
+    expect(list).toHaveLength(61)
     expect(list[0].type).toBe('__BR_COLLECT_INFO__')
     expect(list[list.length - 1].stamp).toBe(60)
   })
 
-  it('队列超过字节上限时从最旧开始丢弃', () => {
+  it('队列超过512KB字节上限时优先丢弃低优先级旧记录', () => {
     for (let i = 0; i < 40; i++) {
       writeMemory({ type: 'a', stamp: i, data: { blob: 'x'.repeat(20 * 1024) } })
     }
     flushMemoryToStorage()
     const list = readQueue()
     expect(list.length).toBeGreaterThan(0)
-    expect(JSON.stringify(list).length).toBeLessThanOrEqual(256 * 1024)
+    expect(JSON.stringify(list).length).toBeLessThanOrEqual(512 * 1024)
     // 丢弃的是最旧的记录，最新记录保留
     expect(list[list.length - 1].stamp).toBe(39)
     expect(list[0].stamp).toBeGreaterThan(0)
@@ -292,7 +291,22 @@ describe('内存缓存 flush', () => {
 
     const list = readQueue()
     expect(list.some(item => item.type === '__BR_COLLECT_INFO__')).toBe(true)
-    expect(JSON.stringify(list).length).toBeLessThanOrEqual(256 * 1024 + 1024)
+    expect(JSON.stringify(list).length).toBeLessThanOrEqual(512 * 1024 + 1024)
+  })
+
+  it('超限裁剪优先丢弃网络噪音，保留环境与错误日志', () => {
+    writeMemory({ type: COLLECT_INFO, stamp: 0, data: { compact: true } })
+    writeMemory({ type: COLLECT_ERROR, stamp: 1, data: { message: 'important' } })
+    for (let i = 0; i < 40; i++) {
+      writeMemory({ type: COLLECT_API, stamp: i + 2, data: { blob: 'x'.repeat(20 * 1024) } })
+    }
+    flushMemoryToStorage()
+
+    const list = readQueue()
+    expect(list.some(item => item.type === COLLECT_INFO)).toBe(true)
+    expect(list.some(item => item.type === COLLECT_ERROR)).toBe(true)
+    expect(list.some(item => item.type === COLLECT_API)).toBe(true)
+    expect(list.filter(item => item.type === COLLECT_API).length).toBeLessThan(40)
   })
 
   it('flush 写入失败时保留内存数据，恢复后重试成功', () => {

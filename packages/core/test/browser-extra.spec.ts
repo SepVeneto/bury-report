@@ -1,7 +1,7 @@
 import { dom } from './helpers/dom-stub'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BuryReport } from '../src/browser/index'
-import { LIFECYCLE, REPORT_REQUEST } from '../src/constant'
+import { LIFECYCLE, OPERATION_TRACK, REPORT_REQUEST } from '../src/constant'
 import { readQueue } from '../src/utils'
 
 const URL = 'http://report.example/record'
@@ -11,7 +11,7 @@ function getReport() {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i++) await Promise.resolve()
+  for (let i = 0; i < 25; i++) await Promise.resolve()
 }
 
 function setVisibility(state: string) {
@@ -81,15 +81,18 @@ describe('worker 生命周期', () => {
     expect(body.data.map((item: any) => item.type)).toEqual(['custom'])
     expect(worker.postMessage).not.toHaveBeenCalled()
 
-    report('track', { e: [] }, { store: false, immediate: true })
+    report(OPERATION_TRACK, { e: [] }, { store: false, immediate: true })
     await flush()
 
-    // store:false 的数据不落到 localStorage 队列，交给 worker 上报
+    // 录屏数据不落到 localStorage 队列，交给 worker 上报
     expect(worker.postMessage).toHaveBeenCalledTimes(1)
     const message = worker.postMessage.mock.calls[0][0]
     expect(message).toMatchObject({ type: 'report', appid: 'a', keepalive: false })
     expect(message.store).toHaveLength(1)
-    expect(message.store[0].type).toBe('track')
+    expect(message.store[0].type).toBe(OPERATION_TRACK)
+    // 主线程收到 ACK 前必须保留数据，避免 worker 失败时无条件丢失
+    expect((BuryReport as any).cache).toHaveLength(1)
+    worker.onmessage({ data: { type: 'accepted', id: message.id } })
     expect((BuryReport as any).cache).toEqual([])
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -267,7 +270,7 @@ describe('页面生命周期联动', () => {
   })
 })
 
-describe('上报重试上限', () => {
+describe('上报恢复', () => {
   function registerRecordPlugin() {
     const destroy = vi.fn()
     class FakeRecordPlugin {
@@ -279,7 +282,7 @@ describe('上报重试上限', () => {
     return destroy
   }
 
-  it('连续失败超过 maxRetry 后停止上报并中止录屏', async () => {
+  it('连续失败达到 maxRetry 后继续退避重试，不中止录屏', async () => {
     const fetchMock = vi.fn().mockRejectedValue(new Error('down'))
     vi.stubGlobal('fetch', fetchMock)
     const destroy = registerRecordPlugin()
@@ -297,20 +300,20 @@ describe('上报重试上限', () => {
     await flush()
     vi.advanceTimersByTime(10 * 1000)
     await flush()
-    vi.advanceTimersByTime(10 * 1000)
+    vi.advanceTimersByTime(20 * 1000)
     await flush()
 
-    // maxRetry=2：首次 + 2 次重试都失败后中止
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect((BuryReport as any).instance.aborted).toBe(true)
-    // 录屏等插件被销毁
-    expect(destroy).toHaveBeenCalledTimes(1)
+    expect((BuryReport as any).instance.aborted).toBe(false)
+    expect(destroy).not.toHaveBeenCalled()
 
-    // 中止后不再产生任何请求
-    report('custom', { a: 2 }, { immediate: true })
-    vi.advanceTimersByTime(60 * 1000)
+    // 网络恢复后继续补发，队列最终清空
+    fetchMock.mockResolvedValue({ ok: true })
+    vi.advanceTimersByTime(40 * 1000)
     await flush()
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(readQueue()).toEqual([])
+    expect((BuryReport as any).instance.aborted).toBe(false)
   })
 
   it('maxRetry=0 表示不限制重试次数', async () => {
@@ -330,7 +333,46 @@ describe('上报重试上限', () => {
     expect((BuryReport as any).instance.aborted).toBe(false)
   })
 
-  it('收到 worker 重试耗尽通知后中止上报相关操作并终止 worker', () => {
+  it('长期断网后 online 事件触发立即补发，业务接口始终可用', async () => {
+    let online = false
+    const fetchMock = vi.fn(() => online
+      ? Promise.resolve({ ok: true })
+      : Promise.reject(new Error('offline')))
+    vi.stubGlobal('fetch', fetchMock)
+
+    new BuryReport({ url: URL, appid: 'a', report: true, interval: 1, maxRetry: 1 })
+    const report = getReport()
+    report('business-event', { ok: true })
+    vi.advanceTimersByTime(1000)
+    await flush()
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+
+    // 上报持续失败但不抛错、不中止
+    expect(() => report('while-offline', { ok: true })).not.toThrow()
+    expect((BuryReport as any).instance.aborted).toBe(false)
+    expect(readQueue().length).toBeGreaterThan(0)
+
+    online = true
+    dom.window.dispatchEvent(new Event('online'))
+    await flush()
+    expect(readQueue()).toEqual([])
+  })
+
+  it('online 事件同时通知 worker 立即排空录屏 spool', () => {
+    const worker = {
+      postMessage: vi.fn(),
+      onmessage: null as any,
+    }
+    vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    dom.window.dispatchEvent(new Event('online'))
+
+    expect(worker.postMessage).toHaveBeenCalledWith({ type: 'drain' })
+  })
+
+  it('旧版 worker exhausted 消息不会中止 SDK', () => {
     const worker = { postMessage: vi.fn(), onmessage: null as any, terminate: vi.fn() }
     vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
     const destroy = registerRecordPlugin()
@@ -340,10 +382,9 @@ describe('上报重试上限', () => {
     expect(typeof worker.onmessage).toBe('function')
     worker.onmessage({ data: { type: 'exhausted' } })
 
-    expect((BuryReport as any).instance.aborted).toBe(true)
-    expect(destroy).toHaveBeenCalledTimes(1)
-    expect(worker.terminate).toHaveBeenCalledTimes(1)
-    expect(dom.window.__BR_WORKER__).toBeUndefined()
+    expect((BuryReport as any).instance.aborted).toBe(false)
+    expect(destroy).not.toHaveBeenCalled()
+    expect(dom.window.__BR_WORKER__).toBe(worker)
   })
 
   it('worker 上报时透传 maxRetry', async () => {
@@ -351,7 +392,7 @@ describe('上报重试上限', () => {
     vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
 
     new BuryReport({ url: URL, appid: 'a', report: true, maxRetry: 3 })
-    getReport()('track', { e: [] }, { store: false, immediate: true })
+    getReport()(OPERATION_TRACK, { e: [] }, { store: false, immediate: true })
     await flush()
 
     expect(worker.postMessage).toHaveBeenCalledTimes(1)

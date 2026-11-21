@@ -6,6 +6,8 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { withDefault } from './utils'
 import MagicString from 'magic-string'
+import { serializeOptions } from './browser/options'
+import { createModuleMetadataSnippet } from './browser/module-metadata'
 
 function combineCode(code: string, reportContent: string) {
   const s = new MagicString(code)
@@ -52,8 +54,11 @@ export const unpluginFactory: UnpluginFactory<Options> = options => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { entry, ...client } = config
   const stamp = getStamp()
+  const metadataSnippet = isH5 && config.applicationKey
+    ? createModuleMetadataSnippet(config.applicationKey)
+    : ''
   // @ts-expect-error: allow
-  const sdk = sdkInjector.replace('SDK_OPTIONS', JSON.stringify({ stamp, ...client }))
+  const sdk = sdkInjector.replace('SDK_OPTIONS', serializeOptions({ stamp, ...client }))
   return {
     name: 'plugin-bury-report',
     enforce: 'pre',
@@ -94,6 +99,14 @@ try {
       }
     },
     vite: {
+      generateBundle(_options: any, bundle: any) {
+        if (!metadataSnippet) return
+        for (const chunk of Object.values(bundle) as any[]) {
+          if (chunk?.type === 'chunk') {
+            chunk.code = metadataSnippet + chunk.code
+          }
+        }
+      },
       transformIndexHtml(html: any) {
         if (isH5) {
           return {
@@ -111,6 +124,21 @@ try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const HtmlWebpackPlugin: any = require('html-webpack-plugin')
       compiler.hooks.thisCompilation.tap('plugin-bury-report', (compilation) => {
+        if (metadataSnippet) {
+          compilation.hooks?.processAssets?.tap({
+            name: 'plugin-bury-report-metadata',
+            stage: (compiler as any).webpack?.Compilation?.PROCESS_ASSETS_STAGE_ADDITIONS ?? 0,
+          }, () => {
+            for (const asset of compilation.getAssets()) {
+              if (!/\.(?:m?js|cjs)$/i.test(asset.name)) continue
+              const source = asset.source.source().toString()
+              compilation.updateAsset(
+                asset.name,
+                new (compiler as any).webpack.sources.RawSource(metadataSnippet + source),
+              )
+            }
+          })
+        }
         HtmlWebpackPlugin.getHooks(compilation).alterAssetTagGroups.tapAsync(
           'plugin-bury-report', (data: any, callback: any) => {
             data.headTags.unshift({
@@ -134,10 +162,20 @@ try {
           const assets = compilation.getAssets()
           for (const asset of assets) {
             const filename = asset.name
+            const source = asset.source.source().toString()
+
+            if (/\.(?:m?js|cjs)$/i.test(filename)) {
+              if (metadataSnippet) {
+                compilation.updateAsset(
+                  filename,
+                  new compiler.webpack.sources.RawSource(metadataSnippet + source),
+                )
+              }
+              continue
+            }
 
             if (!filename.endsWith('.html')) continue
 
-            const source = asset.source.source().toString()
             const tag = `<script>${sdk}</script>`
             let next = source.replace(/<head([^>]*)>/i, (_match: string, attrs: string) => {
               return `<head${attrs}>${tag}`

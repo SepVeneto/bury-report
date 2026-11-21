@@ -31,7 +31,7 @@ function dispatch(store: any[], keepalive = false) {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i++) await Promise.resolve()
+  for (let i = 0; i < 25; i++) await Promise.resolve()
 }
 
 function jsonBodies() {
@@ -103,8 +103,8 @@ describe('worker 消息与数据组装', () => {
   })
 })
 
-describe('worker 重试缓冲', () => {
-  it('重试缓冲最多保留 100 条', async () => {
+describe('worker 重试批次', () => {
+  it('失败重试不截断原批次，150 条会全部保留并再次发送', async () => {
     selfState.fetch.mockRejectedValue(new Error('down'))
     const records = Array.from({ length: 150 }, (_, i) => makeRecord('custom', i, 8))
     dispatch(records)
@@ -114,13 +114,13 @@ describe('worker 重试缓冲', () => {
     expect(JSON.parse(jsonBodies()[0]).data).toHaveLength(150)
     expect(vi.getTimerCount()).toBe(1)
 
-    // 重试时只发送缓冲上限内的数据
+    // 重试时原批次完整保留，不会静默丢掉后 50 条
     selfState.fetch.mockClear()
     vi.advanceTimersByTime(10 * 1000)
     await flush()
 
     expect(selfState.fetch).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(jsonBodies()[0]).data).toHaveLength(100)
+    expect(JSON.parse(jsonBodies()[0]).data).toHaveLength(150)
   })
 
   it('录屏 gzip 发送失败后进入重试', async () => {

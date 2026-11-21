@@ -46,12 +46,46 @@ export interface Options {
    */
   report?: boolean
   /**
-   * 上报失败后的最大连续重试次数。
-   * 重试该次数后仍然失败时，判定上报服务不可用，中止一切上报相关的操作（含录屏）。
-   * 设为 0 或负数表示不限制重试次数。
+   * 连续失败多少次后进入最大退避间隔。
+   * 达到该次数不会停止 SDK，队列会保留并在网络恢复后继续发送。
+   * 设为 0 或负数表示始终使用基础上报间隔。
    * @default 5
    */
   maxRetry?: number
+  /**
+   * 错误消息过滤规则，支持字符串和正则。
+   * 与 Sentry 的 ignoreErrors 行为一致。
+   */
+  ignoreErrors?: Array<string | RegExp>
+  /**
+   * 要过滤的错误来源 URL 规则。优先于 allowUrls。
+   */
+  denyUrls?: Array<string | RegExp>
+  /**
+   * 仅采集匹配这些来源 URL 的错误。未配置时不做来源白名单限制。
+   */
+  allowUrls?: Array<string | RegExp>
+  /**
+   * 是否过滤 SDK 自身产生的错误。
+   * @default true
+   */
+  ignoreInternal?: boolean
+  /**
+   * 构建时写入应用 chunk 的标识。运行时按错误 stack 匹配该标识，
+   * 用于区分业务代码和第三方脚本。
+   */
+  applicationKey?: string
+  /**
+   * 第三方 chunk 错误处理策略，行为与 Sentry thirdPartyErrorFilterIntegration 对齐。
+   * @default 'keep'
+   */
+  thirdPartyErrors?:
+    | 'keep'
+    | 'drop'
+    | 'drop-error-if-contains-third-party-frames'
+    | 'drop-error-if-exclusively-contains-third-party-frames'
+    | 'apply-tag-if-contains-third-party-frames'
+    | 'apply-tag-if-exclusively-contains-third-party-frames'
   /**
    * 网络请求相关配置
    */
@@ -76,6 +110,14 @@ export interface Options {
      * @default true
      */
     fail?: boolean
+    /**
+     * 要忽略的请求 URL 规则。
+     */
+    ignoreUrls?: Array<string | RegExp>
+    /**
+     * 仅采集匹配这些 URL 的请求。未配置时不做来源白名单限制。
+     */
+    allowUrls?: Array<string | RegExp>
   },
   /**
    * 是否记录用户操作，仅h5支持

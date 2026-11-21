@@ -6,7 +6,19 @@ type ResourceElement =
   HTMLAudioElement |
   HTMLSourceElement
 
-export function normalizeResourceError(evt: Event) {
+export type NormalizedError = {
+  name?: string
+  message: string
+  stack?: string
+  extra?: any
+}
+
+export function isSyntaxError(error: NormalizedError) {
+  return error.name === 'SyntaxError' ||
+    /SyntaxError|Unexpected token|Invalid or unexpected token|Cannot use import statement/.test(error.message || '')
+}
+
+export function normalizeResourceError(evt: Event): NormalizedError & { url: string } {
   const target = evt.target as ResourceElement || evt.srcElement
 
   if (!target) {

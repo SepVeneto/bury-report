@@ -37,6 +37,7 @@ beforeEach(() => {
   ;delete (dom.window as any).OperationRecordPlugin
   ;delete (dom.window as any).__BR_LOADER__
   ;delete (dom.document as any).scripts
+  ;(dom.window as any).onerror = undefined
   process.env.DEFINE_VERSION = '1.2.3'
   vi.spyOn(dom.document.body, 'appendChild').mockImplementation((el: any) => {
     scripts.push(el)
@@ -52,6 +53,7 @@ afterEach(() => {
   ;delete (dom.window as any).OperationRecordPlugin
   ;delete (dom.window as any).__BR_LOADER__
   ;delete (dom.document as any).scripts
+  ;(dom.window as any).onerror = undefined
 })
 
 describe('injector 核心脚本加载', () => {
@@ -101,14 +103,8 @@ describe('injector 核心脚本加载', () => {
 
     await loadInjector()
     console.error('console failure')
-    dom.window.dispatchEvent({
-      type: 'error',
-      error: new Error('script failure'),
-      filename: 'http://host.example/app.js',
-      lineno: 1,
-      colno: 2,
-      message: 'script failure',
-    })
+    const scriptError = new SyntaxError('Unexpected token }')
+    dom.window.onerror!('Unexpected token }', 'http://host.example/app.js', 1, 2, scriptError) as any
     dom.window.dispatchEvent({
       type: 'unhandledrejection',
       reason: new Error('promise failure'),
@@ -129,19 +125,51 @@ describe('injector 核心脚本加载', () => {
       page: 'http://host.example/page',
     })
     expect(report.mock.calls[1][1]).toMatchObject({
-      name: 'Error',
-      message: 'script failure',
+      name: 'SyntaxError',
+      message: 'Unexpected token }',
       page: 'http://host.example/page',
     })
     expect(report.mock.calls[2][1]).toMatchObject({
       name: 'Error',
       message: 'promise failure',
     })
+    expect(report.mock.calls[1][2]).toEqual({ immediate: true, flush: true })
     expect(consoleError).toHaveBeenCalledWith('console failure')
 
     dom.window.dispatchEvent({ type: 'error', message: 'after load' })
     await tick()
     expect(report).toHaveBeenCalledTimes(3)
+  })
+
+  it('链式调用并恢复宿主已有的 window.onerror', async () => {
+    const previous = vi.fn(() => true)
+    ;(dom.window as any).onerror = previous
+
+    await loadInjector()
+    dom.window.onerror!('before sdk', 'http://host.example/app.js', 1, 1)
+    expect(previous).toHaveBeenCalledTimes(1)
+
+    scripts[0].onerror!(new Error('404'))
+    await tick()
+    expect(dom.window.onerror).toBe(previous)
+  })
+
+  it('SDK 长时间不可用时早期错误缓存仍有条数上限', async () => {
+    const report = vi.fn()
+    class FakeBuryReport {
+      report = report
+    }
+    ;(dom.window as any).BuryReport = FakeBuryReport
+
+    await loadInjector()
+    for (let i = 0; i < 150; i++) {
+      dom.window.onerror!(`early-${i}`, 'http://host.example/app.js', 1, 1) as any
+    }
+
+    scripts[0].onload!()
+    await tick()
+    expect(report).toHaveBeenCalledTimes(100)
+    expect(report.mock.calls[0][1].message).toBe('early-50')
   })
 
   it('window 上找不到 BuryReport 时给出警告且不抛错', async () => {
@@ -183,6 +211,24 @@ describe('injector 核心脚本加载', () => {
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining('core sdk load failed'),
     )
+  })
+
+  it('SDK 脚本长时间无响应时超时退出早期捕获', async () => {
+    vi.useFakeTimers()
+    try {
+      await loadInjector()
+      expect(console.error).not.toBe(ORIGINAL_CONSOLE_ERROR)
+
+      vi.advanceTimersByTime(15 * 1000)
+      await tick()
+
+      expect(console.error).toBe(ORIGINAL_CONSOLE_ERROR)
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('core sdk load failed'),
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('未开启录屏时不加载 rrweb 插件', async () => {

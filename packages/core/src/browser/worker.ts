@@ -1,17 +1,47 @@
 import { COLLECT_API, OPERATION_TRACK } from '@/constant'
-import { MAX_KEEPALIVE_BYTES, estimateSize, normalizeMaxRetry, splitBySize } from '@/utils'
+import {
+  MAX_KEEPALIVE_BYTES,
+  estimateSize,
+  normalizeMaxRetry,
+  splitBySize,
+} from '@/utils'
 import pako from 'pako'
+import {
+  MAX_TRACK_SPOOL_BATCHES,
+  MAX_TRACK_SPOOL_BYTES,
+  appendTrackSpool,
+  createSpoolNamespace,
+  loadTrackSpool,
+  removeTrackSpool,
+} from './spool'
+import type { TrackSpoolMeta } from './spool'
 
-// 失败后的重试间隔，仅存在于 worker 内部，不影响主线程
 const RETRY_DELAY = 10 * 1000
-// 重试缓冲上限，避免 worker 内存无限增长
-const MAX_RETRY_COUNT = 100
-// 单条 track 消息（gzip 后）的目标上限。服务端/broker 的单条上限通常是 1MB~10MB，
-// 而这里会把多批事件合并投递（叠加重试缓冲后可能到十几 MB，直接被拒收），所以先按估算切分。
-// 服务端还有一道兜底拆分，用于覆盖尚未升级的老版本客户端。
+const MAX_RETRY_DELAY = 5 * 60 * 1000
+// 单条 track 消息（gzip 后）的目标上限。
 const MAX_TRACK_MESSAGE_BYTES = 1 * 1024 * 1024
-// rrweb JSON 的压缩比经验值：用于在不额外压缩的前提下估算体积
 const TRACK_COMPRESS_RATIO = 8
+
+type Batch = {
+  id?: number
+  spoolKey?: string
+  appid: string
+  url: string
+  sessionid?: string
+  deviceid?: string
+  data: any[]
+  keepalive: boolean
+}
+
+const queue: Batch[] = []
+let active: Batch | undefined
+let retryTimer: any
+let failStreak = 0
+let maxRetry = normalizeMaxRetry(undefined)
+const stopped = false
+let spoolSequence = 0
+let spoolNamespace: string | undefined
+let spoolReady: Promise<void> | undefined
 
 /**
  * 把一批 track 记录按估算体积切成多条消息。
@@ -40,173 +70,267 @@ export function packTrackPayloads(
   return chunks
 }
 
-let retryBuffer: any[] = []
-let retryTimer: any
-// 连续失败次数：成功一次即清零；超过 maxRetry 判定服务不可用并停止重试
-let failStreak = 0
-let maxRetry = normalizeMaxRetry(undefined)
-let exhausted = false
-
 self.onmessage = (evt) => {
-  switch (evt.data.type) {
-    case 'report': {
-      // 主线程透传的重试上限；0/非正数表示不限制
-      if (evt.data.maxRetry != null) maxRetry = normalizeMaxRetry(evt.data.maxRetry)
-      // worker 内的异常不能变成未处理的 rejection
-      handleReport(evt.data).catch(err => {
-        console.warn('[@sepveneto/report-core] handle report failed: ' + err)
-      })
-      break
-    }
-    default:
-      console.warn('[@sepveneto/report-core] invalid event type: ' + evt.data.type)
-  }
+  handleMessage(evt.data).catch(err => {
+    console.warn('[@sepveneto/report-core] enqueue report failed: ' + err)
+  })
 }
 
-async function handleReport({ store, appid, sessionid, deviceid, keepalive }: any) {
-  // 重试已耗尽：忽略后续数据，等待主线程终止 worker
-  if (exhausted) return
-
-  const incoming = (store || []).map((item: any) => ({ ...item, appid })).sort((a: any, b: any) => a.stamp - b.stamp)
-  const data = [...retryBuffer, ...incoming]
-  retryBuffer = []
-  if (!data.length) return
-
-  const [other, api, tracks] = sliceDataForKeepalive(data)
-
-  if (keepalive) {
-    // 页面关闭：按大小分片尽力发送，不做重试
-    for (const chunk of splitBySize([...other, ...api], MAX_KEEPALIVE_BYTES)) {
-      degradationReport({ appid, data: chunk }, true).catch((err) => console.warn(err))
-    }
-    // 录屏按估算体积分片投递：单条过大的 payload 会被 broker/服务端拒收，整段录屏丢失；
-    // 分片后同 session 仍走同一个 Kafka key，顺序不变，回放端按时间戳合并即可
-    for (const chunk of packTrackPayloads(tracks)) {
-      degradationReport({ sessionid, deviceid, appid, data: chunk }, true, 'gzip').catch((err) => console.warn(err))
-    }
-    return
-  }
-
-  // 普通发送：失败的数据留在 worker 内自动重试，不打扰主线程
-  const failed = await sendWithRetry(data)
-  handleSendResult(failed)
-}
-
-// 统一处理一次发送结果：成功清零计数，失败累计并在超过上限时停止重试并通知主线程
-function handleSendResult(failed: any[]) {
-  if (!failed.length) {
+async function handleMessage(message: any) {
+  if (message?.type === 'drain') {
+    clearTimeout(retryTimer)
+    retryTimer = undefined
     failStreak = 0
-    clearTimeout(retryTimer)
-    retryTimer = undefined
+    drainQueue()
     return
   }
-
-  retryBuffer = [...failed, ...retryBuffer].slice(0, MAX_RETRY_COUNT)
-  failStreak += 1
-
-  // 重试指定次数后仍然失败：通知主线程中止上报相关操作（含录屏）
-  if (failStreak > maxRetry) {
-    exhausted = true
-    console.warn(`[@sepveneto/report-core] worker report disabled after ${failStreak - 1} retries`)
-    retryBuffer = []
-    clearTimeout(retryTimer)
-    retryTimer = undefined
-    try {
-      self.postMessage({ type: 'exhausted' })
-    } catch (err) {
-      console.warn('[@sepveneto/report-core] post exhausted failed: ' + err)
-    }
+  if (message?.type !== 'report') {
+    console.warn('[@sepveneto/report-core] invalid event type: ' + message?.type)
     return
   }
+  if (message.maxRetry != null) maxRetry = normalizeMaxRetry(message.maxRetry)
 
-  scheduleRetry()
+  if (!Array.isArray(message.store)) {
+    console.warn('[@sepveneto/report-core] malformed report payload')
+    return
+  }
+  const records = message.store
+  if (!records.length) return
+
+  const batch: Batch = {
+    id: message.id,
+    appid: message.appid,
+    url: message.url || '',
+    sessionid: message.sessionid,
+    deviceid: message.deviceid,
+    data: records.slice().sort((a: any, b: any) => a.stamp - b.stamp),
+    keepalive: !!message.keepalive,
+  }
+  await ensureSpool(batch)
+  await enqueueBatch(batch)
 }
 
-async function sendWithRetry(data: any[]) {
-  const [other, api, tracks] = sliceDataForKeepalive(data)
+async function ensureSpool(batch: Batch) {
+  const namespace = createSpoolNamespace(batch.appid, batch.url)
+  if (spoolNamespace && spoolNamespace !== namespace) {
+    throw new Error('worker received data for a different app/url namespace')
+  }
+  if (spoolReady) {
+    await spoolReady
+    return
+  }
+
+  spoolNamespace = namespace
+  spoolReady = restoreSpool()
+  await spoolReady
+}
+
+async function restoreSpool() {
+  if (!spoolNamespace) return
+  const records = await loadTrackSpool(spoolNamespace)
+  const restored: Batch[] = []
+  records.forEach(record => {
+    const meta = record.batch?.meta
+    if (!meta || createSpoolNamespace(meta.appid, meta.url) !== spoolNamespace) return
+    restored.push({
+      spoolKey: record.key,
+      appid: meta.appid,
+      url: meta.url,
+      sessionid: meta.sessionid,
+      deviceid: meta.deviceid,
+      data: record.batch.data,
+      keepalive: false,
+    })
+  })
+  queue.unshift(...restored)
+  trimMemoryQueue()
+  drainQueue()
+}
+
+async function enqueueBatch(batch: Batch) {
+  if (!spoolNamespace) return
+  const meta: TrackSpoolMeta = {
+    appid: batch.appid,
+    url: batch.url,
+    sessionid: batch.sessionid,
+    deviceid: batch.deviceid,
+  }
+  const chunks = splitBySize(batch.data, MAX_TRACK_SPOOL_BYTES)
+  for (const data of chunks) {
+    const spoolKey = `${Date.now()}-${++spoolSequence}-${Math.random().toString(36).slice(2)}`
+    const result = await appendTrackSpool(spoolNamespace, spoolKey, { meta, data })
+    if (!result.accepted) {
+      postMessage({ type: 'rejected', id: batch.id })
+      return
+    }
+
+    queue.push({
+      ...batch,
+      spoolKey,
+      data,
+    })
+    if (result.dropped.length) {
+      removeQueuedSpoolRecords(result.dropped)
+    }
+    trimMemoryQueue()
+  }
+  postMessage({ type: 'accepted', id: batch.id })
+  drainQueue()
+}
+
+async function drainQueue() {
+  if (stopped || active || retryTimer || !queue.length) return
+  active = queue.shift()
+  if (!active) return
+
+  const batch = active
+  const failed = await sendBatch(batch)
+  if (active !== batch) return
+
+  if (!failed.length) {
+    active = undefined
+    failStreak = 0
+    if (batch.spoolKey && spoolNamespace) await removeTrackSpool(spoolNamespace, batch.spoolKey)
+    acknowledge(batch)
+    drainQueue()
+    return
+  }
+
+  failStreak += 1
+  active = undefined
+  queue.unshift({
+    ...batch,
+    data: failed,
+  })
+  retryTimer = setTimeout(() => {
+    retryTimer = undefined
+    drainQueue()
+  }, retryDelay(failStreak))
+}
+
+async function sendBatch(batch: Batch) {
+  const [other, api, tracks] = splitRecords(batch.data)
   const failed: any[] = []
   const common = [...other, ...api]
-  const appid = data[0]?.appid
 
   if (common.length) {
-    try {
-      await degradationReport({ appid, data: common }, false)
-    } catch (err) {
-      console.warn(err)
-      failed.push(...common)
-    }
-  }
-  if (tracks.length) {
-    for (const chunk of packTrackPayloads(tracks)) {
+    for (const chunk of splitBySize(common, MAX_KEEPALIVE_BYTES)) {
       try {
-        const first = chunk[0]
-        await degradationReport({ sessionid: first.session, deviceid: first.uuid, appid, data: chunk }, false, 'gzip')
+        await degradationReport({ appid: batch.appid, data: chunk }, batch.keepalive)
       } catch (err) {
-        console.warn(err)
+        console.warn('[report-core] worker report failed: ' + err)
         failed.push(...chunk)
       }
     }
   }
+
+  if (tracks.length) {
+    for (const chunk of packTrackPayloads(tracks)) {
+      const first = chunk[0]
+      try {
+        await degradationReport({
+          sessionid: batch.sessionid || first?.session,
+          deviceid: batch.deviceid || first?.uuid,
+          appid: batch.appid,
+          data: chunk,
+        }, batch.keepalive, 'gzip')
+      } catch (err) {
+        console.warn('[report-core] worker track report failed: ' + err)
+        failed.push(...chunk)
+      }
+    }
+  }
+
   return failed
 }
 
-function scheduleRetry() {
-  if (retryTimer) return
-  retryTimer = setTimeout(async () => {
-    retryTimer = undefined
-    if (!retryBuffer.length) return
-    const data = retryBuffer
-    retryBuffer = []
-    const failed = await sendWithRetry(data)
-    handleSendResult(failed)
-  }, RETRY_DELAY)
+function acknowledge(batch: Batch) {
+  if (batch.id == null) return
+  try {
+    postMessage({ type: 'sent', id: batch.id })
+  } catch (err) {
+    console.warn('[@sepveneto/report-core] post sent failed: ' + err)
+  }
 }
 
-function sliceDataForKeepalive(data: any[]) {
-  const trackSlices = []
-  const apiSlices = []
-  const otherSlices = []
+function postMessage(data: any) {
+  try {
+    self.postMessage(data)
+  } catch (err) {
+    console.warn('[@sepveneto/report-core] worker postMessage failed: ' + err)
+  }
+}
+
+function trimMemoryQueue() {
+  let bytes = active ? estimateSize(active.data) : 0
+  queue.forEach(batch => {
+    bytes += estimateSize(batch.data)
+  })
+
+  while (queue.length && (bytes > MAX_TRACK_SPOOL_BYTES || queue.length + (active ? 1 : 0) > MAX_TRACK_SPOOL_BATCHES)) {
+    const dropped = queue.shift()
+    if (!dropped) break
+    bytes -= estimateSize(dropped.data)
+    if (dropped.spoolKey) {
+      if (spoolNamespace) {
+        removeTrackSpool(spoolNamespace, dropped.spoolKey).catch(err => {
+          console.warn('[@sepveneto/report-core] remove dropped spool failed: ' + err)
+        })
+      }
+    }
+    postMessage({ type: 'dropped' })
+  }
+}
+
+function removeQueuedSpoolRecords(keys: string[]) {
+  const keySet = new Set(keys)
+  for (let i = queue.length - 1; i >= 0; i--) {
+    if (queue[i].spoolKey && keySet.has(queue[i].spoolKey!)) {
+      queue.splice(i, 1)
+      postMessage({ type: 'dropped' })
+    }
+  }
+}
+
+function retryDelay(streak: number) {
+  const exponentCap = Number.isFinite(maxRetry) ? Math.max(0, Math.min(maxRetry, 6)) : 0
+  const exponent = Math.min(Math.max(0, streak - 1), exponentCap)
+  return Math.min(RETRY_DELAY * 2 ** exponent, MAX_RETRY_DELAY)
+}
+
+function splitRecords(data: any[]) {
+  const tracks: any[] = []
+  const api: any[] = []
+  const other: any[] = []
 
   for (const item of data) {
-    switch (item.type) {
-      case OPERATION_TRACK:
-        trackSlices.push(item)
-        break
-      case COLLECT_API:
-        apiSlices.push(item)
-        break
-      default:
-        otherSlices.push(item)
-        break
-    }
+    if (item.type === OPERATION_TRACK) tracks.push(item)
+    else if (item.type === COLLECT_API) api.push(item)
+    else other.push(item)
   }
-  return [otherSlices, apiSlices, trackSlices]
+  return [other, api, tracks] as const
 }
 
-function degradationReport(body: any, keepalive: boolean, type: 'json' | 'gzip' = 'json') {
-  let out: any
-  switch (type) {
-    case 'json': {
-      // fetch 的 body 必须是字符串/二进制等类型，直接传对象会抛 TypeError
-      out = JSON.stringify(body)
-      break
-    }
-    case 'gzip': {
-      // 按sessionid + | + rrweb 进行数据组装
-      const { sessionid, data, appid } = body
-      const gzipData = pako.gzip(JSON.stringify(data))
-      const encoder = new TextEncoder()
-      const str = `${sessionid}:${appid}|`
-      const protocolBytes = encoder.encode(str)
-      out = new Uint8Array(gzipData.length + protocolBytes.length + 1)
-      out.set([0])
-      out.set(protocolBytes, 1)
-      out.set(gzipData, protocolBytes.length + 1)
-      break
-    }
+function degradationReport(
+  body: any,
+  keepalive: boolean,
+  type: 'json' | 'gzip' = 'json',
+) {
+  let out: string | Uint8Array
+  if (type === 'gzip') {
+    const { sessionid, data, appid } = body
+    const gzipData = pako.gzip(JSON.stringify(data))
+    const encoder = new TextEncoder()
+    const protocol = encoder.encode(`${sessionid}:${appid}|`)
+    out = new Uint8Array(gzipData.length + protocol.length + 1)
+    out.set([0])
+    out.set(protocol, 1)
+    out.set(gzipData, protocol.length + 1)
+  } else {
+    out = JSON.stringify(body)
   }
 
-  return self.fetch('BR_URL', {
+  return Promise.resolve(self.fetch('BR_URL', {
     method: 'post',
     mode: 'no-cors',
     headers: {
@@ -217,5 +341,5 @@ function degradationReport(body: any, keepalive: boolean, type: 'json' | 'gzip' 
     priority: 'low',
     keepalive,
     body: out,
-  })
+  }))
 }
