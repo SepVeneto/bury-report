@@ -107,6 +107,8 @@ async function getList() {
   cacheProjects.value = [...res]
 }
 async function handleAdd() {
+  if (store.role !== 'admin') return
+
   const newProject = {
     id: '',
     name: `新项目-${Date.now()}`,

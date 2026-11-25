@@ -45,6 +45,9 @@ const routes: RouteRecordRaw[] = [
     path: '/accounts',
     name: 'AccountView',
     component: () => import('@/views/account/AccountView.vue'),
+    meta: {
+      requiresAdmin: true,
+    },
   },
 ]
 
@@ -78,6 +81,9 @@ router.beforeEach(to => {
   const token = localStorage.getItem('token')
   if (!token) {
     return { name: 'Login' }
+  }
+  if (to.meta.requiresAdmin && useApp().role !== 'admin') {
+    return { name: 'Portal' }
   }
 })
 

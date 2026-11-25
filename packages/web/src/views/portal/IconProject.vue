@@ -148,6 +148,8 @@ function handleBlur() {
   }
 }
 function handleUpdate(app: App) {
+  if (!isAdmin.value) return
+
   const { open, close } = createDialog(DialogApp, { recordId: app.id })
   open(
     { title: '编辑应用', width: '550px' },
@@ -160,6 +162,8 @@ function handleUpdate(app: App) {
   )
 }
 function handleAdd() {
+  if (!isAdmin.value) return
+
   const { open, close } = createDialog(DialogApp)
   open(
     { title: '新增应用', width: '550px' },

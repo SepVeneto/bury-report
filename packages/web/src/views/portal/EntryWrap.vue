@@ -19,11 +19,14 @@
 // import IconApp from './IconApp.vue'
 import IconProject from './IconProject.vue'
 import { type Project, deleteProject, getProjectList, updateProject } from '@/apis'
-import { type PropType, inject } from 'vue'
+import { type PropType, computed, inject } from 'vue'
 import { PortalKey } from './token'
 import { ElMessageBox } from 'element-plus'
+import { useApp } from '@/store'
 
 const context = inject(PortalKey)
+const store = useApp()
+const isAdmin = computed(() => store.role === 'admin')
 
 const props = defineProps({
   data: {
@@ -33,6 +36,8 @@ const props = defineProps({
 })
 
 function handleContextmenu(evt: MouseEvent, projectId: Project['id']) {
+  if (!isAdmin.value) return
+
   context?.handleContextmenu?.(evt, [
     {
       label: '删除',
@@ -54,6 +59,8 @@ function handleContextmenu(evt: MouseEvent, projectId: Project['id']) {
   ])
 }
 async function onUpdate(name: string) {
+  if (!isAdmin.value) return
+
   await updateProject({
     ...props.data,
     name,
