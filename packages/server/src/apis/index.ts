@@ -18,6 +18,7 @@ import { ObjectId } from 'mongodb'
 import type { AccountDocument } from '../utils/account.ts'
 import { normalizeAccountRole } from '../utils/account.ts'
 import { issueSessionToken } from '../utils/session.ts'
+import { Project } from '../model/project.ts'
 
 const router = new Router()
 
@@ -104,17 +105,8 @@ router.use(async (ctx, next) => {
   }
 
   if (ctx.account?.role !== 'admin') {
-    const projectIds = (ctx.account?.projectIds || [])
-      .filter(id => ObjectId.isValid(id))
-      .map(id => new ObjectId(id))
-    const project = projectIds.length
-      ? await ctx.db.collection('projects').findOne({
-        _id: { $in: projectIds },
-        'apps.id': appid,
-        is_delete: { $ne: true },
-      })
-      : null
-    if (!project) {
+    const project = new Project(ctx.db)
+    if (!(await project.canAccessApp(ctx.account?.projectIds || [], appid))) {
       ctx.response.status = 403
       ctx.response.body = {
         code: 403,

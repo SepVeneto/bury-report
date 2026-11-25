@@ -463,19 +463,8 @@ router.patch('/app/:appId/move_to', async (ctx) => {
 async function ensureAppAccess(ctx: Context, appId: string) {
   if (ctx.account?.role === 'admin') return true
 
-  const projectIds = (ctx.account?.projectIds || [])
-    .filter(id => ObjectId.isValid(id))
-    .map(id => new ObjectId(id))
-  const project = projectIds.length
-    ? await ctx.db.collection('projects').findOne({
-      _id: { $in: projectIds },
-      'apps.id': appId,
-      is_delete: { $ne: true },
-    }, {
-      projection: { _id: 1 },
-    })
-    : null
-  if (project) return true
+  const project = new Project(ctx.db)
+  if (await project.canAccessApp(ctx.account?.projectIds || [], appId)) return true
 
   ctx.response.status = 403
   ctx.resCode = 403
