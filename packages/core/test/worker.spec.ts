@@ -1,5 +1,4 @@
 import { selfState } from './helpers/self-stub'
-import '../src/browser/worker'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OPERATION_TRACK } from '../src/constant'
 
@@ -14,18 +13,20 @@ function makeRecord(type: string, stamp = 0, size = 16) {
   }
 }
 
-function dispatch(store: any[], keepalive = false, maxRetry?: number) {
+function dispatch(store: any[], keepalive = false, maxRetry?: number, id?: number) {
   ;(globalThis as any).self.onmessage({
-    data: { type: 'report', store, appid: 'a', sessionid: 's', deviceid: 'u', keepalive, maxRetry },
+    data: { type: 'report', id, store, appid: 'a', sessionid: 's', deviceid: 'u', keepalive, maxRetry },
   })
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i++) await Promise.resolve()
+  for (let i = 0; i < 25; i++) await Promise.resolve()
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.useFakeTimers()
+  vi.resetModules()
+  await import('../src/browser/worker')
   selfState.fetch = vi.fn().mockResolvedValue({ ok: true })
   selfState.postMessage = vi.fn()
   selfState.close = vi.fn()
@@ -66,6 +67,15 @@ describe('worker 上报可靠性', () => {
     expect(vi.getTimerCount()).toBe(0)
   })
 
+  it('服务端响应状态不参与判定，请求完成后ACK', async () => {
+    selfState.fetch.mockResolvedValueOnce({ ok: false, status: 500 })
+    dispatch([makeRecord('custom', 1)], false, undefined, 21)
+    await flush()
+
+    expect(vi.getTimerCount()).toBe(0)
+    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'sent', id: 21 })
+  })
+
   it('keepalive 按大小分片发送，不做重试', async () => {
     const records = Array.from({ length: 100 }, (_, i) => makeRecord('custom', i, 1024))
     dispatch(records, true)
@@ -99,10 +109,31 @@ describe('worker 上报可靠性', () => {
     expect(header).toContain('s:a|')
   })
 
-  it('keepalive 失败不重试（页面关闭，尽力而为）', async () => {
+  it('keepalive 失败不 ACK，并在页面仍存活时继续重试', async () => {
     selfState.fetch.mockRejectedValue(new Error('down'))
-    dispatch([makeRecord('custom', 1)], true)
+    dispatch([makeRecord('custom', 1)], true, undefined, 7)
     await flush()
+    expect(vi.getTimerCount()).toBe(1)
+    expect(selfState.postMessage).not.toHaveBeenCalledWith({ type: 'sent', id: 7 })
+
+    selfState.fetch.mockResolvedValue({ ok: true })
+    vi.advanceTimersByTime(10 * 1000)
+    await flush()
+    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'sent', id: 7 })
+  })
+
+  it('网络恢复 drain 消息会立即排空退避中的批次', async () => {
+    selfState.fetch.mockRejectedValueOnce(new Error('offline'))
+    dispatch([makeRecord('custom', 1)], false, undefined, 8)
+    await flush()
+    expect(vi.getTimerCount()).toBe(1)
+
+    selfState.fetch.mockResolvedValue({ ok: true })
+    ;(globalThis as any).self.onmessage({ data: { type: 'drain' } })
+    await flush()
+
+    expect(selfState.fetch).toHaveBeenCalledTimes(2)
+    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'sent', id: 8 })
     expect(vi.getTimerCount()).toBe(0)
   })
 
@@ -134,25 +165,27 @@ describe('worker 上报可靠性', () => {
     expect(header).toBe('s:a')
   })
 
-  it('连续失败超过 maxRetry 后停止重试并通知主线程', async () => {
+  it('连续失败达到 maxRetry 后继续退避，不丢弃批次也不发送 exhausted', async () => {
     selfState.fetch.mockRejectedValue(new Error('down'))
-    dispatch([makeRecord('custom', 1)], false, 2)
+    dispatch([makeRecord('custom', 1)], false, 2, 9)
     await flush()
 
     vi.advanceTimersByTime(10 * 1000)
     await flush()
-    vi.advanceTimersByTime(10 * 1000)
+    vi.advanceTimersByTime(20 * 1000)
+    await flush()
+    vi.advanceTimersByTime(40 * 1000)
     await flush()
 
-    // maxRetry=2：首次 + 2 次重试都失败后停止，且只剩 0 个重试定时器
-    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'exhausted' })
-    expect(vi.getTimerCount()).toBe(0)
+    expect(selfState.fetch).toHaveBeenCalledTimes(4)
+    expect(selfState.postMessage).not.toHaveBeenCalledWith({ type: 'exhausted' })
+    expect(vi.getTimerCount()).toBe(1)
 
-    // 耗尽后新的上报不再触发请求
-    const calls = selfState.fetch.mock.calls.length
-    dispatch([makeRecord('custom', 2)], false, 2)
+    // 恢复后只 ACK 原批次，数据没有在退避期间被清空
+    selfState.fetch.mockResolvedValue({ ok: true })
+    vi.advanceTimersByTime(60 * 1000)
     await flush()
-    expect(selfState.fetch.mock.calls.length).toBe(calls)
+    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'sent', id: 9 })
   })
 
   it('失败后成功会清零计数，不会误触发中止', async () => {
@@ -161,14 +194,15 @@ describe('worker 上报可靠性', () => {
       .mockRejectedValueOnce(new Error('down'))
       .mockResolvedValue({ ok: true })
 
-    dispatch([makeRecord('custom', 1)], false, 2)
+    dispatch([makeRecord('custom', 1)], false, 2, 11)
     await flush()
     vi.advanceTimersByTime(10 * 1000)
     await flush()
-    vi.advanceTimersByTime(10 * 1000)
+    vi.advanceTimersByTime(20 * 1000)
     await flush()
 
-    expect(selfState.postMessage).not.toHaveBeenCalled()
+    expect(selfState.postMessage).not.toHaveBeenCalledWith({ type: 'exhausted' })
+    expect(selfState.postMessage).toHaveBeenCalledWith({ type: 'sent', id: 11 })
     expect(vi.getTimerCount()).toBe(0)
   })
 })

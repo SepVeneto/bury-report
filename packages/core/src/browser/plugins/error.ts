@@ -1,38 +1,48 @@
-import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
+import type { BuryReportBase as BuryReport, BuryReportPlugin, Options } from '@/type'
 import { COLLECT_ERROR } from '@/constant'
 import { storageReport, writeMemory } from '@/utils'
-
-type ResourceElemnt =
-  HTMLScriptElement |
-  HTMLLinkElement |
-  HTMLImageElement |
-  HTMLVideoElement |
-  HTMLAudioElement |
-  HTMLSourceElement
+import { isSyntaxError, normalizeConsoleError, normalizeError, normalizeResourceError } from '../error-utils'
+import type { NormalizedError } from '../error-utils'
+import { shouldIgnoreError } from '../event-filter'
 
 export class ErrorPlugin implements BuryReportPlugin {
   public name = 'errorPlugin'
   private ctx?: BuryReport
   private appid?: string
   private originErrorLog?: any
+  private originOnError?: OnErrorEventHandler
+  private wrappedOnError?: OnErrorEventHandler
+  private errorProxy?: any
+  private options?: Partial<Options>
 
   init(ctx: BuryReport | string) {
     if (typeof ctx === 'string') {
       this.appid = ctx
     } else {
       this.ctx = ctx
+      this.options = ctx.options
     }
-    this.originErrorLog = initErrorProxy((data) => this.reportError(data))
+    const proxy = initErrorProxy((data) => this.reportError(data))
+    this.originErrorLog = proxy.original
+    this.errorProxy = proxy.wrapped
+    this.originOnError = window.onerror
+    this.wrappedOnError = this.onWindowError
+    window.onerror = this.onWindowError
     this.onUncaughtError()
     this.onUnhandleRejectionError()
   }
 
-  public reportError(error: { name: string, message: string, stack?: string, extra: any | null }) {
+  public reportError(error: NormalizedError, sourceUrl?: string) {
+    if (shouldIgnoreError(error, this.options, sourceUrl)) return
     const data = { ...error, page: window.location.href }
     // 白屏检测没有上下文，需要先放到缓存中
     try {
       if (this.ctx) {
-        this.ctx.report?.(COLLECT_ERROR, data)
+        if (isSyntaxError(data)) {
+          this.ctx.report?.(COLLECT_ERROR, data, { immediate: true, flush: true })
+        } else {
+          this.ctx.report?.(COLLECT_ERROR, data)
+        }
       } else {
         const record = storageReport(COLLECT_ERROR, data, Date.now())
         writeMemory(record)
@@ -44,7 +54,12 @@ export class ErrorPlugin implements BuryReportPlugin {
   }
 
   resetListener() {
-    console.error = this.originErrorLog
+    if (console.error === this.errorProxy) {
+      console.error = this.originErrorLog
+    }
+    if (window.onerror === this.wrappedOnError) {
+      window.onerror = this.originOnError
+    }
     window.removeEventListener('error', this.uncaughtErrorListener)
     window.removeEventListener('unhandledrejection', this.unhandleRejectionErrorListener)
   }
@@ -65,15 +80,22 @@ export class ErrorPlugin implements BuryReportPlugin {
       this.reportError({
         name: 'ResourceError',
         ...error,
-      })
-      return
+      }, error.url)
     }
+  }
 
+  public onWindowError: OnErrorEventHandler = (
+    message,
+    source,
+    lineno,
+    colno,
+    errorValue,
+  ) => {
     let error
-    if (evt.error) {
-      error = normalizeError(evt.error)
+    if (errorValue) {
+      error = normalizeError(errorValue)
     } else {
-      error = normalizeError(evt.message || 'Unknown script error')
+      error = normalizeError(message || 'Unknown script error')
     }
 
     this.reportError({
@@ -81,13 +103,18 @@ export class ErrorPlugin implements BuryReportPlugin {
       message: error.message,
       stack: error.stack,
       extra: {
-        filename: evt.filename,
-        lineno: evt.lineno,
-        colno: evt.colno,
-        rawMessage: evt.message,
+        filename: source,
+        lineno,
+        colno,
+        rawMessage: typeof message === 'string' ? message : message?.type,
         normalizedExtra: error.extra,
       },
-    })
+    }, source)
+
+    if (typeof this.originOnError === 'function') {
+      return this.originOnError.call(window, message, source, lineno, colno, errorValue)
+    }
+    return false
   }
 
   public onUnhandleRejectionError() {
@@ -108,7 +135,7 @@ export class ErrorPlugin implements BuryReportPlugin {
 
 function initErrorProxy(reportFn: (...args: any[]) => void) {
   const _tempError = console.error
-  console.error = function (...args) {
+  const wrapped = function (this: any, ...args: any[]) {
     try {
       const e = normalizeConsoleError(args)
 
@@ -127,121 +154,9 @@ function initErrorProxy(reportFn: (...args: any[]) => void) {
       console.warn(e)
     }
   }
-  return _tempError
-}
-
-function normalizeResourceError(evt: Event) {
-  const target = evt.target as ResourceElemnt || evt.srcElement
-
-  if (!target) {
-    return {
-      message: 'Resource load error: unknown target',
-      stack: '',
-      extra: null,
-    }
-  }
-
-  const tag = target.tagName.toLowerCase()
-  let url = ''
-  // @ts-expect-error: ignore
-  if (target.src) url = target.src
-  // @ts-expect-error: ignore
-  if (target.href) url = target.href
-
+  console.error = wrapped
   return {
-    message: `Resource load error: <${tag}>${url || '(no url)'}`,
-    stack: '',
-    extra: {
-      tag,
-      url,
-      outerHTML: target.outerHTML.slice(0, 500),
-    },
-  }
-}
-
-function normalizeError(reason: any) {
-  if (reason instanceof Error) {
-    let extra = null
-    try {
-      extra = JSON.stringify(reason)
-    } catch {
-      extra = '[object with circular structre]'
-    }
-    return {
-      name: reason.name,
-      message: reason.message || 'Unknown Error',
-      stack: reason.stack || '',
-      extra,
-    }
-  } else if (typeof reason === 'string') {
-    return {
-      message: reason,
-      stack: '',
-      extra: null,
-    }
-  } else if (reason == null) {
-    return {
-      message: 'null or undefined error',
-      stack: '',
-      extra: null,
-    }
-  } else if (typeof reason === 'object') {
-    let json = ''
-    try {
-      json = JSON.stringify(reason)
-    } catch {
-      json = '[object with circular structre]'
-    }
-
-    return {
-      message: reason.message || reason.msg || '(object error)',
-      stack: reason.stack,
-      extra: json,
-    }
-  } else {
-    return {
-      message: String(reason),
-      stack: '',
-      extra: null,
-    }
-  }
-}
-
-function normalizeConsoleError(args: any[]) {
-  if (!args || args.length === 0) {
-    return normalizeError('console.error with no arguments')
-  }
-
-  for (const a of args) {
-    if (a instanceof Error) return normalizeError(a)
-  }
-
-  if (typeof args[0] === 'string') {
-    const message = args[0]
-
-    let stack = ''
-    if (args.length > 1) {
-      try {
-        stack = JSON.stringify(args.slice(1))
-      } catch {
-        stack = '[unserializable stack]'
-      }
-    }
-
-    return {
-      message,
-      stack,
-      extra: null,
-    }
-  }
-
-  try {
-    return normalizeError(args)
-  } catch {
-    return {
-      message: 'console.error unknown structure',
-      stack: '',
-      extra: null,
-    }
+    original: _tempError,
+    wrapped,
   }
 }

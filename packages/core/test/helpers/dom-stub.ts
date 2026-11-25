@@ -75,7 +75,10 @@ export function setupBrowserGlobals() {
     localStorage,
     sessionStorage,
     navigator,
-    location: { href: 'http://host.example/page' },
+    location: {
+      href: 'http://host.example/page',
+      origin: 'http://host.example',
+    },
     screen: { width: 800, height: 600, orientation: undefined },
     devicePixelRatio: 1,
     innerWidth: 800,

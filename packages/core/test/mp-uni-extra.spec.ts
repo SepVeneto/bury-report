@@ -112,7 +112,7 @@ describe('mp 上报周期与缓存', () => {
     expect(requestMock).toHaveBeenCalledTimes(2)
   })
 
-  it('连续失败超过 maxRetry 后停止上报', () => {
+  it('连续失败达到 maxRetry 后继续退避重试，不中止 SDK', () => {
     new BuryReport({ url: 'https://mp/report', appid: 'a', report: true, interval: 1, maxRetry: 1 })
     const reporter = getReport()
 
@@ -122,14 +122,15 @@ describe('mp 上报周期与缓存', () => {
     vi.advanceTimersByTime(1000)
     expect(requestMock).toHaveBeenCalledTimes(2)
 
-    // 重试仍失败：超过 maxRetry 后中止
+    // 重试仍失败：进入更长退避，但仍保留采集与上报能力
     requestMock.mock.calls[1][0].fail({ errMsg: 'request:fail timeout' })
+    expect(() => reporter('custom', { a: 2 }, { immediate: true })).not.toThrow()
+    expect(requestMock).toHaveBeenCalledTimes(3)
+    requestMock.mock.calls[2][0].fail({ errMsg: 'request:fail timeout' })
+    vi.advanceTimersByTime(2 * 1000)
+    expect(requestMock).toHaveBeenCalledTimes(4)
 
-    reporter('custom', { a: 2 }, { immediate: true })
-    vi.advanceTimersByTime(10 * 1000)
-
-    // 中止后不再产生任何请求
-    expect(requestMock).toHaveBeenCalledTimes(2)
+    expect(readQueue().length).toBeGreaterThan(0)
   })
 })
 

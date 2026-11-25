@@ -83,20 +83,20 @@ pnpm test:coverage
 | --- | --- |
 | `test/index.spec.ts` / `test/index-extra.spec.ts` | `report` / `setCustomId` / `reportNetwork` 的转发、`REPORT_REQUEST` 缺失或非函数时的降级、非字符串入参告警 |
 | `test/entries.spec.ts` | `vite` / `webpack` / `rspack` 入口导出、`type.ts` 抽象基类的运行时可继承性 |
-| `test/lib.spec.ts` | `getMainEntry` / `isEntry` 的平台分支、`transformInclude`、小程序端代码注入、vite（H5 脚本标签）/ webpack（bodyTags）/ rspack（assets 注入）适配 |
-| `test/injector.spec.ts` / `test/misc-extra.spec.ts` | 核心脚本按版本拼接与加载、`BuryReport` 初始化、rrweb 插件异步注册、加载失败兜底、`DEFINE_VERSION` / `LOG_DEBUG` 分支 |
+| `test/lib.spec.ts` | `getMainEntry` / `isEntry` 的平台分支、`transformInclude`、小程序端代码注入、vite（H5 `head-prepend` 内联脚本）/ webpack（headTags）/ rspack（assets 注入）适配 |
+| `test/injector.spec.ts` / `test/misc-extra.spec.ts` | 核心脚本按版本拼接与加载、SDK 加载前的错误缓存与回放、`BuryReport` 初始化、rrweb 插件异步注册、加载失败兜底、`DEFINE_VERSION` / `LOG_DEBUG` 分支 |
 
 ### 浏览器端
 
 | 文件 | 覆盖内容 |
 | --- | --- |
-| `test/browser.spec.ts` / `test/browser-extra.spec.ts` | 网络异常/配置错误不拖累宿主、worker 创建失败与异常终止降级、重试与队列保留、keepalive 分片、并发发送保护、`flush` / `store` 选项、生命周期上报与录屏插件联动 |
-| `test/browser-plugins.spec.ts` / `test/network-extra.spec.ts` | NetworkPlugin 的 success/fail 开关、传输异常（abort/error/timeout）、体积与响应头截断、performance profile 采集 |
-| `test/error-branches.spec.ts` / `test/error-console.spec.ts` / `test/error-extra.spec.ts` | ErrorPlugin 的错误归一化（Error/字符串/对象/null/循环引用）、资源与脚本错误、console.error 代理兜底 |
+| `test/browser.spec.ts` / `test/browser-extra.spec.ts` | 网络异常/配置错误不拖累宿主、服务端响应不参与投递判定、长期离线不中止 SDK、在线恢复补发、worker 接收后主线程释放录屏、重试与队列保留、keepalive 分片、并发发送保护、`flush` / `store` 选项、生命周期上报与录屏插件联动 |
+| `test/browser-plugins.spec.ts` / `test/network-extra.spec.ts` | NetworkPlugin 的 success/fail 开关、URL 忽略/白名单、传输异常（abort/error/timeout）、体积与响应头截断、performance profile 采集 |
+| `test/error-branches.spec.ts` / `test/error-console.spec.ts` / `test/error-extra.spec.ts` / `test/filter-options.spec.ts` / `test/module-metadata.spec.ts` | 错误归一化、applicationKey chunk 注入、按 stack 文件名区分业务/第三方帧、drop/tag 模式、allow/deny/ignore 规则、过滤后业务监听与 console 调用不受影响 |
 | `test/collect-info.spec.ts` | CollectPlugin 的环境采集：iOS/Android/iPadOS/Windows/macOS/Linux/Other 识别、浏览器与 IE 版本、屏幕方向、主题、窗口尺寸与 CSS 变量边距、iOS 横屏屏幕修正 |
 | `test/perf.spec.ts` / `test/edge-cases.spec.ts` | PerfPlugin 基于 web-vitals 上报 FCP/LCP/INP/TTFB、页面隐藏统一上报、阈值命中时采集 FCP 前后资源清单、动态异步资源、跨域计时保护、iframe 判定、observer 生命周期及异常隔离 |
 | `test/operation-record.spec.ts` / `test/operation-record-extra.spec.ts` | 录屏批处理、检查点重建、路由懒快照与节流、rAF/setTimeout 兜底、增强插件观察器、原子上报 |
-| `test/worker.spec.ts` / `test/worker-extra.spec.ts` | worker 内部上报：分片、gzip 录屏协议、失败重试与上限、排序、未知消息 |
+| `test/worker.spec.ts` / `test/worker-extra.spec.ts` / `test/spool.spec.ts` | worker 内部上报、分片、gzip 录屏协议、网络完成后 ACK、失败退避不丢批次、appid/url 分区、16MB/20 批有界 spool、淘汰策略、排序与未知消息 |
 | `test/polyfill.spec.ts` / `test/misc-extra.spec.ts` | iOS13 `Uint8Array.from` 手动实现与幂等性 |
 
 ### 小程序端
@@ -110,7 +110,7 @@ pnpm test:coverage
 
 | 文件 | 覆盖内容 |
 | --- | --- |
-| `test/utils.spec.ts` / `test/utils-extra.spec.ts` | 配置合并、uuid/session 缓存与降级、队列读写与损坏回退、内存缓冲 flush、条数/字节上限与设备信息保护、UTF-8 体积、分片、间隔校验 |
+| `test/utils.spec.ts` / `test/utils-extra.spec.ts` | 配置合并、uuid/session 缓存与降级、队列读写与损坏回退、512KB 普通日志队列、按优先级淘汰噪音、4MB store:false 缓存、UTF-8 体积、分片、间隔校验 |
 | `test/resilience.spec.ts` | 不可序列化数据不打断调用方且不毒化队列、公共 API 与网络采集异常不外泄、小程序 statusCode 判定、keepalive 预算与剩余数据保留、体积计算提前退出与预算裁剪 |
 | `test/track-chunk.spec.ts` | 录屏 track 按估算体积分片投递（单条不超过 1MB gzip）、分片后事件不丢、只重试失败的片、keepalive 场景同样分片 |
 

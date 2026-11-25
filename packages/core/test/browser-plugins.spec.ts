@@ -31,6 +31,16 @@ describe('NetworkPlugin（浏览器）', () => {
     expect(dom.window.XMLHttpRequest).toBe(OriginalXHR)
   })
 
+  it('destroy 后恢复原始 XMLHttpRequest', () => {
+    const c = ctx({ network: { enable: true } })
+    const plugin = new NetworkPlugin()
+    plugin.init(c as any)
+    expect(dom.window.XMLHttpRequest).not.toBe(OriginalXHR)
+
+    plugin.destroy()
+    expect(dom.window.XMLHttpRequest).toBe(OriginalXHR)
+  })
+
   it('enable=true 时成功请求由 success 控制上报', () => {
     const c = ctx({ network: { enable: true, success: true, fail: true } })
     new NetworkPlugin().init(c as any)
@@ -125,6 +135,24 @@ describe('NetworkPlugin（浏览器）', () => {
     expect(() => xhr.open('GET', '/api')).not.toThrow()
   })
 
+  it('网络日志被过滤时宿主请求仍正常执行', () => {
+    const c = ctx({
+      network: {
+        enable: true,
+        ignoreUrls: [/analytics/],
+      },
+    })
+    new NetworkPlugin().init(c as any)
+
+    const XHR: any = dom.window.XMLHttpRequest
+    const xhr = new XHR()
+    expect(() => {
+      xhr.open('POST', 'http://host.example/analytics/beacon')
+      xhr.send('payload')
+    }).not.toThrow()
+    expect(c.report).not.toHaveBeenCalled()
+  })
+
   it('请求体与响应头做大小限制，不拖累主线程', () => {
     const c = ctx({ network: { enable: true, success: true, fail: true } })
     new NetworkPlugin().init(c as any)
@@ -194,7 +222,7 @@ describe('ErrorPlugin（浏览器）', () => {
     const plugin = new ErrorPlugin()
     plugin.init(c as any)
 
-    dom.window.dispatchEvent(new Event('error'))
+    ;(dom.window.onerror as any)('error', 'http://host.example/app.js', 1, 1)
 
     expect(c.report).toHaveBeenCalledWith(
       COLLECT_ERROR,
@@ -209,7 +237,7 @@ describe('ErrorPlugin（浏览器）', () => {
     plugin.init(c as any)
 
     const img = dom.document.createElement('img')
-    img.src = 'http://broken.example/x.png'
+    img.src = 'http://host.example/x.png'
     const evt = new Event('error')
     Object.defineProperty(evt, 'target', { value: img })
     dom.window.dispatchEvent(evt)
@@ -219,6 +247,52 @@ describe('ErrorPlugin（浏览器）', () => {
       expect.objectContaining({ name: 'ResourceError' }),
     )
     plugin.resetListener()
+  })
+
+  it('跨域资源错误可通过 denyUrls 过滤', () => {
+    const c = ctx({ denyUrls: [/cdn\.vendor\.example/] })
+    const plugin = new ErrorPlugin()
+    plugin.init(c as any)
+
+    const img = dom.document.createElement('img')
+    img.src = 'https://cdn.vendor.example/x.png'
+    const evt = new Event('error')
+    Object.defineProperty(evt, 'target', { value: img })
+    dom.window.dispatchEvent(evt)
+
+    expect(c.report).not.toHaveBeenCalled()
+    plugin.resetListener()
+  })
+
+  it('网络日志支持忽略上报接口自身、ignoreUrls 与 allowUrls', () => {
+    const c = ctx({
+      network: {
+        enable: true,
+        success: true,
+        fail: true,
+        ignoreUrls: [/analytics/],
+        allowUrls: [/\/api\//],
+      },
+    })
+    new NetworkPlugin().init(c as any)
+    const XHR: any = dom.window.XMLHttpRequest
+
+    for (const url of [
+      'http://report.example/record',
+      'http://host.example/analytics/beacon',
+      'https://vendor.example/collect',
+      'http://host.example/api/list',
+    ]) {
+      const xhr = new XHR()
+      xhr.open('GET', url)
+      xhr.status = 200
+      xhr.responseURL = url
+      xhr.getAllResponseHeaders = () => ''
+      xhr.dispatchEvent(new Event('loadend'))
+    }
+
+    expect(c.report).toHaveBeenCalledTimes(1)
+    expect(c.report.mock.calls[0][1]).toMatchObject({ url: 'http://host.example/api/list' })
   })
 
   it('unhandledrejection 上报', () => {
@@ -249,6 +323,20 @@ describe('ErrorPlugin（浏览器）', () => {
     expect(() => console.error('boom')).not.toThrow()
     expect(consoleSpy).toHaveBeenCalledWith('boom')
     plugin.resetListener()
+  })
+
+  it('resetListener 不覆盖业务后续安装的 console.error 包装器', () => {
+    const c = ctx()
+    const plugin = new ErrorPlugin()
+    plugin.init(c as any)
+
+    const before = console.error
+    const laterWrapper = vi.fn()
+    console.error = laterWrapper
+    plugin.resetListener()
+
+    expect(console.error).toBe(laterWrapper)
+    console.error = before
   })
 })
 

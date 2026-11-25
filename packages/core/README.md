@@ -31,6 +31,10 @@
 
 小程序端需预留出大小约`6KB`的空间
 
+H5 构建时会将轻量 loader 以内联脚本的形式放到文档 `<head>` 最前面。loader 会先缓存
+`error`、`unhandledrejection` 和 `console.error`，待核心 SDK 加载完成后统一回放，
+因此 SDK 初始化前的错误不会丢失，也不会额外阻塞首屏。
+
 ```cmd
 npm i -D @sepveneto/report-core
 yarn add -D @sepveneto/report-core
@@ -111,9 +115,25 @@ module.exports = {
 | collect | boolean | ❎ | true | 是否自动上报应用的环境信息 |
 | fcpThreshold | number | ❎ | 2500 | FCP 资源清单采集阈值，单位毫秒。web-vitals 指标始终上报；只有 FCP 超过该阈值时才收集并上报资源清单 |
 | entry | boolean | ❎ | - | 默认是src/main.js和src/main.ts，对于uniapp构建的项目无效 |
-| network | { enable: boolean, success: boolean, fail: boolean, responseLimit: number } | ❎ | { enable: false, success: true, fail: true, responseLimit: 100 } | 网络请求的上报配置，成功请求由 success 控制，失败请求（非200状态码、超时、主动取消）由 fail 控制，默认对100KB返回内容进行限制 |
+| network | { enable: boolean, success: boolean, fail: boolean, responseLimit: number, ignoreUrls?: Array<string \| RegExp>, allowUrls?: Array<string \| RegExp> } | ❎ | { enable: false, success: true, fail: true, responseLimit: 100 } | 网络请求上报配置；支持忽略第三方/埋点接口 URL 或设置 URL 白名单 |
 | interval | number | ❎ | 10 | 数据上报的周期，默认每隔10s上传一次 |
-| maxRetry | number | ❎ | 5 | 上报失败后的最大连续重试次数，重试该次数后仍失败则中止一切上报相关的操作（含录屏、错误监听、网络代理）；设为0或负数表示不限制 |
+| maxRetry | number | ❎ | 5 | 连续失败达到该次数后采用最大退避间隔。网络失败不会停止 SDK、录屏或采集；设为0或负数时保持基础上报间隔 |
+| ignoreErrors | Array<string \| RegExp> | ❎ | Sentry 常用默认噪音 | 按错误消息过滤不可归因噪音 |
+| denyUrls | Array<string \| RegExp> | ❎ | - | 按错误来源 URL 过滤 |
+| allowUrls | Array<string \| RegExp> | ❎ | - | 设置错误来源白名单，同时可用于放行指定 CDN/第三方脚本 |
+| ignoreInternal | boolean | ❎ | true | 过滤 SDK 自身产生的错误 |
+| applicationKey | string | ❎ | - | 构建时写入所有业务 JS chunk；运行时通过错误 stack 中的文件名匹配该 key |
+| thirdPartyErrors | Sentry 同款四种模式或 `drop`/`keep` | ❎ | `keep` | 基于 chunk key 判断业务帧与第三方帧，可丢弃或打 `third_party_code` 标签 |
+
+`thirdPartyErrors` 支持：
+
+- `drop-error-if-contains-third-party-frames`
+- `drop-error-if-exclusively-contains-third-party-frames`
+- `apply-tag-if-contains-third-party-frames`
+- `apply-tag-if-exclusively-contains-third-party-frames`
+
+`drop` 等价于只丢弃完全由第三方帧组成的错误。未配置 `applicationKey` 时不做
+chunk 级第三方判断。
 
 页面隐藏或触发 `pagehide` 时，`__BR_PERF_INFO__` 会通过 `web-vitals`
 上报 FCP、LCP、INP 和 TTFB，单位均为毫秒。FCP 超过 `fcpThreshold` 时，
@@ -176,15 +196,16 @@ report('error', 'test content')
 
 支持自定义日志，接口日志，错误日志，操作日志，设备信息。每种类型都有不同的上报逻辑
 
-每隔固定时间会触发一次上报任务，所有的，包括内存和缓存中的日志都会被收集发送到worker中进行上报。当页面不可见或退出时也会触发一次上报任务。
+每隔固定时间会触发一次上报任务。普通日志由主线程传输层发送；录屏批次交给
+worker 独立处理。页面不可见或退出时也会触发一次 keepalive 上报。
 
 | 类型 | 缓存 |
 | :--- | :--- |
 | 自定义日志 | 内存 + localStorage |
-| 接口日志 | 内存 |
+| 接口日志 | 有界内存 |
 | 错误日志 | 内存 + localStorage |
 | 设备信息 | - |
-| 操作日志 | 内存 |
+| 操作日志 | worker 有界 spool（IndexedDB + 内存） |
 
 ### 自定义日志
 
@@ -209,4 +230,21 @@ report('error', 'test content')
 
 ### 操作日志
 
-基于`rrweb`获取，数据量不可控，只会被存入内存
+基于 `rrweb` 获取，数据量不可控。主线程只在 worker 确认接收前短暂持有，
+接收后立即释放；worker 使用 IndexedDB 持久化，并同时限制：
+
+- 最多 20 个录屏批次；
+- 总估算体积不超过 16MB；
+- 长期离线时只做指数退避，最长 5 分钟一次；
+- 超限时淘汰最旧录屏批次，不挤占普通日志队列或浏览器 localStorage。
+
+### 业务隔离与长期离线
+
+上报链路遵循“只能影响上报结果，不能影响业务执行”：
+
+- 发送失败、持久化失败、worker 失败或过滤规则异常都不会向业务抛出；
+- 服务端响应不参与上报判定；请求完成即视为已投递，网络错误才进入保留和重试流程；
+- 长期离线不会中止错误监听、网络代理或录屏采集；
+- 普通日志队列上限约 512KB，超限优先淘汰接口噪音，保留环境、错误和生命周期记录；
+- `store:false` 的主线程缓存同时受 500 条和 4MB 限制；
+- 网络恢复时监听 `online` 事件立即补发，不必等待下一个退避周期。

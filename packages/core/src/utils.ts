@@ -1,5 +1,5 @@
 import type { Options } from '@/type'
-import { COLLECT_INFO, REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
+import { COLLECT_API, COLLECT_ERROR, COLLECT_INFO, LIFECYCLE, OPERATION_TRACK, REPORT_QUEUE, SESSIONID_KEY, UUID_KEY } from '@/constant'
 // @ts-expect-error: ignore
 import globalThis from 'core-js/internals/global-this.js'
 
@@ -259,11 +259,13 @@ export const MAX_KEEPALIVE_BYTES = 48 * 1024
 // 浏览器对同一页面所有 keepalive 请求的总量同样有约 64KB 限制，超出部分会被直接丢弃
 export const MAX_KEEPALIVE_TOTAL_BYTES = 60 * 1024
 // 内存缓存（store:false）最多保留的条数，避免内存无限增长
-export const MAX_CACHE_COUNT = 50
+export const MAX_CACHE_COUNT = 500
+// store:false 内存缓存字节上限；录屏等大对象优先交给 worker 的有界 spool
+export const MAX_CACHE_BYTES = 4 * 1024 * 1024
 // mp 端内存缓存上限（小程序内存更敏感，取更小值）
 export const MAX_MEMORY_COUNT = 20
 // 本地队列字节上限：防止大记录写爆 localStorage，同时控制每秒全量序列化成本
-export const MAX_QUEUE_BYTES = 256 * 1024
+export const MAX_QUEUE_BYTES = 512 * 1024
 // 请求体/响应头等辅助字段的截断上限（单位KB，与 normalizeResponse 一致）
 export const MAX_FIELD_KB = 100
 
@@ -282,6 +284,58 @@ export function estimateSize(item: any) {
   } catch {
     return 1024
   }
+}
+
+/**
+ * 主线程缓存裁剪使用的近似体积，避免对大对象做同步 JSON.stringify。
+ * 精确的分片和 worker spool 仍使用 estimateSize。
+ */
+export function estimateRecordSize(item: any) {
+  const maxSize = MAX_CACHE_BYTES
+  let size = 128
+  let nodes = 0
+  const seen = new WeakSet<object>()
+
+  const walk = (value: any, depth: number): void => {
+    if (size >= maxSize || nodes > 2000) return
+    nodes++
+
+    if (value == null) {
+      size += 4
+      return
+    }
+    if (typeof value === 'string') {
+      size += value.length
+      return
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      size += 8
+      return
+    }
+    if (typeof value !== 'object' || depth > 8 || seen.has(value)) return
+
+    seen.add(value)
+    if (Array.isArray(value)) {
+      for (let i = 0; i < value.length; i++) {
+        walk(value[i], depth + 1)
+        if (size >= maxSize || nodes > 2000) break
+      }
+      return
+    }
+
+    for (const key of Object.keys(value)) {
+      size += key.length + 8
+      walk(value[key], depth + 1)
+      if (size >= maxSize || nodes > 2000) break
+    }
+  }
+
+  try {
+    walk(item, 0)
+  } catch {
+    return Math.max(size, 1024)
+  }
+  return Math.min(size, maxSize)
 }
 
 // 按估算体积分批，用于 keepalive 等有单请求大小限制的场景
@@ -354,38 +408,74 @@ export function removeSentRecords(current: any[], sent: any[]) {
 }
 
 let memoryBuffer: any[] = []
+let memoryBytes = 0
 let flushTimer: number | undefined
 
 // 设备信息是会话最早入队的记录且体积很小，超限裁剪时受保护，
 // 避免错误风暴把队首的设备信息挤掉导致“有错误无设备”
 function isProtectedRecord(item: any) {
-  return !!item && item.type === COLLECT_INFO
-}
-
-// 从最旧开始丢弃普通记录，设备信息不参与丢弃
-function trimOldest(list: any[], maxCount: number) {
-  if (list.length <= maxCount) return list
-
-  const protectedList = list.filter(isProtectedRecord)
-  const droppable = list.filter(item => !isProtectedRecord(item))
-  const room = Math.max(0, maxCount - protectedList.length)
-  return [...protectedList, ...droppable.slice(droppable.length - room)]
-}
-
-// 按字节从最旧开始丢弃普通记录，设备信息不参与丢弃
-// totalBytes 由调用方传入，避免为了裁剪再重复做一次整表序列化
-function trimByBytes(list: any[], maxBytes: number, totalBytes: number) {
-  const protectedList = list.filter(isProtectedRecord)
-  const droppable = list.filter(item => !isProtectedRecord(item))
-
-  const sizes = droppable.map(item => estimateSize(item))
-  let rest = totalBytes
-  let drop = 0
-  while (drop < droppable.length && rest > maxBytes) {
-    rest -= sizes[drop]
-    drop++
+  switch (item?.type) {
+    case COLLECT_INFO:
+    case COLLECT_ERROR:
+    case LIFECYCLE:
+      return true
+    default:
+      return false
   }
-  return [...protectedList, ...droppable.slice(drop)]
+}
+
+function recordPriority(item: any) {
+  switch (item?.type) {
+    case COLLECT_INFO:
+      return 100
+    case COLLECT_ERROR:
+      return 90
+    case LIFECYCLE:
+      return 80
+    case OPERATION_TRACK:
+      return 70
+    case COLLECT_API:
+      return 20
+    default:
+      return 50
+  }
+}
+
+function lowestPriorityIndex(list: any[]) {
+  let index = -1
+  let priority = Infinity
+  for (let i = 0; i < list.length; i++) {
+    if (isProtectedRecord(list[i])) continue
+    const current = recordPriority(list[i])
+    if (current < priority) {
+      priority = current
+      index = i
+    }
+  }
+  return index
+}
+
+// 超限时优先丢弃网络噪音等低价值旧记录，错误和环境信息尽量保留。
+function trimOldest(list: any[], maxCount: number) {
+  const result = list.slice()
+  while (result.length > maxCount) {
+    const index = lowestPriorityIndex(result)
+    if (index < 0) break
+    result.splice(index, 1)
+  }
+  return result
+}
+
+function trimByBytes(list: any[], maxBytes: number, totalBytes: number) {
+  const result = list.slice()
+  let bytes = totalBytes
+  while (bytes > maxBytes) {
+    const index = lowestPriorityIndex(result)
+    if (index < 0) break
+    bytes -= estimateSize(result[index])
+    result.splice(index, 1)
+  }
+  return result
 }
 
 // 单条记录不可序列化（循环引用 / BigInt 等）时只丢弃问题记录，
@@ -405,9 +495,15 @@ function dropUnserializable(list: any[]) {
 
 export function writeMemory(record: any, immediate = false) {
   memoryBuffer.push(record)
+  memoryBytes += estimateRecordSize(record)
   // 存储不可用导致 flush 失败时，内存缓冲也需要有界
   if (memoryBuffer.length > MAX_PERSIST_COUNT) {
     memoryBuffer = trimOldest(memoryBuffer, MAX_PERSIST_COUNT)
+    memoryBytes = memoryBuffer.reduce((sum, item) => sum + estimateRecordSize(item), 0)
+  }
+  if (memoryBytes > MAX_QUEUE_BYTES) {
+    memoryBuffer = trimByBytes(memoryBuffer, MAX_QUEUE_BYTES, memoryBytes)
+    memoryBytes = memoryBuffer.reduce((sum, item) => sum + estimateRecordSize(item), 0)
   }
 
   if (immediate) {
@@ -423,8 +519,8 @@ export function writeMemory(record: any, immediate = false) {
 
 // 1秒节流
 const FLUSH_INTERVAL = 1000
-// 最多缓存最新的50条
-const MAX_PERSIST_COUNT = 50
+// 条数只作为内存和序列化成本的兜底；正常情况下由字节上限决定保留量
+const MAX_PERSIST_COUNT = 500
 export function flushMemoryToStorage() {
   if (!memoryBuffer.length) return
 
@@ -454,6 +550,7 @@ export function flushMemoryToStorage() {
     // 写入失败时保留内存数据，等下次 flush 重试，尽量不丢日志
     if (writeQueue(finalList)) {
       memoryBuffer = []
+      memoryBytes = 0
     }
   } catch (err) {
     // 兜底：未预期的异常同样不能影响宿主，内存数据留待下个周期重试

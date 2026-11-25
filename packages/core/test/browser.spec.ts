@@ -1,7 +1,7 @@
 import { dom } from './helpers/dom-stub'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BuryReport } from '../src/browser/index'
-import { LIFECYCLE, REPORT_REQUEST } from '../src/constant'
+import { LIFECYCLE, OPERATION_TRACK, REPORT_REQUEST } from '../src/constant'
 import { readQueue } from '../src/utils'
 
 const URL = 'http://report.example/record'
@@ -11,7 +11,7 @@ function getReport() {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i++) await Promise.resolve()
+  for (let i = 0; i < 25; i++) await Promise.resolve()
 }
 
 beforeEach(() => {
@@ -97,7 +97,7 @@ describe('条件1：网络波动 / 服务器宕机不影响宿主', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     expect(() => new BuryReport({ url: URL, appid: 'a', report: true })).not.toThrow()
-    expect(() => getReport()('track', { e: [] }, { store: false, immediate: true })).not.toThrow()
+    expect(() => getReport()(OPERATION_TRACK, { e: [] }, { store: false, immediate: true })).not.toThrow()
     expect(worker.postMessage).toHaveBeenCalled()
   })
 
@@ -114,7 +114,7 @@ describe('条件1：网络波动 / 服务器宕机不影响宿主', () => {
 
     new BuryReport({ url: URL, appid: 'a', report: true })
     // 触发一次 postMessage 失败后，模拟主线程把 worker 置空
-    getReport()('track', { e: [] }, { store: false, immediate: true })
+    getReport()(OPERATION_TRACK, { e: [] }, { store: false, immediate: true })
     ;(dom.window as any).__BR_WORKER__ = undefined
 
     expect(() => getReport()('custom', { a: 1 }, { immediate: true })).not.toThrow()
@@ -233,6 +233,18 @@ describe('上报数据可靠性', () => {
     expect(readQueue()).toEqual([])
   })
 
+  it('服务端响应状态不参与判定，请求完成后清理队列', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 })
+    vi.stubGlobal('fetch', fetchMock)
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    getReport()('custom', { a: 1 }, { immediate: true, flush: true })
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(readQueue()).toEqual([])
+  })
+
   it('fetch 失败后按周期自动重试', async () => {
     const fetchMock = vi.fn()
       .mockRejectedValueOnce(new Error('down'))
@@ -324,25 +336,84 @@ describe('上报数据可靠性', () => {
 
     expect(fetchMock.mock.calls.length).toBeGreaterThan(1)
     let total = 0
-    let hasLifecycle = false
     for (const call of fetchMock.mock.calls) {
       const body = JSON.parse(call[1].body)
       expect(JSON.stringify(body).length).toBeLessThanOrEqual(48 * 1024 + 2048)
       total += body.data.length
-      if (body.data.some((d: any) => d.type === LIFECYCLE)) hasLifecycle = true
     }
-    // localStorage 队列有 50 条上限，只保留最新数据；生命周期记录在其中
-    expect(total).toBe(50)
-    expect(hasLifecycle).toBe(true)
+    // keepalive 总量受浏览器预算限制
+    expect(total).toBeGreaterThan(0)
+    expect(total).toBeLessThanOrEqual(100)
+    // 超出 keepalive 预算的生命周期记录不删除，留待下次会话
+    expect(readQueue().some((d: any) => d.type === LIFECYCLE)).toBe(true)
   })
 
-  it('store:false 内存缓存有上限，不会无界增长', () => {
+  it('store:false 内存缓存允许短时突发并保留500条', () => {
     new BuryReport({ url: URL, appid: 'a', report: true })
     const report = getReport()
     for (let i = 0; i < 60; i++) report('track', { i }, { store: false })
-    expect((BuryReport as any).cache).toHaveLength(50)
-    expect((BuryReport as any).cache[0].data.i).toBe(10)
-    expect((BuryReport as any).cache[49].data.i).toBe(59)
+    expect((BuryReport as any).cache).toHaveLength(60)
+    expect((BuryReport as any).cache[0].data.i).toBe(0)
+    expect((BuryReport as any).cache[59].data.i).toBe(59)
+  })
+
+  it('store:false 缓存同时受4MB字节上限约束，避免大对象刷爆内存', () => {
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    const report = getReport()
+    for (let i = 0; i < 6; i++) {
+      report('large', { response: `record-${i}:` + 'x'.repeat(1024 * 1024) }, { store: false })
+    }
+
+    const cache = (BuryReport as any).cache
+    const bytes = cache.reduce((sum: number, item: any) => sum + item.data.response.length, 0)
+    expect(cache.length).toBeLessThanOrEqual(4)
+    expect(bytes).toBeLessThanOrEqual(4 * 1024 * 1024)
+    expect(cache[cache.length - 1].data.response.startsWith('record-5:')).toBe(true)
+  })
+
+  it('嵌套自定义对象同样按实际字符串体积裁剪', () => {
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    const report = getReport()
+    for (let i = 0; i < 6; i++) {
+      report('large-nested', {
+        nested: {
+          payload: `record-${i}:` + 'x'.repeat(1024 * 1024),
+        },
+      }, { store: false })
+    }
+
+    const cache = (BuryReport as any).cache
+    const bytes = cache.reduce(
+      (sum: number, item: any) => sum + item.data.nested.payload.length,
+      0,
+    )
+    expect(cache.length).toBeLessThanOrEqual(4)
+    expect(bytes).toBeLessThanOrEqual(4 * 1024 * 1024)
+    expect(cache[cache.length - 1].data.nested.payload.startsWith('record-5:')).toBe(true)
+  })
+
+  it('录屏交给 worker 后主线程立即释放，长期离线也不堆积大对象', async () => {
+    let worker: any
+    worker = {
+      onmessage: null as any,
+      postMessage: vi.fn((message: any) => {
+        worker.onmessage({ data: { type: 'accepted', id: message.id } })
+      }),
+    }
+    vi.stubGlobal('__BR_MOCK_WORKER_FACTORY', () => worker)
+
+    new BuryReport({ url: URL, appid: 'a', report: true })
+    const report = getReport()
+    for (let i = 0; i < 30; i++) {
+      report(OPERATION_TRACK, { events: Array.from({ length: 1000 }, (_, j) => ({ i, j })) }, {
+        store: false,
+        immediate: true,
+      })
+      await flush()
+    }
+
+    expect(worker.postMessage).toHaveBeenCalled()
+    expect((BuryReport as any).cache).toEqual([])
   })
 
   it('worker 发送失败时保留缓存并降级主线程，数据不丢', async () => {
@@ -357,7 +428,7 @@ describe('上报数据可靠性', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     new BuryReport({ url: URL, appid: 'a', report: true })
-    getReport()('track', { e: [] }, { store: false, immediate: true })
+    getReport()(OPERATION_TRACK, { e: [] }, { store: false, immediate: true })
     await flush()
 
     // worker 已降级，缓存保留
@@ -369,7 +440,7 @@ describe('上报数据可靠性', () => {
     await flush()
     expect((BuryReport as any).cache).toEqual([])
     const bodies = fetchMock.mock.calls.map(call => JSON.parse(call[1].body))
-    expect(bodies.some(body => body.data.some((d: any) => d.type === 'track'))).toBe(true)
+    expect(bodies.some(body => body.data.some((d: any) => d.type === OPERATION_TRACK))).toBe(true)
   })
 })
 

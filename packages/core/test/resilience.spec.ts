@@ -210,7 +210,7 @@ describe('要求2：服务端失败不丢客户端数据', () => {
     await Promise.resolve()
 
     expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('handle report failed'),
+      expect.stringContaining('malformed report payload'),
     )
   })
 
@@ -242,8 +242,10 @@ describe('要求2：服务端失败不丢客户端数据', () => {
     expect(totalBytes).toBeLessThanOrEqual(60 * 1024)
     expect(sent).toBeGreaterThan(0)
     expect(sent).toBeLessThan(queuedBefore)
-    // 未发出的部分留在队列里，下次会话继续上报
-    expect(readQueue().length).toBe(queuedBefore - sent)
+    // 未发出的部分留在队列里，下次会话继续上报；pagehide 自己也会新增一条 LIFECYCLE
+    const remaining = readQueue()
+    expect(remaining.length).toBeGreaterThanOrEqual(queuedBefore - sent)
+    expect(remaining.some(item => item.type === '__BR_COLLECT_ERROR__')).toBe(false)
   })
 
   it('小程序端未知状态码按失败处理，不清空队列', () => {

@@ -1,13 +1,17 @@
 import type { BuryReportBase as BuryReport, BuryReportPlugin } from '@/type'
 import { COLLECT_API } from '@/constant'
 import { MAX_FIELD_KB, normalizeBody, normalizeResponse, withDefault } from '@/utils'
+import { shouldIgnoreNetworkRequest } from '../event-filter'
 
 export class NetworkPlugin implements BuryReportPlugin {
   public name = 'NetworkPlugin'
   public reportRequest: any
+  private originalXHR?: typeof XMLHttpRequest
+  private customXHR?: typeof XMLHttpRequest
 
   init(ctx: BuryReport) {
     const { network } = withDefault(ctx.options)
+    if (this.customXHR) this.destroy()
 
     // 关闭网络请求上报后，不再代理 XMLHttpRequest
     if (!network.enable) return
@@ -29,14 +33,17 @@ export class NetworkPlugin implements BuryReportPlugin {
       private _body: any
       private _method = 'GET'
       private triggerPage = ''
+      private shouldReport = true
       open(...args: [method: string, url: string]) {
         const [method] = args
+        const [requestUrl] = args.slice(1) as [string]
+        this.shouldReport = !shouldIgnoreNetworkRequest(requestUrl, ctx.options)
         this._method = method
         // 存在请求触发生重定向导致上报时的路由与实际不符的情况
         // 所以需要在触发时缓存当前路由
         this.triggerPage = window.location.href
 
-        if (success || fail) {
+        if (this.shouldReport && (success || fail)) {
           super.addEventListener('loadend', () => {
             safeCollect(() => {
               const duration = performance.now() - this._start
@@ -57,18 +64,18 @@ export class NetworkPlugin implements BuryReportPlugin {
           })
         }
         // fail 决定是否上报失败的请求（中断/错误/超时）
-        fail && super.addEventListener('abort', () => {
+        this.shouldReport && fail && super.addEventListener('abort', () => {
           safeCollect(() => {
             report?.(COLLECT_API, this._collectInfo('abort'), { store: false })
           })
         })
 
-        fail && super.addEventListener('error', () => {
+        this.shouldReport && fail && super.addEventListener('error', () => {
           safeCollect(() => {
             report?.(COLLECT_API, this._collectInfo('error'), { store: false })
           })
         })
-        fail && super.addEventListener('timeout', () => {
+        this.shouldReport && fail && super.addEventListener('timeout', () => {
           safeCollect(() => {
             report?.(COLLECT_API, this._collectInfo('timeout', { timeout: this.timeout }), { store: false })
           })
@@ -77,7 +84,7 @@ export class NetworkPlugin implements BuryReportPlugin {
       }
 
       send(body: Parameters<typeof XMLHttpRequest.prototype.send>[number]) {
-        if (success || fail) {
+        if (this.shouldReport && (success || fail)) {
           this._start = performance.now()
           this._body = body
         }
@@ -106,8 +113,18 @@ export class NetworkPlugin implements BuryReportPlugin {
       }
     }
 
+    this.originalXHR = window.XMLHttpRequest
+    this.customXHR = CustomRequest
     window.XMLHttpRequest = CustomRequest
     console.info('[@sepveneto/report-core] XMLHttpRequest has been extended')
+  }
+
+  destroy() {
+    if (this.customXHR && window.XMLHttpRequest === this.customXHR && this.originalXHR) {
+      window.XMLHttpRequest = this.originalXHR
+    }
+    this.customXHR = undefined
+    this.originalXHR = undefined
   }
 }
 

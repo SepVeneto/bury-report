@@ -33,7 +33,7 @@ function getReport() {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i++) await Promise.resolve()
+  for (let i = 0; i < 25; i++) await Promise.resolve()
 }
 
 beforeEach(() => {

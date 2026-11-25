@@ -13,6 +13,7 @@ beforeEach(() => {
   resetStorageCache()
   scripts = []
   dom.bus.clear()
+  ;delete (dom.window as any).__BR_LOADER__
   vi.spyOn(console, 'warn').mockImplementation(() => {})
   vi.spyOn(dom.document.body, 'appendChild').mockImplementation((el: any) => {
     scripts.push(el)
@@ -23,6 +24,7 @@ beforeEach(() => {
 afterEach(() => {
   console.error = ORIGINAL_CONSOLE_ERROR
   vi.restoreAllMocks()
+  ;delete (dom.window as any).__BR_LOADER__
   delete process.env.DEFINE_VERSION
   delete process.env.LOG_DEBUG
 })
@@ -57,7 +59,7 @@ describe('injector 构建变量分支', () => {
     delete process.env.DEFINE_VERSION
     ;(globalThis as any).SDK_OPTIONS = { url: REPORT_URL, appid: 'a' }
     vi.resetModules()
-    await import('../src/browser/injector')
+    await import('../src/browser/loader')
 
     expect(scripts).toHaveLength(1)
     expect(scripts[0].src).toContain('/sdk/undefined.undefined/index.global.js')
@@ -67,7 +69,7 @@ describe('injector 构建变量分支', () => {
     process.env.LOG_DEBUG = '1'
     ;(globalThis as any).SDK_OPTIONS = { url: REPORT_URL, appid: 'a' }
     vi.resetModules()
-    await import('../src/browser/injector')
+    await import('../src/browser/loader')
 
     expect(scripts).toHaveLength(1)
     expect(scripts[0].src).toBe('/public/index.global.js')

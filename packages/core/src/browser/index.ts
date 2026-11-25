@@ -1,37 +1,33 @@
 import { NetworkPlugin } from './plugins/network'
 import { PerfPlugin } from './plugins/perf'
-import type { BuryReportBase, BuryReportPlugin, Options, ReportFn, ReportOptions } from '../type'
-import { LIFECYCLE, OPERATION_TRACK, REPORT_REQUEST } from '@/constant'
-import { MAX_CACHE_COUNT, MAX_KEEPALIVE_BYTES, MAX_KEEPALIVE_TOTAL_BYTES, flushMemoryToStorage, getSessionId, getUuid, normalizeInterval, normalizeMaxRetry, pickWithinBudget, readQueue, removeSentRecords, splitBySize, storageReport, withDefault, writeMemory, writeQueue } from '@/utils'
+import type { BuryReportBase, BuryReportPlugin, Options, ReportFn } from '../type'
+import { LIFECYCLE, REPORT_REQUEST } from '@/constant'
+import { withDefault } from '@/utils'
 // @ts-expect-error: string
 import WorkerFactory from './worker?inline-worker'
 import { ErrorPlugin } from './plugins/error'
 import { CollectPlugin } from './plugins/collect'
-// @ts-expect-error: ignore
-import globalThis from 'core-js/internals/global-this.js'
-
-type ProxyControl = {
-  // 停止上报代理的发送循环
-  stop?: () => void
-  // 重试耗尽时的回调，用于中止所有上报相关的操作
-  onExhausted?: () => void
-}
+import { createBrowserTransport } from './transport'
+import type { BrowserTransport } from './transport'
 
 export class BuryReport implements BuryReportBase {
   public report?: ReportFn
   public options: Options
-  // 重试耗尽后置为 true，之后不再产生任何上报
+  // 业务主动调用 abort 后置为 true；网络失败不会自动中止
   public aborted = false
-  // 由上报代理回填的停止句柄，用于在中止时切断发送循环
-  private proxyControl: ProxyControl = {}
+  private transport?: BrowserTransport
 
   private static pluginsOrder: BuryReportPlugin[] = []
+  // eslint-disable-next-line no-use-before-define
   private static instance?: BuryReport
   public static cache: any[] = []
 
   constructor(config: Options = {} as Options) {
     BuryReport.instance = this
-    const url = config?.url
+    this.options = withDefault(config)
+    if (!config?.report) return
+
+    const url = this.options.url
     let worker: any
     try {
       worker = WorkerFactory({ url: process.env.LOG_DEBUG ? 'http://localhost:8870/record' : url })
@@ -40,36 +36,32 @@ export class BuryReport implements BuryReportBase {
       console.warn('[@sepveneto/report-core] worker init failed: ' + error)
     }
     window.__BR_WORKER__ = worker
+    this.transport = createBrowserTransport(this.options, {
+      get: () => BuryReport.cache,
+      set: (items) => {
+        BuryReport.cache = items
+      },
+    })
+    this.report = this.transport.report
+    ;(globalThis as any)[REPORT_REQUEST] = this.report
     if (worker) {
       worker.onmessage = (e: any) => {
-        if (e.data.type === 'exception') {
+        if (e.data?.type === 'exception') {
           console.log('[report-core] worker terminated')
-          window.__BR_WORKER__ = undefined
-        } else if (e.data.type === 'exhausted') {
-          // worker 内部重试同样耗尽：中止一切上报相关的操作（含录屏）
-          console.warn('[@sepveneto/report-core] report disabled: worker retry exhausted')
-          this.abort()
         }
+        this.transport?.handleWorkerMessage(e.data)
       }
     }
-
-    this.options = withDefault(config)
-
-    if (!config?.report) return
-
-    this.proxyControl.onExhausted = () => this.abort()
-    this.report = createProxy(config, this.proxyControl)
 
     this.init()
   }
 
-  // 中止所有上报相关的操作：切断发送循环、销毁插件采集行为（录屏、错误监听等）并终止 worker。
-  // 上报连续失败次数超过 maxRetry 后自动触发，业务也可主动调用
+  // 业务主动停止 SDK。网络失败只会进入退避重试，不会自动触发 abort。
   abort() {
     if (this.aborted) return
     this.aborted = true
 
-    this.proxyControl.stop?.()
+    this.transport?.stop()
 
     BuryReport.pluginsOrder.forEach(plugin => {
       if (typeof plugin.destroy !== 'function') return
@@ -186,300 +178,4 @@ function shouldEnablePlugin(plugin: BuryReportPlugin, options: Options) {
     default:
       return true
   }
-}
-
-function createProxy(options: Options, control: ProxyControl = {}) {
-  const { appid } = options
-  const sendInterval = normalizeInterval(options.interval)
-  const maxRetry = normalizeMaxRetry(options.maxRetry)
-  let sendTimer: number | undefined
-  let sending = false
-  // 连续失败次数：成功一次即清零，超过 maxRetry 判定上报服务不可用
-  let failStreak = 0
-  // 已中止：不再调度发送，report 也不再入队
-  let stopped = false
-  // 发送期间又触发的即时（immediate）上报：当前请求结束后立即补发，
-  // 而不是被跳过、推迟到下个时间窗口执行
-  let pendingImmediate = false
-  // 发送期间新增的任意上报：当前请求结束后继续排空，避免后续数据依赖业务再次上报触发
-  let pendingSend = false
-
-  const clearSendTimer = () => {
-    clearTimeout(sendTimer)
-    sendTimer = undefined
-  }
-
-  const scheduleSend = () => {
-    if (stopped || sendTimer !== undefined) return
-    sendTimer = globalThis.setTimeout(() => {
-      sendTimer = undefined
-      sendRequest()
-    }, sendInterval) as unknown as number
-  }
-
-  const stopSending = () => {
-    stopped = true
-    pendingImmediate = false
-    pendingSend = false
-    clearSendTimer()
-  }
-  control.stop = stopSending
-
-  // 重试耗尽：停止发送并通知外部中止上报相关的操作（含录屏）
-  const exhaust = () => {
-    if (stopped) return
-    stopSending()
-    try {
-      control.onExhausted?.()
-    } catch (err) {
-      console.warn('[@sepveneto/report-core] abort report failed: ' + err)
-    }
-  }
-
-  // 按引用移除已投递的记录（内存缓存是同一批对象引用），保留期间新增的数据
-  const dropRefs = (list: any[], sent: any[]) => {
-    if (!sent.length) return list
-    const sentSet = new Set(sent)
-    return list.filter(item => !sentSet.has(item))
-  }
-
-  const sendRequest = async (keepalive = false, immediate = false) => {
-    // 已中止上报：不再发起任何请求
-    if (stopped) return
-    // 上一次发送未结束时不并发重复发送（keepalive 页面关闭场景除外）；
-    // 带即时语义的请求登记一次待补发，等当前请求结束后立即发送
-    if (sending && !keepalive) {
-      pendingSend = true
-      if (immediate) pendingImmediate = true
-      return
-    }
-    // keepalive 只负责页面关闭时的尽力发送，不接管普通发送的状态与定时器
-    const overlapsNormalSend = keepalive && sending
-    if (!keepalive) {
-      clearSendTimer()
-      pendingSend = false
-      pendingImmediate = false
-    }
-    if (!overlapsNormalSend) sending = true
-
-    let failed = false
-    try {
-      // 发送前强制 flush，避免内存数据丢失
-      flushMemoryToStorage()
-
-      const list = readQueue()
-      const worker = window.__BR_WORKER__
-      const cache = BuryReport.cache
-
-      // 有 worker 时，store:false 的缓存数据交给 worker 上报；
-      // 无 worker（创建失败或已终止）时并入主线程请求，避免数据丢失
-      const queuePayload = list.map(item => ({ appid, ...item }))
-      // 页面卸载时 Worker 可能先于 keepalive 请求被浏览器终止，因此 cache 必须
-      // 跟随主线程的 keepalive 一起发送，不能只投递给 Worker。
-      // 录屏数据仍交给 Worker：它有独立的 gzip 协议和体积控制，不能混入普通日志。
-      const workerCache = keepalive && worker
-        ? cache.filter(item => item.type === OPERATION_TRACK)
-        : cache
-      const mainCache = keepalive && worker
-        ? cache.filter(item => item.type !== OPERATION_TRACK)
-        : cache
-      const cachePayload = worker && !keepalive ? [] : mainCache.map(item => ({ appid, ...item }))
-
-      const postWorkerCache = () => {
-        if (!worker || !workerCache.length) return
-        try {
-          worker.postMessage({
-            type: 'report',
-            appid,
-            sessionid: getSessionId(),
-            deviceid: getUuid(),
-            store: workerCache,
-            keepalive,
-            // 0 表示不限制：worker 内部同样按该次数判断是否停止重试
-            maxRetry: Number.isFinite(maxRetry) ? maxRetry : 0,
-          })
-          // 已交给 worker（worker 内部负责失败重试）；仅 worker 存活时移除已交付的这批
-          if (window.__BR_WORKER__) {
-            BuryReport.cache = dropRefs(BuryReport.cache, workerCache)
-          }
-        } catch (err) {
-          console.warn('[report-core] worker postMessage error: ' + err)
-          // worker 不可用：保留缓存，下个周期降级由主线程发送
-          failed = true
-          window.__BR_WORKER__ = undefined
-        }
-      }
-
-      // keepalive 下实际发出的条数，未发出的部分保留给下次会话
-      let sentQueue = list.length
-
-      let queueOk = true
-      if (keepalive) {
-        // 页面即将关闭：浏览器对 keepalive 请求总量有约 64KB 限制，超出部分会被直接丢弃，
-        // 因此只在预算内发送，剩余数据留在队列里等下次会话补发
-        const queuePart = pickWithinBudget(queuePayload, MAX_KEEPALIVE_TOTAL_BYTES)
-        const cachePart = pickWithinBudget(cachePayload, MAX_KEEPALIVE_TOTAL_BYTES - queuePart.used)
-        sentQueue = queuePart.sent.length
-
-        const chunks = splitBySize([...queuePart.sent, ...cachePart.sent], MAX_KEEPALIVE_BYTES)
-        // 按大小分片同步发起。请求已交给浏览器后，页面可能立刻销毁，
-        // 因而不能在这之前删除持久化记录；只有 fulfilled 的分片才允许清理。
-        const requests = chunks.map(chunk => {
-          try {
-            return fetch(options.url, {
-              method: 'post',
-              mode: 'no-cors',
-              headers: {
-                'Content-Type': 'text/plain; charset=utf-8',
-              },
-              keepalive: true,
-              cache: 'no-store',
-              credentials: 'omit',
-              priority: 'low',
-              body: JSON.stringify({ appid, data: chunk }),
-            }).catch((err) => {
-              console.warn('[report-core] fetch error: ' + err)
-              throw err
-            })
-          } catch (err) {
-            console.warn('[report-core] fetch error: ' + err)
-            return Promise.reject(err)
-          }
-        })
-
-        // 录屏数据不等待普通 keepalive 的 Promise，必须在 pagehide 返回前立即交给 Worker。
-        postWorkerCache()
-        const results = await Promise.allSettled(requests)
-        const sentQueueRecords: any[] = []
-        const sentMainCacheRecords: any[] = []
-        let offset = 0
-        results.forEach((result, index) => {
-          const chunk = chunks[index]
-          if (result.status === 'fulfilled') {
-            chunk.forEach((_item, itemIndex) => {
-              const sentIndex = offset + itemIndex
-              if (sentIndex < sentQueue) sentQueueRecords.push(list[sentIndex])
-              else sentMainCacheRecords.push(mainCache[sentIndex - sentQueue])
-            })
-          }
-          offset += chunk.length
-        })
-        writeQueue(removeSentRecords(readQueue(), sentQueueRecords))
-        BuryReport.cache = dropRefs(BuryReport.cache, sentMainCacheRecords)
-      } else if (queuePayload.length || cachePayload.length) {
-        try {
-          await fetch(options.url, {
-            method: 'post',
-            mode: 'no-cors',
-            headers: {
-              'Content-Type': 'text/plain; charset=utf-8',
-            },
-            keepalive: false,
-            cache: 'no-store',
-            credentials: 'omit',
-            priority: 'low',
-            body: JSON.stringify({ appid, data: [...queuePayload, ...cachePayload] }),
-          })
-        } catch (err) {
-          // 网络失败：保留队列，等待下个周期重试
-          console.warn('[report-core] fetch error: ' + err)
-          queueOk = false
-          failed = true
-        }
-      }
-
-      if (!keepalive) postWorkerCache()
-
-      // 只删除“本次实际投递成功”的那批记录，保留发送期间新进入队列 / 缓存的数据，
-      // 避免请求期间产生的新数据在成功时被一并清空导致丢失
-      let sentQueueRecords: any[] | undefined
-      if (!keepalive && queueOk) sentQueueRecords = list
-      if (sentQueueRecords) {
-        writeQueue(removeSentRecords(readQueue(), sentQueueRecords))
-      }
-
-      if (!worker && !keepalive && queueOk) {
-        // 无 worker：缓存已并入主线程请求，成功后移除已发出的这批
-        BuryReport.cache = dropRefs(BuryReport.cache, cache)
-      }
-    } catch (err) {
-      // 任何发送过程中的异常都不能影响宿主，仅记录警告
-      console.warn('[@sepveneto/report-core] send request failed: ' + err)
-      failed = true
-    } finally {
-      if (!overlapsNormalSend) sending = false
-
-      if (stopped) return
-
-      // keepalive（页面关闭）失败不重试，也不参与普通发送的失败计数与调度
-      if (keepalive) return
-
-      const needsFollowUp = pendingSend || pendingImmediate
-      pendingSend = false
-      pendingImmediate = false
-
-      if (failed) {
-        failStreak += 1
-        // 重试指定次数后仍然失败：中止上报相关操作（含录屏）
-        if (failStreak > maxRetry) {
-          console.warn(`[@sepveneto/report-core] report disabled after ${failStreak - 1} retries`)
-          exhaust()
-          return
-        }
-        // 失败后自动重试：仅保留一个定时器，节流在发送周期内，不增加宿主负担
-        scheduleSend()
-      } else {
-        failStreak = 0
-        // 请求期间新增过数据时继续排空；即使定时器被替换或清除，也不会把后续数据留在缓存中
-        if (needsFollowUp) sendRequest()
-      }
-    }
-  }
-
-  const report = (
-    type: string,
-    data: Record<string, any>,
-    options: ReportOptions = {},
-  ) => {
-    // 上报链路的任何异常都不能抛给业务调用方（含入参异常）
-    try {
-      // 已中止上报：直接丢弃，避免队列继续增长
-      if (stopped) return
-
-      // TODO: 网络日志是否需要区分发起时间和响应时间
-      const record = storageReport(type, data, Date.now())
-
-      const {
-        store = true,
-        flush = false,
-        immediate = false,
-        keepalive = false,
-      } = options || {}
-
-      if (store) {
-        writeMemory(record, flush)
-      } else {
-        // 如果不需要存入本地缓存，那就得把数据写入到另一块内存中
-        // 否则当执行刷新操作时，内存中的数据仍然会写入到本地缓存中
-        BuryReport.cache.push(record)
-        // 内存缓存设置上限，避免无界增长影响宿主内存
-        if (BuryReport.cache.length > MAX_CACHE_COUNT) {
-          BuryReport.cache.splice(0, BuryReport.cache.length - MAX_CACHE_COUNT)
-        }
-      }
-
-      if (sending) pendingSend = true
-
-      if (immediate) {
-        sendRequest(keepalive, immediate)
-      }
-
-      scheduleSend()
-    } catch (err) {
-      console.warn('[@sepveneto/report-core] report failed: ' + err)
-    }
-  }
-
-  globalThis[REPORT_REQUEST] = report
-  return report
 }
